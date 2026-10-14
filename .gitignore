@@ -39,3 +39,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# tooling
+.velite
+/test-results
+/playwright-report
+/.lighthouseci
+/public/static
+.claude/scheduled_tasks.lock

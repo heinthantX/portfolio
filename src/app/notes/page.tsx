@@ -40,6 +40,7 @@ export default function NotesPage() {
             key={note.slug}
             href={`/notes/${note.slug}`}
             data-reveal
+            data-cursor="Read"
             className="group flex flex-col sm:flex-row sm:items-baseline justify-between gap-3 py-6 transition-colors"
           >
             <div className="flex flex-col sm:flex-row sm:items-baseline gap-2 sm:gap-6 min-w-0">

@@ -27,7 +27,7 @@ export function ContactCTA({ index = "08", total = 8 }: ContactCTAProps) {
 
         <div className="mt-8 flex flex-wrap items-center gap-4 sm:gap-6">
           <Button asChild>
-            <Link href="/contact" className="gap-2">
+            <Link href="/contact" data-magnetic className="gap-2">
               <span>Get in touch</span>
               <span aria-hidden="true">→</span>
             </Link>

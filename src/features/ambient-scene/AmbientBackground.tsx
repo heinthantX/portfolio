@@ -33,7 +33,7 @@ export function AmbientBackground() {
 
   if (!variant || !ready) return null;
   return (
-    <div aria-hidden className="no-print pointer-events-none fixed inset-0 -z-10">
+    <div aria-hidden className="ambient-mask no-print pointer-events-none fixed inset-0 -z-10">
       <AmbientCanvas variant={variant} />
     </div>
   );

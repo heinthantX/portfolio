@@ -92,6 +92,7 @@ export function WorkFilter({ items }: WorkFilterProps) {
                     tabIndex={-1}
                     aria-hidden="true"
                     className="block"
+                    data-cursor="View"
                   >
                     <div className="relative aspect-[16/10] w-full overflow-hidden rounded-md border border-line bg-surface transition-colors duration-200 group-hover:border-signal">
                       <Image
@@ -118,6 +119,7 @@ export function WorkFilter({ items }: WorkFilterProps) {
                     <Link
                       href={`/work/${item.slug}`}
                       className="hover:text-signal transition-colors"
+                      data-cursor="View"
                     >
                       {item.title}
                     </Link>
@@ -131,6 +133,7 @@ export function WorkFilter({ items }: WorkFilterProps) {
                     <Link
                       href={`/work/${item.slug}`}
                       className="link-underline inline-flex items-center gap-1 font-mono text-xs uppercase tracking-[0.12em] text-signal"
+                      data-cursor="View"
                     >
                       Read case study →
                     </Link>

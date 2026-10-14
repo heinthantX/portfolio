@@ -36,6 +36,7 @@ export function FeaturedWork({ index = "04", total = 8 }: FeaturedWorkProps) {
                     tabIndex={-1}
                     aria-hidden="true"
                     className="block"
+                    data-cursor="View"
                   >
                     <div className="relative aspect-[16/10] w-full overflow-hidden rounded-md border border-line bg-surface transition-colors duration-200 group-hover:border-signal">
                       <Image
@@ -67,6 +68,7 @@ export function FeaturedWork({ index = "04", total = 8 }: FeaturedWorkProps) {
                     <Link
                       href={`/work/${item.slug}`}
                       className="transition-colors hover:text-signal"
+                      data-cursor="View"
                     >
                       {item.title}
                     </Link>
@@ -80,6 +82,7 @@ export function FeaturedWork({ index = "04", total = 8 }: FeaturedWorkProps) {
                     <Link
                       href={`/work/${item.slug}`}
                       className="link-underline inline-flex items-center gap-1 font-mono text-xs uppercase tracking-[0.12em] text-signal transition-colors hover:text-signal-strong"
+                      data-cursor="View"
                     >
                       Read case study →
                     </Link>

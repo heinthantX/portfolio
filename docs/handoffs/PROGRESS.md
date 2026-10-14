@@ -6,6 +6,7 @@ Spec: `docs/handoffs/2026-10-15-portfolio-build.md`. Times are Asia/Bangkok.
 - 2026-10-15 01:56 — Run 1 started (Window A). git init, Next 16.4.1 scaffold, deps installed.
 
 ## Notes for the next run
+- agy image quota (gemini-3.1-flash-image) exhausted at 02:30; resets ~06:37 Bangkok. Missing covers: cap-frontend, cap-mobile, cap-backend, cap-devops, work-offline-field-notes, work-link-shortener-analytics, work-zero-downtime-deploy-pipeline, og-background. Prompts in DECISIONS/CREDITS; rerun after 06:40, then `node scripts/optimize-media.mjs`.
 - Owner requirements added mid-run: theme = OS on first visit, two-state toggle (D2); animations/3D must adapt to dark vs light mood (D4). Read DECISIONS.md D2–D4 before P2.
 - Owner is asleep from 02:15: act fully autonomously (pre-approvals in §2 still bound the scope). Autocompact at 350k context: keep this file current after every step.
 - Next.js 16.4: read `node_modules/next/dist/docs/` before writing Next code (cacheComponents is on).
@@ -18,18 +19,18 @@ Spec: `docs/handoffs/2026-10-15-portfolio-build.md`. Times are Asia/Bangkok.
 - [x] R2 (02:18) Concept panel (4 panelists × 3 concepts)
 - [x] R3 (02:21) Key-frame images for top 5 concepts
 - [x] R4 (02:25; Blueprint 24 vs Cluster 21) Judge → DECISIONS.md
-- [ ] R5 /lab prototypes top 2 → pick
-- [ ] R6 docs/design/SPEC.md
+- [x] R5 (02:45; Blueprint wins, Cluster merged into INFRA) /lab prototypes top 2 → pick
+- [x] R6 (02:47) docs/design/SPEC.md
 ### P0 Scaffold + DevOps tooling
 - [x] P0a git init, Next app, deps (01:58)
 - [x] P0b (02:06) Biome, lefthook, Vitest, Playwright configs + scripts
 - [x] P0c (02:06) Dockerfile + compose, GH Actions, Renovate, .editorconfig, README skeleton
 ### P1 Design system + content
-- [ ] P1a tokens, fonts, dot grid, layout shell, header/footer, theme toggle
+- [x] P1a (02:25) tokens, fonts, dot grid, layout shell, header/footer, theme toggle
 - [ ] P1b shadcn/ui base components restyled, useReveal
 - [~] P1c profile+velite done; mock filter + #site alias pending — profile.ts + zod; Velite collections + mock filter
 - [x] P1d (02:18) content: 4 mock case studies, real portfolio case study, 6 notes
-- [ ] P1e TODO-CONFIRM.md, docs/EDITING.md
+- [x] P1e (02:31) TODO-CONFIRM.md, docs/EDITING.md
 - [ ] P1f cover + OG images (agy image-generator)
 ### P2 3D scene
 - [ ] P2a layers/objects/labels, packets, containers

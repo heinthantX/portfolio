@@ -195,6 +195,42 @@ html.lenis body {
   overflow: hidden;
 }
 
+/* Scroll reveals: native scroll-driven animations, so nothing touches the DOM before hydration.
+   Browsers without animation-timeline (and reduced motion) just show the content. */
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    [data-reveal] {
+      animation: reveal linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 70%;
+    }
+    [data-draw] {
+      animation: draw-x linear both;
+      animation-timeline: view();
+      animation-range: entry 20% cover 45%;
+    }
+    [data-draw="y"] {
+      animation-name: draw-y;
+    }
+  }
+}
+@keyframes reveal {
+  from {
+    opacity: 0;
+    translate: 0 16px;
+  }
+}
+@keyframes draw-x {
+  from {
+    scale: 0 1;
+  }
+}
+@keyframes draw-y {
+  from {
+    scale: 1 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

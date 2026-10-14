@@ -2,7 +2,7 @@
 
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { type LenisRef, ReactLenis } from "lenis/react";
+import { type LenisRef, ReactLenis, useLenis } from "lenis/react";
 import { useEffect, useRef } from "react";
 
 gsap.registerPlugin(ScrollTrigger);
@@ -15,16 +15,11 @@ export function SmoothScroll({ children }: { children: React.ReactNode }) {
   const lenisRef = useRef<LenisRef>(null);
 
   useEffect(() => {
-    const lenis = lenisRef.current?.lenis;
-    if (!lenis) return;
-    lenis.on("scroll", ScrollTrigger.update);
-    const tick = (time: number) => lenis.raf(time * 1000);
+    // Resolve the instance on every tick: ReactLenis creates it after this effect runs.
+    const tick = (time: number) => lenisRef.current?.lenis?.raf(time * 1000);
     gsap.ticker.add(tick);
     gsap.ticker.lagSmoothing(0);
-    return () => {
-      gsap.ticker.remove(tick);
-      lenis.off("scroll", ScrollTrigger.update);
-    };
+    return () => gsap.ticker.remove(tick);
   }, []);
 
   return (
@@ -33,7 +28,13 @@ export function SmoothScroll({ children }: { children: React.ReactNode }) {
       ref={lenisRef}
       options={{ autoRaf: false, lerp: 0.12, smoothWheel: !reducedMotion(), anchors: true }}
     >
+      <ScrollTriggerSync />
       {children}
     </ReactLenis>
   );
+}
+
+function ScrollTriggerSync() {
+  useLenis(ScrollTrigger.update);
+  return null;
 }

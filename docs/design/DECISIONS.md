@@ -29,8 +29,8 @@ Lost: Trace, Pipeline, Deck, Topology, Control Room (lower feasibility or weaker
 
 ## D2 — Theme: system by default (2026-10-15 02:31, owner request)
 
-Owner asked for dark mode, light mode and auto-detecting the OS setting. `next-themes` with `defaultTheme="system"` + `enableSystem`; the header toggle cycles system → light → dark (icon shows the saved choice, `aria-label` names current and next). Before JS runs, a `prefers-color-scheme: light` media query on `:root:not(.dark)` applies the light tokens, so there is no wrong-theme flash and no-JS visitors still follow the OS. Dark stays the designed-first theme (screenshots, poster default).
-Lost: dark-only default (the brief's original), a 3-option dropdown (one more popover for a 3-state setting).
+Owner asked for dark mode, light mode and auto-detecting the OS setting. `next-themes` with `defaultTheme="system"` + `enableSystem`; the first visit follows the OS; the header toggle is a two-state light ↔ dark switch (owner: no separate "system" option). Once clicked, the choice is saved. Before JS runs, a `prefers-color-scheme: light` media query on `:root:not(.dark)` applies the light tokens, so there is no wrong-theme flash and no-JS visitors still follow the OS. Dark stays the designed-first theme (screenshots, poster default).
+Lost: dark-only default (the brief's original), a system/light/dark cycle (owner rejected the extra option).
 
 ## D3 — Mermaid rendered client-side, lazily (2026-10-15 02:28)
 

@@ -39,6 +39,10 @@ export function checkRateLimit(
   const existing = store.get(key);
 
   if (!existing || now >= existing.resetAt) {
+    // Keep memory bounded: sweep expired windows once the map gets large.
+    if (store.size > 1000) {
+      for (const [k, entry] of store) if (now >= entry.resetAt) store.delete(k);
+    }
     const resetAt = now + windowMs;
     store.set(key, { count: 1, resetAt });
     return {

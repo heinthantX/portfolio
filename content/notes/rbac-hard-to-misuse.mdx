@@ -1,0 +1,95 @@
+---
+title: "Designing RBAC that is hard to misuse"
+slug: "rbac-hard-to-misuse"
+summary: "Architectural principles for robust role-based access control, focusing on capability-oriented permissions, resource scoping, compile-time type safety, and centralized enforcement."
+date: "2026-04-22"
+tags:
+  - "security"
+  - "rbac"
+  - "backend"
+  - "architecture"
+mock: true
+---
+
+Role-based access control (RBAC) often begins as a simple column on a user table. An application requires distinguishing standard users from administrative staff, so developers add an enumeration containing values like viewer, editor, and admin. At the route level, checks inspect whether the caller has the admin role before allowing access.
+
+As business requirements expand, this naive approach quickly becomes a major source of security vulnerabilities. Roles are broad classifications of identity, not direct statements of authority. When authorization logic scatters across handlers, services, and database queries, subtle gaps emerge where unauthorized users can view or alter sensitive resources. Designing an access control system that resists developer misconfiguration requires separating roles from permissions, binding checks to resource boundaries, and leveraging type-safe guards.
+
+## The Pitfalls of Coarse Role Checking
+
+The primary failure mode of simple RBAC is checking identity labels rather than specific capabilities. When an endpoint verifies that a user role matches admin, that check answers who the user is rather than what specific operation they may perform on a targeted resource.
+
+This creates several architectural problems:
+
+First, role proliferation occurs. When product requirements demand that a project manager can invite team members but cannot delete billing profiles, teams frequently create hybrid roles such as project-manager-billing-restricted. The role matrix grows exponentially, making permission auditing nearly impossible.
+
+Second, multi-tenant isolation breaks down. A user might possess the admin role within their own workspace, but an authorization check that merely verifies the role string without scoping the query to the tenant identifier allows cross-organization access. This vulnerability, known as broken object level authorization, consistently ranks among the most critical API security flaws.
+
+Third, role checks are brittle during refactoring. If permissions are tied to role names hard-coded across fifty controller files, adding a new role requires auditing and modifying every route handler.
+
+## Decoupling Roles into Fine-Grained Permissions
+
+A more resilient architecture separates user assignments from action evaluation. In this pattern, users belong to roles, but code paths never inspect roles directly. Instead, roles resolve to a discrete set of granular permission strings composed of resource and action tuples, such as documents:read, documents:export, or billing:update.
+
+```ts
+type Resource = "documents" | "projects" | "billing" | "audit_logs";
+type Action = "read" | "write" | "delete" | "manage";
+type Permission = `${Resource}:${Action}`;
+
+interface SecurityContext {
+  userId: string;
+  tenantId: string;
+  permissions: Set<Permission>;
+}
+
+interface AuthorizableEntity {
+  id: string;
+  tenantId: string;
+}
+
+class AuthorizationService {
+  can(context: SecurityContext, permission: Permission): boolean {
+    return context.permissions.has(permission) || context.permissions.has("documents:manage");
+  }
+
+  enforceScope<T extends AuthorizableEntity>(
+    context: SecurityContext,
+    entity: T,
+    permission: Permission
+  ): T {
+    if (!this.can(context, permission)) {
+      throw new Error("Forbidden: Missing required capability");
+    }
+
+    if (entity.tenantId !== context.tenantId) {
+      throw new Error("Forbidden: Cross-tenant access denied");
+    }
+
+    return entity;
+  }
+}
+```
+
+By decoupling roles from execution logic, the authorization engine provides flexibility. Modifying what an editor can do involves updating a configuration mapping in a single policy definition rather than altering business code across multiple services.
+
+## Enforcing Authorization at the Storage Boundary
+
+Relying entirely on API middleware to enforce permissions leaves internal services vulnerable. If a background worker, asynchronous task processor, or internal service communicates directly with the persistence layer, boundary checks may be bypassed inadvertently.
+
+To make authorization resilient to developer oversight, access boundaries should be pushed as close to data retrieval as possible. Scoped query builders or database-level row-level security (RLS) ensure that even if an API route forgets to validate tenant parameters, queries automatically append tenant filters to every SQL transaction.
+
+When queries automatically restrict results to the authenticated tenant context, an entire category of cross-tenant data leaks becomes structurally impossible to write.
+
+## Compile-Time Safety and Policy Ergonomics
+
+Security models succeed when safe usage is the path of least resistance. If verifying authorization requires writing five lines of boilerplate per controller method, developers will eventually omit checks under delivery deadlines.
+
+By using typed policy guards or higher-order resolver wrappers, authorization requirements become part of the function signature. If a function requires a verified security token with specific permissions, passing an unvalidated context produces a TypeScript compiler error.
+
+Furthermore, authorization policies must remain strictly declarative. When permission evaluation logic is embedded within complex conditional branching inside business transactions, reasoning about access rules requires executing the entire workflow mentally. Expressing access policies as pure evaluation functions makes testing straightforward: unit tests can verify hundreds of permission permutations in milliseconds without mocking database connections.
+
+## Auditing and Safe Defaults
+
+The final pillar of resilient access control is adopting a default-deny posture accompanied by structured audit logging. If an unrecognized action string appears or an entity lacks an explicit policy, the system must fail closed.
+
+Every authorization decision, whether approved or rejected, should emit a structured telemetry event containing the actor identifier, the required permission, the target resource identifier, and the tenant context. When access evaluation is centralized, security audits become continuous operational telemetry rather than stressful manual reviews.

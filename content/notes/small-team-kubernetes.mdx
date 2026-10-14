@@ -1,0 +1,106 @@
+---
+title: "A small-team Kubernetes setup that doesn't need a platform team"
+slug: "small-team-kubernetes"
+summary: "Pragmatic Kubernetes practices for small engineering teams, focusing on managed control planes, minimal manifest sprawl, and self-healing defaults."
+date: "2026-08-14"
+tags:
+  - "kubernetes"
+  - "devops"
+  - "docker"
+  - "infrastructure"
+mock: true
+---
+
+Kubernetes has a reputation for overwhelming operational complexity. Many small engineering teams avoid container orchestration altogether or adopt it only to find themselves buried under custom controllers, complex service meshes, and unmanageable Helm charts.
+
+However, Kubernetes does not require a dedicated twenty-person platform team. When approached with strict discipline, declarative standards, and a refusal to adopt non-essential tooling, Kubernetes provides small teams with exceptional stability, declarative rollouts, and self-healing infrastructure with surprisingly low ongoing maintenance.
+
+## Resisting Platform Over-Engineering
+
+The most frequent mistake small teams make is treating their cluster like an experimental laboratory. Within weeks of spinning up a cluster, engineers install a service mesh, three different ingress controllers, distributed tracing operators, and custom policy admission webhooks.
+
+Every additional controller running in a cluster increases control plane overhead, complicates version upgrades, and introduces failure modes during cluster node recycles. For a team of five to twenty engineers running stateless web applications and background workers, a service mesh provides almost no tangible benefit while dramatically complicating network debugging.
+
+A small team should adopt a conservative operational rule: unless a tool solves an immediate, unavoidable operational pain point that cannot be addressed with native Kubernetes primitives, do not install it.
+
+## The Rule of Managed Control Planes
+
+Never self-manage Kubernetes control planes or etcd clusters. Provisioning and maintaining etcd quorum, handling master node certificates, and orchestrating control plane upgrades requires continuous operational diligence that drains engineering time.
+
+Managed Kubernetes services handle master node high availability, automated patch updates, and control plane backups automatically. Offloading control plane operations allows small teams to interact with Kubernetes purely as a standardized API consumer.
+
+## A Production-Ready Pod Baseline
+
+Reliability in Kubernetes does not come from esoteric operators; it comes from getting basic pod configurations right. An unconfigured pod deployment can easily cause cascading cluster outages during rolling deployments.
+
+Every deployment must specify four core configurations: accurate resource requests and limits to assist the scheduler, meaningful liveness and readiness probes, pod disruption budgets to survive node upgrades, and topology spread constraints to distribute replicas across availability zones.
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-service
+  namespace: production
+  labels:
+    app.kubernetes.io/name: api-service
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: api-service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: api-service
+    spec:
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: api-service
+      containers:
+        - name: app
+          image: ghcr.io/org/api-service:v1.4.2
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              memory: 1Gi
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 20
+```
+
+Readiness probes prevent traffic from hitting pods before caches warm up or database pools connect. Liveness probes restart frozen processes without human intervention. Setting memory limits without aggressive CPU limits prevents unnecessary CPU throttling while protecting nodes against memory leaks.
+
+## Secrets and Configuration Hygiene
+
+Managing environment variables through ad-hoc manual commands leads to configuration drift between environments. Small teams should keep all cluster manifests in version control.
+
+For secrets, tools like Sealed Secrets or external secrets operators synchronizing with managed cloud key vaults allow encrypted secrets to reside safely within Git repositories. Developers make changes via pull requests, and automated deployment pipelines synchronize state without anyone needing direct cluster access tokens.
+
+## Pragmatic GitOps Without Helm Sprawl
+
+Helm is powerful for packaging public reusable applications, but using deeply nested Helm templates for internal proprietary microservices frequently creates unreadable YAML abstractions.
+
+A simpler approach for small teams is plain Kustomize. Because Kustomize is built directly into kubectl, teams can define a clean base directory of declarative manifests and overlay environment-specific patches for staging and production without templating engines. Pair this with a lightweight GitOps engine to maintain automated reconciliation with minimal operational overhead.
+
+## Low-Maintenance Observability
+
+Instead of hosting an elaborate self-hosted monitoring cluster that requires its own maintenance, small teams benefit from running lightweight metric collectors that export directly to managed Prometheus or cloud monitoring backends.
+
+Setting up four basic alerts—elevated HTTP error rates, high pod restart counts, persistent pending pods, and node memory pressure—provides comprehensive operational visibility without alert fatigue.

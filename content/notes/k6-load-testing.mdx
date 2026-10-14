@@ -1,0 +1,94 @@
+---
+title: "Load testing an API with k6: finding the real ceiling"
+slug: "k6-load-testing"
+summary: "A methodology for designing realistic k6 load tests that uncover connection exhaustion, database contention, and tail latency bottlenecks."
+date: "2026-05-18"
+tags:
+  - "devops"
+  - "observability"
+  - "k6"
+  - "performance"
+  - "testing"
+mock: true
+---
+
+Many performance testing efforts begin and end with running a simple benchmark tool against a health check or single read endpoint. The tool reports thousands of requests per second, the team celebrates, and the system is declared production-ready. Weeks later, production experiences degraded performance during normal peak usage.
+
+Synthetic micro-benchmarks rarely simulate how real applications fail. Real distributed systems do not degrade smoothly when overloaded; they hit sudden cliff edges caused by thread exhaustion, connection pool starvation, memory thrashing, or database lock contention. Finding the genuine ceiling of an API requires designing realistic traffic patterns, modeling user journeys, and isolating failure modes using a scriptable engine like k6.
+
+## The Trap of Average Response Times
+
+The most deceptive metric in load testing is the arithmetic mean. In a test run of one hundred thousand requests, a few hundred severely delayed requests will barely move an average latency calculation. Yet in a modern web architecture, where a single page render triggers multiple backend queries, a user experiencing high tail latency perceives the entire application as stalled.
+
+Load test assertions must focus on percentiles: p90, p95, and p99. More importantly, testing must measure throughput alongside latency curves. When incoming request rate increases linearly, a healthy service maintains stable latency until reaching capacity. Once saturation occurs, throughput plateaus while latency spikes exponentially. Finding this transition point is the core objective of stress testing.
+
+## Modeling Realistic Traffic Profiles
+
+Real users do not hammer identical endpoints simultaneously without pause. Accurate load tests incorporate three key elements:
+
+First, realistic think time. Inserting randomized pauses between consecutive actions prevents artificial request grouping that distorts connection reuse.
+
+Second, proportional traffic distribution. A typical workload consists of a high volume of lightweight read operations, a moderate volume of complex filtered queries, and a smaller fraction of state-modifying writes. Testing only reads hides lock contention, while testing only writes creates artificial write amplification.
+
+Third, dynamic session states. Using static tokens or querying the exact same database record allows database buffer pools and application caches to serve requests from RAM, masking slow disk queries.
+
+## Writing Multi-Stage Scenarios in k6
+
+k6 provides a modern JavaScript/TypeScript runtime with high-concurrency Go internals. Using multi-stage ramps enables discovering both normal operating headroom and breaking points.
+
+```ts
+import http from "k6/http";
+import { check, sleep } from "k6";
+import { Options } from "k6/options";
+
+export const options: Options = {
+  stages: [
+    { duration: "2m", target: 50 },  // Warm-up to baseline traffic
+    { duration: "5m", target: 200 }, // Sustained standard load
+    { duration: "2m", target: 500 }, // Stress phase to find saturation
+    { duration: "1m", target: 0 },   // Recovery and drain
+  ],
+  thresholds: {
+    http_req_failed: ["rate<0.01"],         // Less than 1 percent error rate
+    http_req_duration: ["p(95)<400"],       // 95 percent of requests under 400ms
+    "http_req_duration{type:read}": ["p(99)<250"],
+  },
+};
+
+export default function (): void {
+  const params = {
+    headers: { "Content-Type": "application/json" },
+    tags: { type: "read" },
+  };
+
+  const response = http.get("https://api.internal.local/v1/resources", params);
+
+  check(response, {
+    "status is 200": (r) => r.status === 200,
+    "payload has records": (r) => (r.json("data") as unknown[]).length > 0,
+  });
+
+  // Randomized think time between 1 and 3 seconds
+  sleep(Math.random() * 2 + 1);
+}
+```
+
+## Diagnosing Connection Exhaustion and Pool Starvation
+
+When an API degrades during a k6 stress test, identifying the limiting resource requires cross-referencing client metrics with server telemetry.
+
+A frequent bottleneck is connection pool exhaustion between the application server and the persistence layer. If an application pool allows fifty connections and each incoming request holds a database connection while waiting on downstream network calls, incoming requests queue in memory. As the queue grows, request timeouts cascade, causing reverse proxies to terminate connections with 504 Gateway Timeout errors.
+
+Load tests reveal whether increasing pool sizes resolves the issue or merely shifts the bottleneck into database CPU exhaustion.
+
+## Uncovering Database Lock Contention
+
+Read-only tests cannot detect row-level locking or transaction serialization issues. Under write load, concurrent transactions attempting to modify related records can experience lock waits or deadlocks.
+
+By incorporating realistic transactional mutations into k6 test scenarios, engineers can observe database lock wait telemetry in real time. If transaction duration spikes dramatically while CPU utilization remains modest, the bottleneck is concurrency serialization rather than compute capacity.
+
+## Establishing Performance Budgets in CI
+
+Load testing should not remain an isolated manual exercise before major releases. Integrating lightweight performance regression tests into continuous deployment pipelines prevents architectural regressions from reaching staging environments.
+
+Running automated smoke tests with strict threshold gates ensures that every schema modification, dependency upgrade, and query optimization respects established latency and error budgets.

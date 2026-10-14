@@ -8,10 +8,11 @@ Spec: `docs/handoffs/2026-10-15-portfolio-build.md`. Times are Asia/Bangkok.
 ## Notes for the next run
 - Next.js 16.4: read `node_modules/next/dist/docs/` before writing Next code (cacheComponents is on).
 - Background agy jobs: `agy-job` / `/antigravity:status`.
+- agy: no Pro model on this plan (`Gemini 3.1 Pro` gone; `Gemini 4 Argon` listed but "Unavailable" as of 02:06). Use `--model "Gemini 3.8 Flash (High)"` for pro-tier work; switch to Argon once `agy models` lists it. Always pass `--timeout 30m` (default 5m kills big jobs).
 
 ## Core backlog
 ### R Research + brainstorm
-- [ ] R1 Research → docs/design/RESEARCH.md + refs screenshots
+- [x] R1 (02:05; 13/20 screenshots captured) Research → docs/design/RESEARCH.md + refs screenshots
 - [ ] R2 Concept panel (4 panelists × 3 concepts)
 - [ ] R3 Key-frame images for top 5 concepts
 - [ ] R4 Judge → DECISIONS.md
@@ -19,8 +20,8 @@ Spec: `docs/handoffs/2026-10-15-portfolio-build.md`. Times are Asia/Bangkok.
 - [ ] R6 docs/design/SPEC.md
 ### P0 Scaffold + DevOps tooling
 - [x] P0a git init, Next app, deps (01:58)
-- [ ] P0b Biome, lefthook, Vitest, Playwright configs + scripts
-- [ ] P0c Dockerfile + compose, GH Actions, Renovate, .editorconfig, README skeleton
+- [x] P0b (02:06) Biome, lefthook, Vitest, Playwright configs + scripts
+- [x] P0c (02:06) Dockerfile + compose, GH Actions, Renovate, .editorconfig, README skeleton
 ### P1 Design system + content
 - [ ] P1a tokens, fonts, dot grid, layout shell, header/footer, theme toggle
 - [ ] P1b shadcn/ui base components restyled, useReveal

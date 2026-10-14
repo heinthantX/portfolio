@@ -1,0 +1,78 @@
+---
+title: "Zero-downtime Postgres migrations"
+slug: "zero-downtime-postgres-migrations"
+summary: "Safe patterns for schema migrations in PostgreSQL, avoiding exclusive locks, managing backfills, and transitioning multi-phase column updates."
+date: "2026-06-30"
+tags:
+  - "postgres"
+  - "database"
+  - "devops"
+  - "migrations"
+mock: true
+---
+
+Database migrations are among the highest-risk operational events in a software lifecycle. While application code can be rolled back or routed through canary deployments in seconds, database schemas represent stateful single points of failure. In PostgreSQL, a seemingly harmless DDL statement executed during peak traffic can acquire an exclusive table lock, block incoming queries, exhaust connection pools, and bring down an entire platform.
+
+Achieving true zero-downtime schema evolution requires understanding Postgres locking mechanics, avoiding table rewrites, and implementing multi-stage expand and contract workflows.
+
+## How Lock Queues Cause Outages
+
+PostgreSQL uses multi-version concurrency control (MVCC) to ensure readers do not block writers and writers do not block readers. However, DDL commands such as ALTER TABLE require table-level locks.
+
+Most altering operations acquire an ACCESS EXCLUSIVE lock. This lock conflicts with every other lock mode, including simple SELECT queries. When a migration script requests an ACCESS EXCLUSIVE lock on an active table, it must wait for all currently running queries on that table to finish.
+
+The catastrophe happens in the lock queue. While the migration transaction waits for active read queries to complete, every new query arriving after the migration request gets queued behind it. Within seconds, hundreds of incoming HTTP worker processes stall waiting for table access. The application pool exhausts its connection limits, health checks fail, and an outage occurs even before the migration statement actually runs.
+
+## Setting Aggressive Lock Timeouts
+
+The first defense against queue buildup is setting a strict lock timeout inside every migration session. By default, PostgreSQL waits indefinitely to acquire locks. Setting a brief lock timeout ensures that if the migration cannot obtain its lock quickly, it aborts immediately rather than forming a blocking queue behind it.
+
+```sql
+-- Step 1: Set a short lock timeout to avoid blocking concurrent traffic
+SET lock_timeout = '2s';
+SET statement_timeout = '30s';
+
+-- Step 2: Add column as nullable without rewrite
+ALTER TABLE orders ADD COLUMN fulfillment_status text;
+
+-- Step 3: Add not-null constraint safely via CHECK constraint
+ALTER TABLE orders 
+  ADD CONSTRAINT check_fulfillment_status_not_null 
+  CHECK (fulfillment_status IS NOT NULL) NOT VALID;
+
+-- Step 4: Validate constraint concurrently without exclusive locking
+ALTER TABLE orders 
+  VALIDATE CONSTRAINT check_fulfillment_status_not_null;
+```
+
+If the migration encounters active transactions, the transaction fails quickly and can be safely retried during lower traffic without degrading active users.
+
+## Adding Columns and Indexes Concurrently
+
+Adding a default value to a column previously required rewriting the entire table on disk. Since PostgreSQL 11, adding a column with a non-volatile default does not rewrite the table; it updates system catalogs in constant time. However, adding an index using the standard CREATE INDEX syntax holds a SHARE lock, which blocks all write operations until the index build finishes. On a table with millions of rows, this write lock can persist for hours.
+
+To avoid blocking writes, indexes must always be created using the CONCURRENTLY keyword. A concurrent index build runs in multiple phases across distinct transactions, allowing SELECT, INSERT, UPDATE, and DELETE operations to proceed normally. Because concurrent builds run outside standard transaction blocks, migration runners must execute them without wrapping transactions.
+
+## The Expand and Contract Pattern
+
+Changing existing column definitions or renaming columns cannot be achieved in a single atomic release without downtime. Older application instances still running during a rolling deployment expect the previous column name, while newly deployed pods expect the new name.
+
+The solution is the multi-phase expand and contract pattern:
+
+Phase 1 (Expand): Add the new column alongside the existing column as nullable. Update the application to dual-write mutations to both columns while continuing to read from the old column. Deploy this change across all services.
+
+Phase 2 (Backfill): Run an asynchronous background batch process to copy historical records from the old column to the new column.
+
+Phase 3 (Transition): Deploy a new application version that reads from the new column and writes to both.
+
+Phase 4 (Contract): Remove write references to the old column from application code, and subsequently drop the old column from Postgres after verifying system stability.
+
+## Batching Large Historical Backfills
+
+Running an unconstrained UPDATE query across millions of historical rows generates massive write-ahead log (WAL) volume, induces replication lag on read replicas, and creates heavy table bloat.
+
+Instead, data backfills must be divided into small, deterministic batches using primary key ranges. Committing each batch in its own transaction releases row locks quickly and allows autovacuum to reclaim dead tuples continuously.
+
+## Automating Migration Safety Checks
+
+Relying on manual code reviews to catch unsafe migrations is error-prone. Modern continuous integration pipelines should incorporate automated linting tools that detect non-concurrent index creations, missing lock timeouts, and destructive column drops before changes ever reach production databases.

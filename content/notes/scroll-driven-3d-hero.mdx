@@ -1,0 +1,123 @@
+---
+title: "Building a scroll-driven 3D hero with React Three Fiber and GSAP"
+slug: "scroll-driven-3d-hero"
+summary: "Architecting performant WebGL interactive scenes by decoupling scroll timelines from the render loop, utilizing instanced meshes, and optimizing memory."
+date: "2026-09-20"
+tags:
+  - "threejs"
+  - "r3f"
+  - "gsap"
+  - "frontend"
+  - "webgl"
+mock: true
+---
+
+Integrating Three.js into a modern web application creates immediate visual impact. When paired with React Three Fiber (R3F), declarative component trees make constructing complex 3D scenes feel familiar to frontend developers. However, binding 3D scene properties to page scroll introduces severe performance pitfalls if architectural boundaries are not respected.
+
+A naive implementation that updates React component state on every scroll event quickly overwhelms the browser main thread. Achieving a consistent sixty or one hundred twenty frames per second requires decoupling scroll timelines from React reconciler passes, driving animation inside the native requestAnimationFrame loop, and enforcing strict draw call budgets.
+
+## The Conflict Between Scroll Events and Render Loops
+
+The primary architectural error in scroll-driven WebGL experiences is passing scroll positions through React state or props. Browsers dispatch scroll events asynchronously, frequently firing dozens of times per second. If each scroll event invokes a React state setter, the entire component subtree recalculates, triggers reconciliation, and generates garbage collection pressure.
+
+Meanwhile, the WebGL canvas renders inside its own continuous rendering loop managed by requestAnimationFrame. Binding render coordinates directly to discrete scroll updates produces noticeable micro-stutter because the scroll event frequency and the monitor refresh rate operate out of phase.
+
+## Decoupling Timelines from React Component State
+
+To achieve smooth, stutter-free motion, the scroll position must never trigger a React re-render. Instead, the scroll tracking mechanism writes progress values directly into a mutable reference or reactive signal. The R3F rendering loop then samples this value on every frame and applies mathematical easing toward the target position.
+
+```ts
+import { useRef } from "react";
+import { useFrame } from "@react-three/fiber";
+import * as THREE from "three";
+import { damp } from "maath/easing";
+
+interface SceneNodeProps {
+  progressRef: React.MutableRefObject<number>;
+}
+
+export function AnimatedMesh({ progressRef }: SceneNodeProps): React.JSX.Element {
+  const meshRef = useRef<THREE.Mesh>(null!);
+
+  useFrame((_state, delta) => {
+    if (!meshRef.current) return;
+
+    // Read target progress from mutable ref without triggering React reconciliation
+    const targetProgress = progressRef.current;
+    const targetY = THREE.MathUtils.lerp(-2, 2, targetProgress);
+
+    // Smoothly damp toward the target coordinate using elapsed frame delta
+    damp(meshRef.current.position, "y", targetY, 0.2, delta);
+    
+    // Subtle continuous rotation independent of scroll
+    meshRef.current.rotation.y += delta * 0.15;
+  });
+
+  return (
+    <mesh ref={meshRef}>
+      <boxGeometry args={[1, 1, 1]} />
+      <meshStandardMaterial color="#E8A33D" roughness={0.3} metalness={0.1} />
+    </mesh>
+  );
+}
+```
+
+By leveraging dampening helpers, the 3D scene smoothly glides toward the scrubbed scroll position. Even if the user scrolls abruptly or uses an aggressive trackpad flick, the animation eases naturally without visual jarring.
+
+## Coordinating GSAP ScrollTrigger with the Canvas
+
+GSAP ScrollTrigger provides robust cross-browser scroll measurement, handling momentum scrolling, pin spacers, and touch normalization. When using ScrollTrigger with R3F, the timeline should update only the numeric value stored in the progress ref:
+
+```ts
+import { useEffect, useRef } from "react";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+
+gsap.registerPlugin(ScrollTrigger);
+
+export function useScrollSync(): React.MutableRefObject<number> {
+  const progressRef = useRef(0);
+
+  useEffect(() => {
+    const trigger = ScrollTrigger.create({
+      trigger: "#hero-container",
+      start: "top top",
+      end: "bottom top",
+      scrub: 0.5,
+      onUpdate: (self) => {
+        progressRef.current = self.progress;
+      },
+    });
+
+    return () => {
+      trigger.kill();
+    };
+  }, []);
+
+  return progressRef;
+}
+```
+
+This strict separation ensures that GSAP handles the DOM scroll physics while Three.js handles the render loop, with zero React component re-renders during scrolling.
+
+## Performance Budgets: Instancing and Draw Calls
+
+Every distinct mesh rendered in Three.js incurs a draw call that requires CPU-to-GPU coordination. Rendering dozens of individual geometry objects degrades frame rates rapidly, particularly on mobile GPUs.
+
+Repeated visual elements—such as floating particles, status indicators, or structural cubes—must be combined using InstancedMesh. An InstancedMesh renders thousands of identical geometries with distinct positions, scales, and colors in a single draw call.
+
+Additionally, dynamic pixel ratio clamping is essential. While high-density mobile screens may support high device pixel ratios, rendering a 3D canvas at maximum DPR burns battery life and causes GPU throttling. Capping devicePixelRatio at 1.5 or 2.0 preserves visual clarity while protecting rendering performance.
+
+## Graceful Degradation and Reduced Motion Support
+
+Not every device can or should execute WebGL scenes. Accessibility and resilience require robust fallbacks:
+
+First, honor prefers-reduced-motion media queries. Users sensitive to motion should be presented with a clean, static architectural snapshot rather than scrubbing animations.
+
+Second, detect WebGL context creation failures. If a client lacks hardware acceleration or has disabled WebGL, the application must quietly replace the canvas container with a pre-rendered high-fidelity image fallback without throwing uncaught JavaScript exceptions.
+
+## Memory Hygiene and Asset Disposal
+
+Single-page applications do not refresh the page when navigating between routes. If textures, geometries, and materials allocated in Three.js are not explicitly disposed of when unmounting, WebGL contexts leak memory until the browser tab crashes.
+
+Always clean up textures, dispose of geometries, and terminate animation triggers in component unmount lifecycles to guarantee long-term stability.

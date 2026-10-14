@@ -17,7 +17,7 @@ export default function NotesPage() {
         data-reveal
       >
         <div>
-          <SectionHeading index="04" slug="notes" title="Technical Notes & Writing" />
+          <SectionHeading index="04" slug="notes" title="Technical Notes & Writing" as="h1" />
           <p className="mt-4 max-w-[68ch] text-muted-foreground leading-relaxed">
             Practical writings on distributed systems, offline-first edge architecture, performance
             ceilings, database migrations, and container infrastructure.

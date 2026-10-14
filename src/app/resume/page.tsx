@@ -137,7 +137,7 @@ export function ResumePage() {
                 >
                   <h3 className="text-xs font-semibold text-text">{cap.title}</h3>
                   <p className="text-xs text-muted-foreground">{cap.pitch}</p>
-                  <p className="font-mono text-[0.6875rem] text-muted-foreground/80">
+                  <p className="font-mono text-[0.6875rem] text-muted-foreground">
                     {cap.stack.join(" · ")}
                   </p>
                 </div>

@@ -50,21 +50,23 @@ export function SectionHeading({
   title,
   id,
   className,
+  as: Heading = "h2",
 }: {
   index: string;
   slug: string;
   title: React.ReactNode;
   id?: string;
   className?: string;
+  as?: "h1" | "h2";
 }) {
   return (
     <div className={cn("max-w-[48rem]", className)} data-reveal>
       <Eyebrow>
         {index} / {slug}
       </Eyebrow>
-      <h2 id={id} className="mt-3 text-[length:var(--text-h2)]">
+      <Heading id={id} className="mt-3 text-[length:var(--text-h2)]">
         {title}
-      </h2>
+      </Heading>
     </div>
   );
 }

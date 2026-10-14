@@ -218,6 +218,7 @@ export function CommandMenu({ items }: CommandMenuProps) {
                     <CommandItem
                       key={item.id}
                       value={`${item.title} ${item.href || ""}`}
+                      keywords={["pages"]}
                       onSelect={() => handleSelect(item)}
                       className="flex cursor-pointer items-center justify-between font-mono text-xs text-text hover:bg-surface-2 data-selected:bg-surface-2 data-selected:text-signal"
                     >
@@ -241,6 +242,7 @@ export function CommandMenu({ items }: CommandMenuProps) {
                     <CommandItem
                       key={item.id}
                       value={`${item.title} ${item.href || ""}`}
+                      keywords={["projects"]}
                       onSelect={() => handleSelect(item)}
                       className="flex cursor-pointer items-center justify-between font-mono text-xs text-text hover:bg-surface-2 data-selected:bg-surface-2 data-selected:text-signal"
                     >
@@ -267,6 +269,7 @@ export function CommandMenu({ items }: CommandMenuProps) {
                     <CommandItem
                       key={item.id}
                       value={`${item.title} ${item.href || ""}`}
+                      keywords={["notes"]}
                       onSelect={() => handleSelect(item)}
                       className="flex cursor-pointer items-center justify-between font-mono text-xs text-text hover:bg-surface-2 data-selected:bg-surface-2 data-selected:text-signal"
                     >

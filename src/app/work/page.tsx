@@ -27,7 +27,7 @@ export default function WorkPage() {
   return (
     <Container className="pt-32 pb-24">
       <div className="mb-12" data-reveal>
-        <SectionHeading index="02" slug="work" title="Selected Projects & Systems" />
+        <SectionHeading index="02" slug="work" title="Selected Projects & Systems" as="h1" />
         <p className="mt-4 max-w-[68ch] text-muted-foreground leading-relaxed">
           Case studies documenting end-to-end engineering: streaming distributed architectures,
           offline-first synchronization, high-throughput backend services, and automated deployment

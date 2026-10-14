@@ -21,7 +21,7 @@ export function HowIWork({ index = "05", total = 8 }: HowIWorkProps) {
             >
               <span
                 aria-hidden="true"
-                className="font-mono text-3xl font-semibold tracking-tight text-muted-foreground/40 select-none sm:text-4xl"
+                className="font-mono text-3xl font-semibold tracking-tight text-muted-foreground select-none sm:text-4xl"
               >
                 {num}
               </span>

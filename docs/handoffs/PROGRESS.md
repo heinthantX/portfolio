@@ -8,6 +8,9 @@ Spec: `docs/handoffs/2026-10-15-portfolio-build.md`. Times are Asia/Bangkok.
 - 2026-10-15 02:52 — State: P0, R, P1 done; P3 pages except home+404 scene done; P4 SEO plumbing done. In flight: P2a scene core, P3 home sections. NEXT: when both land → run gates, wire src/app/page.tsx (StackHero with hero text + About block fading in during RUN, then <HomeSections/>), 404 scene variant in not-found.tsx (stack-404-slot), hero poster script (scripts/hero-poster.mjs, Playwright swiftshader, dark+light at progress 1), resume.pdf, View Transition theme switch, then P5 e2e/axe/LHCI/Docker.
 
 - 2026-10-15 03:12 — Committed 5b59471 (home hero + sheets; Lenis scroll fix; hydration fix via CSS scroll reveals). Owner asked (03:10) for more motion: D6. In flight: sonnet A hero scene fixes (scratchpad sonnet-scene-fix.md), sonnet B ambient backgrounds (sonnet-ambient.md), agy cursor 20261015-031051-65856-1440 (agy-cursor.md). NEXT: verify each in Chrome + scratchpad shoot-hero.mjs, commit, then 404 scene, posters, resume.pdf, P5.
+- 2026-10-15 03:22 — Owner (03:14) rejected the slab-stack hero → D7 "Signal" particle-morph hero, text flowing with the formation. Old scene-fix agent stopped + reverted. In flight: sonnet "Signal" (scratchpad sonnet-signal.md; builds src/features/signal-scene, rewires page.tsx + not-found, deletes stack-scene), sonnet ambient backgrounds (sonnet-ambient.md), agy cursor 20261015-031051-65856-1440. resume.pdf done (print header bug fixed). NEXT: verify all three in Chrome, commit, posters, P5.
+- 2026-10-15 03:45 — Committed: ambient backgrounds c0e5b17, hero intro text (profile.intro), wheel-delta cap + softer Lenis (high-sensitivity mice; verified 1500px flick → 120px glide), cursor ce309ca (native pointer kept per owner "cursor feels heavy"; ring follower; /work 60 fps median 16.7 ms), ambient mask behind content column (owner: readability). Owner asks sent to Signal agent: intro description, damped hero progress, text scrims + points thinning behind text. Signal agent still running. NEXT: verify Signal in Chrome (dark/light/mobile/404, reload mid-page, big wheel flicks, FPS), commit, posters, P5.
+- 2026-10-15 04:00 — Signal hero committed 797018b + polish (verified in Chrome: all 6 chapters, text opposite the formation, 60 fps during transitions, light ink stipple, mobile, 404). Cursor: owner wants custom cursor (not native) but light → dot updates in the same event (pointerrawupdate), ring eases fast (b5bb02b). NEXT: hero posters (scripts/hero-poster.mjs, now final), work-this-portfolio cover, docs (SPEC/README mention stack-scene → update to Signal), then P5 e2e/axe/LHCI/Docker/review.
 
 ## Notes for the next run
 - agy image quota (gemini-3.1-flash-image) exhausted at 02:30; resets ~06:37 Bangkok. Missing covers: cap-frontend, cap-mobile, cap-backend, cap-devops, work-offline-field-notes, work-link-shortener-analytics, work-zero-downtime-deploy-pipeline, og-background. Prompts in DECISIONS/CREDITS; rerun after 06:40, then `node scripts/optimize-media.mjs`.
@@ -37,11 +40,11 @@ Spec: `docs/handoffs/2026-10-15-portfolio-build.md`. Times are Asia/Bangkok.
 - [x] P1e (02:31) TODO-CONFIRM.md, docs/EDITING.md
 - [x] P1f (02:52; 4 AI + 4 concept frames + 4 CC0 stock duotoned; regenerate stock ones after 06:40 if quota allows) cover + OG images (agy image-generator)
 ### P2 3D scene
-- [ ] P2a layers/objects/labels, packets, containers
-- [ ] P2b 5-phase scroll timeline, Ship it again, tilt, hover
-- [ ] P2c fallbacks, perf tiers, 404 variant, hero posters
+- [x] P2a (03:50; replaced by D7 "Signal" particle morph, src/features/signal-scene) layers/objects/labels, packets, containers
+- [x] P2b (03:50; 6 chapters, eased progress, cursor repel; chapter rail replaces Ship it again per D7) scroll timeline, tilt, hover
+- [x] P2c (04:00) fallbacks, perf tiers, 404 variant, hero posters
 ### P3 Pages
-- [~] P3 (02:48: work, notes, RSS, résumé page, uses, contact, ⌘K, 404 shell done; home sections in flight; resume.pdf + 404 scene pending) all §6 pages, contact Server Action, /resume + PDF, ⌘K, 404
+- [x] P3 (03:53: home, resume.pdf, 404 scene done; earlier 02:48: work, notes, RSS, résumé page, uses, contact, ⌘K, 404 shell done; home sections in flight; resume.pdf + 404 scene pending) all §6 pages, contact Server Action, /resume + PDF, ⌘K, 404
 ### P4 SEO + polish
 - [~] P4 (02:52: metadataBase, OG image, sitemap, robots, JSON-LD done; responsive pass, motion tuning, design QA, View-Transition theme switch pending) metadata, OG, sitemap/robots/RSS, JSON-LD, responsive, design QA
 ### P5 Quality

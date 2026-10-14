@@ -1,16 +1,19 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const webgl = ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"];
+// Own port: e2e always runs against a production build, never a dev server on :3000.
+const port = process.env.E2E_PORT ?? "3100";
+const baseURL = `http://localhost:${port}`;
 
 export default defineConfig({
   testDir: "e2e",
   fullyParallel: true,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? "github" : "list",
-  use: { baseURL: "http://localhost:3000", trace: "retain-on-failure" },
+  use: { baseURL, trace: "retain-on-failure" },
   webServer: {
-    command: "pnpm start",
-    url: "http://localhost:3000",
+    command: `pnpm start -p ${port}`,
+    url: baseURL,
     reuseExistingServer: !process.env.CI,
   },
   projects: [

@@ -59,3 +59,25 @@ Owner request (03:10): "add scroll animations and make it smooth, make the 3D no
 - **Lenis tick fix:** the effect read `lenisRef.current.lenis` once on mount, before ReactLenis created it, so `raf` never ran and wheel/trackpad scroll was dead. The tick now resolves the instance every frame (Lenis docs pattern).
 - **Ambient 3D backgrounds** (`src/features/ambient-scene`): one cheap R3F canvas behind sub-pages, a variant per route. /work = floating drawing sheets, /notes = dot field with a cursor ripple, /resume + /uses = service graph that lights up near the cursor, /contact = routed packets. Home keeps the hero scene. No bloom, low contrast, lazy after idle, paused when hidden, static under reduced motion, nothing without WebGL (the CSS dot-grid stays).
 - **Interactive cursor:** dot + lerped ring on fine pointers only, which grows on links and shows a label on `data-cursor` (View / Read). Magnetic hero CTAs via `data-magnetic`. It is off for touch and reduced motion, and the native cursor stays on inputs.
+
+## D7 — Hero redesign: "Signal", a particle system that morphs per chapter (2026-10-15 03:20)
+
+Owner feedback (03:14): does not like the stacked-slab animation; wants it cool, professional and eye-pleasing; the text must not sit fixed on the left but flow with the 3D.
+
+Brainstorm, scored 1–5 on look / professional / story / text-flow / mobile+perf:
+
+| Concept | Idea | Look | Pro | Story | Flow | Perf | Σ |
+|---|---|---|---|---|---|---|---|
+| **A. Signal (particle morph)** | ~16k GPU points form a shape per chapter: name glyph → browser + phone wireframe → service graph → database discs → node cluster → globe with deploy arcs. Curl-noise drift between shapes; cursor pushes points away. | 5 | 5 | 5 | 5 | 4 | **24** |
+| B. Flythrough | Camera dives down through glass layers UI → API → data → infra | 4 | 4 | 4 | 3 | 2 | 17 |
+| C. Flow ribbons | Stripe-like light ribbons carry data from UI to infra | 4 | 5 | 2 | 4 | 4 | 19 |
+| D. Glass monolith | One refractive object reveals inner layers as it turns | 5 | 4 | 2 | 3 | 1 | 15 |
+| E. Terminal builds system | A 3D terminal types commands that assemble the system | 3 | 3 | 4 | 3 | 4 | 17 |
+| (old) Slab stack | Exploding labelled slabs | 2 | 3 | 4 | 2 | 3 | 14 |
+
+**Winner: A, "Signal".** One cloud of light (dark) or ink stipple (light) that keeps becoming the next layer of the stack. It reads as craft, not as a diagram, and it moves smoothly because it is one mesh. It also has a natural slot for the cursor (points part around it).
+- **Text flows with the formation.** Every chapter places the formation on one side and its text on the other, alternating sides. The formation glides across while the old text leaves and the new text comes in. The hero name is centred over the name glyph, and the finale is centred over the globe with the CTAs. On mobile the formation sits in the top half and the text card in the bottom half.
+- **Chapters:** 00 name → 01 Interface (browser + phone) → 02 API (service graph) → 03 Data (stacked database discs) → 04 Infrastructure (4×3 node cluster with pods) → 05 Shipped (globe with arcs) + CTA.
+- **Moods (D4 kept):** dark = additive glowing points in amber + text colour, a light depth fade; light = ink-coloured stipple with normal blending and amber accents only, no glow.
+- A small chapter rail (01–05) on the right edge replaces the HUD box, and each tick jumps to its chapter.
+- The old stack-scene is retired. The 404 page uses the same engine: points form "404", then scatter and reform.

@@ -3,7 +3,11 @@
     "collect": {
       "startServerCommand": "pnpm start -p 3200",
       "startServerReadyPattern": "Ready",
-      "url": ["http://localhost:3200/", "http://localhost:3200/work", "http://localhost:3200/contact"],
+      "url": [
+        "http://localhost:3200/",
+        "http://localhost:3200/work",
+        "http://localhost:3200/contact"
+      ],
       "numberOfRuns": 1
     },
     "assert": {

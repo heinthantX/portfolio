@@ -6,6 +6,7 @@ Spec: `docs/handoffs/2026-10-15-portfolio-build.md`. Times are Asia/Bangkok.
 - 2026-10-15 01:56 — Run 1 started (Window A). git init, Next 16.4.1 scaffold, deps installed.
 
 ## Notes for the next run
+- Owner requirements added mid-run: theme = OS on first visit, two-state toggle (D2); animations/3D must adapt to dark vs light mood (D4). Read DECISIONS.md D2–D4 before P2.
 - Owner is asleep from 02:15: act fully autonomously (pre-approvals in §2 still bound the scope). Autocompact at 350k context: keep this file current after every step.
 - Next.js 16.4: read `node_modules/next/dist/docs/` before writing Next code (cacheComponents is on).
 - Background agy jobs: `agy-job` / `/antigravity:status`.
@@ -55,3 +56,9 @@ Spec: `docs/handoffs/2026-10-15-portfolio-build.md`. Times are Asia/Bangkok.
 
 ## Open questions for the owner
 - (none yet)
+
+## In flight (run 1, 02:29) — if resumed after a compact, check these with agy-job status/result
+- lab prototypes: blueprint 20261015-022144-49104-14107, cluster 20261015-022145-49126-8172 (src/app/lab/*)
+- P3 u1 articles 20261015-022844-72485-29996, u2 resume+uses 20261015-022844-72502-21336, u3 contact 20261015-022903-73419-20582, u4 cmdk+404 20261015-022844-72559-30847
+- covers: background bash writing docs/design/covers-src/*.png (12 images)
+- Prompts for all jobs: scratchpad p3-*.txt / lab-*.txt (session-local)

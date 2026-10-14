@@ -6,6 +6,7 @@ import { SmoothScroll } from "@/components/site/smooth-scroll";
 import { ThemeProvider } from "@/components/site/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { profile } from "@/content/profile";
+import { AmbientBackground } from "@/features/ambient-scene";
 import { personJsonLd, siteUrl } from "@/lib/site";
 import "./globals.css";
 
@@ -51,6 +52,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             Skip to content
           </a>
           <div aria-hidden className="dot-grid pointer-events-none fixed inset-0 -z-10" />
+          <AmbientBackground />
           <SmoothScroll>
             <SiteHeader />
             <main id="main" tabIndex={-1} className="outline-none">

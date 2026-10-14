@@ -4,6 +4,8 @@ export const profile = profileSchema.parse({
   name: "Hein Thant",
   title: "Full-Stack & DevOps Engineer",
   tagline: "From the interface to the infrastructure.",
+  intro:
+    "I design, build and run web and mobile products end to end: typed APIs, solid data models, fast interfaces, and the pipelines that ship them.",
   bio: [
     "Full-stack engineer who likes the hard parts: data models that stay correct, permissions that stay tight, apps that keep working offline, and services that stay fast under load.",
     "I ship end to end, from Postgres and APIs to React and React Native, to the containers, clusters and CI pipelines they run on.",

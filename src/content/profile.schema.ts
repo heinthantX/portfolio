@@ -4,6 +4,7 @@ export const profileSchema = z.object({
   name: z.string(),
   title: z.string(),
   tagline: z.string(),
+  intro: z.string(),
   bio: z.array(z.string()),
   pullQuote: z.string(),
   location: z.string(),

@@ -22,13 +22,21 @@ export function AmbientBackground() {
 
   useEffect(() => {
     if (!variant || ready) return;
+    // Decoration only: start three.js after the page has loaded and gone idle, off the LCP path.
+    let idle = 0;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     const go = () => hasWebGL() && setReady(true);
-    if ("requestIdleCallback" in window) {
-      const id = window.requestIdleCallback(go, { timeout: 2000 });
-      return () => window.cancelIdleCallback(id);
-    }
-    const id = setTimeout(go, 300);
-    return () => clearTimeout(id);
+    const schedule = () => {
+      if ("requestIdleCallback" in window) idle = window.requestIdleCallback(go, { timeout: 4000 });
+      else timer = setTimeout(go, 300);
+    };
+    if (document.readyState === "complete") schedule();
+    else window.addEventListener("load", schedule, { once: true });
+    return () => {
+      window.removeEventListener("load", schedule);
+      if (idle) window.cancelIdleCallback(idle);
+      clearTimeout(timer);
+    };
   }, [variant, ready]);
 
   if (!variant || !ready) return null;

@@ -44,22 +44,24 @@ export function WhatIDo({ index = "02", total = 8 }: WhatIDoProps) {
     };
   }, []);
 
-  React.useEffect(() => {
-    const loop = () => {
-      currentPos.current.x += (targetPos.current.x - currentPos.current.x) * 0.18;
-      currentPos.current.y += (targetPos.current.y - currentPos.current.y) * 0.18;
-
-      if (previewRef.current) {
-        previewRef.current.style.transform = `translate3d(${currentPos.current.x}px, ${currentPos.current.y}px, 0)`;
-      }
-      rafId.current = requestAnimationFrame(loop);
-    };
-
-    rafId.current = requestAnimationFrame(loop);
-    return () => {
-      if (rafId.current) cancelAnimationFrame(rafId.current);
-    };
+  // Spring the preview towards the pointer; the loop runs only until it settles.
+  const loop = React.useCallback(() => {
+    const dx = targetPos.current.x - currentPos.current.x;
+    const dy = targetPos.current.y - currentPos.current.y;
+    currentPos.current.x += dx * 0.18;
+    currentPos.current.y += dy * 0.18;
+    if (previewRef.current) {
+      previewRef.current.style.transform = `translate3d(${currentPos.current.x}px, ${currentPos.current.y}px, 0)`;
+    }
+    rafId.current = Math.abs(dx) + Math.abs(dy) > 0.2 ? requestAnimationFrame(loop) : null;
   }, []);
+
+  React.useEffect(
+    () => () => {
+      if (rafId.current) cancelAnimationFrame(rafId.current);
+    },
+    [],
+  );
 
   const handleMouseMove = (e: React.MouseEvent<HTMLOListElement>) => {
     if (!listRef.current) return;
@@ -78,6 +80,7 @@ export function WhatIDo({ index = "02", total = 8 }: WhatIDoProps) {
     nextY = Math.max(0, Math.min(nextY, Math.max(0, rect.height - 210)));
 
     targetPos.current = { x: nextX, y: nextY };
+    if (rafId.current === null) rafId.current = requestAnimationFrame(loop);
   };
 
   const toggleMobile = (id: string) => {

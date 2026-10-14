@@ -47,7 +47,7 @@ Owner: animations must be relevant to the dark/light setting, not just recoloure
 
 ## D5 — Final concept: Blueprint, with the Cluster inside the INFRA layer (2026-10-15 02:45)
 
-Prototypes on `/lab/blueprint` and `/lab/cluster`; screenshots in `lab/`.
+Prototypes were on `/lab/blueprint` and `/lab/cluster` (removed after the decision; see git history); screenshots in `lab/`.
 - Blueprint: the exploded, labelled stack (bp-45) reads "full stack" in under a second — the strongest 5-second test. Weak: the drawing phase was nearly empty, slabs were oversized dark boxes, packets rendered as white blobs, containers invisible (bp-82). All tuning problems, not concept problems.
 - Cluster: very clean and legible, the HUD panel is excellent (cl-45), node failure reads well (cl-82). But it says "Kubernetes" only, and the subject is small in frame.
 **Winner: Blueprint**, absorbing Cluster's best parts: INFRA becomes a node grid with pods, failure + reschedule and a rollout wave; the HUD panel becomes the hero status line (in the DOM). Full spec in `SPEC.md`.

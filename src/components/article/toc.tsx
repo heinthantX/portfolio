@@ -74,17 +74,16 @@ export function TableOfContents({ toc: initialToc, className }: TableOfContentsP
 
     if (elements.length === 0) return;
 
+    // Entries only hold headings that crossed a threshold, so track the visible set across callbacks.
+    const visible = new Map<string, number>();
     const observer = new IntersectionObserver(
       (entries) => {
-        // Find visible headings and pick the one nearest to top
-        const visibleEntries = entries.filter((e) => e.isIntersecting);
-        if (visibleEntries.length > 0) {
-          // Sort by top position relative to viewport
-          visibleEntries.sort(
-            (a, b) => Math.abs(a.boundingClientRect.top) - Math.abs(b.boundingClientRect.top),
-          );
-          setActiveId(visibleEntries[0].target.id);
+        for (const e of entries) {
+          if (e.isIntersecting) visible.set(e.target.id, e.boundingClientRect.top);
+          else visible.delete(e.target.id);
         }
+        const top = [...visible].sort((a, b) => Math.abs(a[1]) - Math.abs(b[1]))[0];
+        if (top) setActiveId(top[0]);
       },
       {
         rootMargin: "-80px 0px -60% 0px",

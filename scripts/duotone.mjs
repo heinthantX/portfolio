@@ -20,7 +20,9 @@ for (let i = 0; i < info.width * info.height; i++) {
   const g = t ** 1.35; // deepen shadows
   const a = Math.max(0, t - 0.72) * 0.9; // amber only in the brightest highlights
   for (let c = 0; c < 3; c++) {
-    out[i * 3 + c] = Math.round(dark[c] + (light[c] - dark[c]) * g * 0.8 + (amber[c] - light[c]) * a);
+    out[i * 3 + c] = Math.round(
+      dark[c] + (light[c] - dark[c]) * g * 0.8 + (amber[c] - light[c]) * a,
+    );
   }
 }
 await sharp(out, { raw: { width: info.width, height: info.height, channels: 3 } })

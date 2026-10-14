@@ -32,6 +32,9 @@ for (const file of files) {
   }
   if (isOg) {
     // next/og needs PNG/JPEG; keep a small JPEG next to it
-    await sharp(path.join(SRC, file)).resize(width, height).jpeg({ quality: 78 }).toFile(path.join(OUT, `${name}.jpg`));
+    await sharp(path.join(SRC, file))
+      .resize(width, height)
+      .jpeg({ quality: 78 })
+      .toFile(path.join(OUT, `${name}.jpg`));
   }
 }

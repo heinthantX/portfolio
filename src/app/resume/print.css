@@ -1,0 +1,69 @@
+@page {
+  margin: 14mm;
+}
+
+@media print {
+  header,
+  footer,
+  .no-print,
+  .dot-grid {
+    display: none !important;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-size: 10pt !important;
+    line-height: 1.4 !important;
+  }
+
+  main {
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    margin: 0 !important;
+  }
+
+  * {
+    background: transparent !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  /* Thin rules instead of color accents */
+  .print-accent-rule {
+    border-top: 1px solid #000000 !important;
+  }
+
+  .border-line,
+  .border-line-strong {
+    border-color: #d0d0d0 !important;
+  }
+
+  /* Avoid page breaks inside experience entries and sections */
+  .resume-entry {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* Text colors in print: true black and dark gray */
+  h1,
+  h2,
+  h3,
+  h4,
+  p,
+  span,
+  li,
+  a {
+    color: #000000 !important;
+  }
+
+  .text-muted-foreground,
+  .text-signal {
+    color: #333333 !important;
+  }
+
+  a {
+    text-decoration: none !important;
+  }
+}

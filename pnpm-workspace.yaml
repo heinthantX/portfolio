@@ -1,0 +1,5 @@
+onlyBuiltDependencies:
+  - sharp
+  - esbuild
+  - lefthook
+  - unrs-resolver

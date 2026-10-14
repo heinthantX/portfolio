@@ -40,6 +40,25 @@
   --dot: oklch(18.1% 0.011 260.6 / 0.08);
 }
 
+/* Before JS runs (or without it), follow the OS setting. */
+@media (prefers-color-scheme: light) {
+  :root:not(.dark) {
+    color-scheme: light;
+    --bg: oklch(97.3% 0.003 264.5); /* #F5F6F8 cool paper */
+    --surface: oklch(94.9% 0.006 264.5); /* #ECEEF2 */
+    --surface-2: oklch(92% 0.008 260);
+    --line: oklch(88.7% 0.011 256.7); /* #D5DAE1 */
+    --line-strong: oklch(78% 0.015 257);
+    --text: oklch(18.1% 0.011 260.6); /* #0F1217 */
+    --muted: oklch(47.5% 0.024 257.5); /* #545D6A */
+    --accent: oklch(56.9% 0.123 64.5); /* #A8650F */
+    --accent-strong: oklch(50.7% 0.109 65.1); /* #8F560C */
+    --ok: oklch(56.2% 0.125 156.1); /* #1F8A55 */
+    --danger: oklch(54.1% 0.192 25.1); /* #C62A2F */
+    --dot: oklch(18.1% 0.011 260.6 / 0.08);
+  }
+}
+
 /* shadcn/ui variable names, mapped onto the tokens above */
 :root,
 .dark,
@@ -64,6 +83,11 @@
 }
 .light {
   --primary: var(--accent-strong);
+}
+@media (prefers-color-scheme: light) {
+  :root:not(.dark) {
+    --primary: var(--accent-strong);
+  }
 }
 
 @theme inline {

@@ -27,3 +27,6 @@ Temporary until the AI image quota resets; see `content/TODO-CONFIRM.md`.
 | cap-mobile | https://stocksnap.io/photo/mobile-phone-DYWPAMD1PF | John Tekeridis | CC0 |
 | work-offline-field-notes | https://stocksnap.io/photo/notebook-desk-GRGCZJ7CNE | Artsy Crafty | CC0 |
 | work-link-shortener-analytics | https://stocksnap.io/photo/chains-links-L4CZ9VTR4O | Freestocks.org | CC0 |
+
+## work-this-portfolio.avif
+Screenshot of this site (hero, Interface chapter), own work. 2026-10-15.

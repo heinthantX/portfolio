@@ -1,26 +1,205 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* Dark is the default theme; next-themes adds .light or .dark on <html>. */
+@custom-variant dark (&:where(.dark, .dark *));
+@custom-variant light (&:where(.light, .light *));
+
+/* ---------- Design tokens (docs/design/SPEC.md) ---------- */
+:root,
+.dark {
+  color-scheme: dark;
+  --bg: oklch(15.8% 0.007 258.4); /* #0B0D10 graphite */
+  --surface: oklch(19.8% 0.012 254.1); /* #12161B */
+  --surface-2: oklch(22.9% 0.016 256.8); /* #181D24 */
+  --line: oklch(28.2% 0.019 254.8); /* #232A33 hairlines */
+  --line-strong: oklch(38% 0.025 257.5); /* #3A4350 */
+  --text: oklch(93.6% 0.009 258.3); /* #E6EAF0 */
+  --muted: oklch(66.6% 0.024 256.8); /* #8B95A3 */
+  --accent: oklch(76.5% 0.14 72.9); /* #E8A33D signal amber */
+  --accent-strong: oklch(81.2% 0.129 75.1); /* #F2B55A amber text on bg */
+  --ok: oklch(73.5% 0.136 159.3); /* #4CC38A */
+  --danger: oklch(62.6% 0.193 23); /* #E5484D */
+  --dot: oklch(93.6% 0.009 258.3 / 0.07);
+}
+
+.light {
+  color-scheme: light;
+  --bg: oklch(97.3% 0.003 264.5); /* #F5F6F8 cool paper */
+  --surface: oklch(94.9% 0.006 264.5); /* #ECEEF2 */
+  --surface-2: oklch(92% 0.008 260);
+  --line: oklch(88.7% 0.011 256.7); /* #D5DAE1 */
+  --line-strong: oklch(78% 0.015 257);
+  --text: oklch(18.1% 0.011 260.6); /* #0F1217 */
+  --muted: oklch(47.5% 0.024 257.5); /* #545D6A */
+  --accent: oklch(56.9% 0.123 64.5); /* #A8650F */
+  --accent-strong: oklch(50.7% 0.109 65.1); /* #8F560C */
+  --ok: oklch(56.2% 0.125 156.1); /* #1F8A55 */
+  --danger: oklch(54.1% 0.192 25.1); /* #C62A2F */
+  --dot: oklch(18.1% 0.011 260.6 / 0.08);
+}
+
+/* shadcn/ui variable names, mapped onto the tokens above */
+:root,
+.dark,
+.light {
+  --background: var(--bg);
+  --foreground: var(--text);
+  --card: var(--surface);
+  --card-foreground: var(--text);
+  --popover: var(--surface);
+  --popover-foreground: var(--text);
+  --primary: var(--accent);
+  --primary-foreground: var(--bg);
+  --secondary: var(--surface-2);
+  --secondary-foreground: var(--text);
+  --muted-foreground: var(--muted);
+  --accent-foreground: var(--text);
+  --destructive: var(--danger);
+  --border: var(--line);
+  --input: var(--line-strong);
+  --ring: var(--accent);
+  --radius: 4px;
+}
+.light {
+  --primary: var(--accent-strong);
 }
 
 @theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-text: var(--text);
+  --color-muted: var(--surface-2);
+  --color-muted-foreground: var(--muted);
+  --color-dim: var(--muted);
+  --color-signal: var(--accent);
+  --color-signal-strong: var(--accent-strong);
+  --color-ok: var(--ok);
+  --color-danger: var(--danger);
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--surface-2);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-geist-sans);
+
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 4px;
+  --radius-xl: 6px;
+
+  --text-display: clamp(3rem, 8vw, 7rem);
+  --text-h1: clamp(2.5rem, 5vw, 4.5rem);
+  --text-h2: clamp(1.75rem, 3vw, 2.75rem);
+  --text-h3: 1.375rem;
+  --text-body: 1.0625rem;
+
+  --ease-enter: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* ---------- Base ---------- */
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+    font-size: var(--text-body);
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    text-wrap: balance;
+    letter-spacing: -0.03em;
+    line-height: 1.05;
+    font-weight: 650;
+  }
+  ::selection {
+    background: color-mix(in oklch, var(--accent) 35%, transparent);
+  }
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+    border-radius: 2px;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Blueprint dot grid: pure CSS, fades toward the edges. */
+.dot-grid {
+  background-image: radial-gradient(var(--dot) 1px, transparent 1px);
+  background-size: 24px 24px;
+  mask-image: radial-gradient(ellipse 80% 70% at 50% 40%, #000 30%, transparent 100%);
+}
+
+/* Lenis */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media print {
+  .dot-grid,
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* Link underline drawn left-to-right in amber */
+.link-underline {
+  background-image: linear-gradient(var(--accent), var(--accent));
+  background-size: 0% 1px;
+  background-position: 0 100%;
+  background-repeat: no-repeat;
+  transition:
+    background-size 250ms var(--ease-enter),
+    color 150ms;
+}
+.link-underline:hover,
+.link-underline:focus-visible {
+  background-size: 100% 1px;
 }

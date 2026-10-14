@@ -1,3 +1,5 @@
+import rehypePrettyCode from "rehype-pretty-code";
+import rehypeSlug from "rehype-slug";
 import { defineCollection, defineConfig, s } from "velite";
 
 const work = defineCollection({
@@ -52,6 +54,20 @@ export default defineConfig({
     assets: "public/static",
     base: "/static/",
     clean: true,
+  },
+  mdx: {
+    rehypePlugins: [
+      rehypeSlug,
+      [
+        rehypePrettyCode,
+        {
+          theme: { dark: "github-dark-dimmed", light: "github-light" },
+          keepBackground: false,
+          // Mermaid blocks are left as plain code and rendered client-side (see DECISIONS D2).
+          filterMetaString: (m: string) => m,
+        },
+      ],
+    ],
   },
   collections: {
     work,

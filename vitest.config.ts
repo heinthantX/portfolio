@@ -3,7 +3,12 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   plugins: [react()],
-  resolve: { alias: { "@": new URL("./src", import.meta.url).pathname } },
+  resolve: {
+    alias: {
+      "@": new URL("./src", import.meta.url).pathname,
+      "#site/content": new URL("./.velite", import.meta.url).pathname,
+    },
+  },
   test: {
     environment: "jsdom",
     setupFiles: ["./vitest.setup.ts"],

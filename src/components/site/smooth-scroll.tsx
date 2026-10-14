@@ -4,6 +4,7 @@ import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { type LenisRef, ReactLenis, useLenis } from "lenis/react";
 import { useEffect, useRef } from "react";
+import { capWheelDelta } from "./wheel";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -26,7 +27,14 @@ export function SmoothScroll({ children }: { children: React.ReactNode }) {
     <ReactLenis
       root
       ref={lenisRef}
-      options={{ autoRaf: false, lerp: 0.12, smoothWheel: !reducedMotion(), anchors: true }}
+      options={{
+        autoRaf: false,
+        lerp: 0.09,
+        wheelMultiplier: 0.9,
+        smoothWheel: !reducedMotion(),
+        anchors: true,
+        virtualScroll: capWheelDelta,
+      }}
     >
       <ScrollTriggerSync />
       {children}

@@ -16,17 +16,10 @@ Shared AI style line: *"Dark graphite background, isometric technical illustrati
 | cap-devops | (concept key frame `cluster-b`) The same server-tile grid mid-rollout: a wave of new softly glowing cubes replacing old ones across the tiles, a faint green ring at the edge. |
 | work-zero-downtime-deploy-pipeline | (concept key frame `pipeline-a`) A thin precision-machined rail with five small mechanical stations, an amber light pulse passing through the first gate. |
 | og-background | (concept key frame `blueprint-b`) Four machined dark graphite slabs floating in an exploded vertical view, small amber light packets travelling between them. |
-
-## Stock photos (CC0 via StockSnap, found with Openverse), duotoned with `scripts/duotone.mjs`
-
-Temporary until the AI image quota resets; see `content/TODO-CONFIRM.md`.
-
-| File | Source | Author | Licence |
-|---|---|---|---|
-| cap-frontend | https://stocksnap.io/photo/design-wireframe-KH4TFZKDUU | FOCA Stock | CC0 |
-| cap-mobile | https://stocksnap.io/photo/mobile-phone-DYWPAMD1PF | John Tekeridis | CC0 |
-| work-offline-field-notes | https://stocksnap.io/photo/notebook-desk-GRGCZJ7CNE | Artsy Crafty | CC0 |
-| work-link-shortener-analytics | https://stocksnap.io/photo/chains-links-L4CZ9VTR4O | Freestocks.org | CC0 |
+| cap-frontend | Layered translucent interface panels floating in a precise stack like cards on a screen grid. |
+| cap-mobile | A thin dark phone-shaped slab with a soft amber sync arc looping above it to a small cloud of nodes. |
+| work-offline-field-notes | A dark tablet-like slab with layered note cards and a broken then reconnected amber sync line. |
+| work-link-shortener-analytics | A long thin line folding into a short compact link shape, beside small bar-chart columns. |
 
 ## work-this-portfolio.avif
 Screenshot of this site (hero, Interface chapter), own work. 2026-10-15.

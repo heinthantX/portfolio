@@ -3,7 +3,7 @@
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
-import { useThemeColors } from "../stack-scene/useThemeColors";
+import { useThemeColors } from "@/lib/use-theme-colors";
 import type { AmbientVariant } from "./variant";
 
 /** Mutable state shared with the scenes; nothing here triggers React renders. */

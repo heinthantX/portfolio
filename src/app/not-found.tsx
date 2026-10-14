@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Container, Eyebrow } from "@/components/site/primitives";
 import { Button } from "@/components/ui/button";
+import { SignalScene } from "@/features/signal-scene";
 
 export const metadata: Metadata = {
   title: "404: Layer Not Found",
@@ -12,8 +13,9 @@ export default function NotFound() {
   return (
     <div className="flex min-h-[calc(100vh-14rem)] items-center pt-32 pb-24">
       <Container className="flex flex-col items-center text-center">
-        {/* Placeholder where the 3D variant will mount later (P2) */}
-        <div id="stack-404-slot" aria-hidden="true" className="empty:hidden" />
+        <div id="stack-404-slot" className="w-full">
+          <SignalScene />
+        </div>
 
         <div className="flex max-w-[68ch] flex-col items-center" data-reveal>
           <Eyebrow className="text-signal">404</Eyebrow>

@@ -7,12 +7,17 @@ import { SmoothScroll } from "@/components/site/smooth-scroll";
 import { ThemeProvider } from "@/components/site/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { profile } from "@/content/profile";
+import { personJsonLd, siteUrl } from "@/lib/site";
 import "./globals.css";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
+  alternates: { canonical: "/", types: { "application/rss+xml": "/notes/rss.xml" } },
+  openGraph: { type: "website", siteName: profile.name, locale: "en" },
+  twitter: { card: "summary_large_image" },
   title: { default: `${profile.name} — ${profile.title}`, template: `%s — ${profile.name}` },
   description: profile.bio[0],
 };
@@ -32,6 +37,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable}`}
     >
       <body>
+        <script
+          type="application/ld+json"
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: static JSON-LD built from profile.ts
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(personJsonLd()).replace(/</g, "\\u003c"),
+          }}
+        />
         <ThemeProvider>
           <a
             href="#main"

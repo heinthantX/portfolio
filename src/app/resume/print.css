@@ -3,8 +3,11 @@
 }
 
 @media print {
-  header,
-  footer,
+  [data-reveal],
+  [data-draw] {
+    animation: none !important;
+  }
+
   .no-print,
   .dot-grid {
     display: none !important;

@@ -12,6 +12,15 @@ pnpm dev            # http://localhost:3000
 docker compose up   # production build (standalone, non-root, healthcheck)
 ```
 
+Demo: [`public/media/demo.mp4`](public/media/demo.mp4) (59 s walkthrough; regenerate with `BASE_URL=… node scripts/demo-video.mjs`).
+
+## Deploy
+
+Not deployed yet. Two easy options:
+
+- **Vercel**: import the repo, set the env vars below, done. No extra config needed.
+- **Docker on any host**: `docker build -t portfolio .` then `docker run -p 3000:3000 --env-file .env portfolio`. The image is a Next.js standalone build (~360 MB), runs as a non-root user and has a healthcheck. Put it behind a reverse proxy that sets `X-Real-IP` so the contact rate limit sees the visitor IP.
+
 ## Environment
 
 Copy `.env.example` to `.env.local` and fill in the values. All of them are optional in dev.

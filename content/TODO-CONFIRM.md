@@ -37,7 +37,7 @@ All six are `mock: true` drafts, hidden in production.
 
 ## Services
 
-- [ ] **Email provider** for the contact form: `src/features/contact/send.ts` only logs today. Pick one (e.g. Resend) and add its API key as an env var.
+- [ ] **Email delivery** for the contact form: Resend is wired in `src/features/contact/send.ts`. Add `RESEND_API_KEY`, `CONTACT_TO_EMAIL` and (after verifying your domain in Resend) `CONTACT_FROM_EMAIL` to the host's env. Without them, production shows visitors a mailto link instead.
 - [ ] **Site URL**: set `NEXT_PUBLIC_SITE_URL` when deploying (used by the sitemap, RSS, OG and JSON-LD).
 - [ ] **Hosting**: nothing has been deployed or pushed. Vercel or the Docker image both work (see README).
 - [ ] **Burmese locale** (stretch): wanted or not?

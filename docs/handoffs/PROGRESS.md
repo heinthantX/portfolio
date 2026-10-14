@@ -13,6 +13,10 @@ Spec: `docs/handoffs/2026-10-15-portfolio-build.md`. Times are Asia/Bangkok.
 - 2026-10-15 04:00 — Signal hero committed 797018b + polish (verified in Chrome: all 6 chapters, text opposite the formation, 60 fps during transitions, light ink stipple, mobile, 404). Cursor: owner wants custom cursor (not native) but light → dot updates in the same event (pointerrawupdate), ring eases fast (b5bb02b). NEXT: hero posters (scripts/hero-poster.mjs, now final), work-this-portfolio cover, docs (SPEC/README mention stack-scene → update to Signal), then P5 e2e/axe/LHCI/Docker/review.
 - 2026-10-15 03:58 — Posters (3D-only crop) + this-portfolio cover committed; About sheet spans the width. In flight: agy e2e 20261015-035501-84691-13732 (scratchpad agy-e2e.md; port 3100 prod build), Docker build (bg, log scratchpad docker-build.log; colima started), reviews: ecc code-reviewer (sonnet) + agy review 20261015-035735-90231-11880 (review-brief.md). NEXT: merge review findings, fix, LHCI, docker run :3001 smoke, P6 demo video + README.
 - 2026-10-15 04:03 — Docker: image builds (361MB), runs non-root uid 1001, healthy; all routes 200 on :3901 except /opengraph-image 500 (standalone misses geist TTFs → fix #6). Port 3001/3000 have VS Code/ssh forwards (426) — use 3901 for docker smoke. Claude review: 15 findings (contact send fake, XFF spoof, log PII, no headers, mermaid loose/theme, hero rAF, shapes memo, rail aria-current, cursor idle rAF, rss url, dockerignore, CI perms). In flight: sonnet fixes (scratchpad sonnet-fixes.md), agy e2e retry 20261015-040041-95467-691, agy review retry 20261015-040041-95499-32067 (first attempts: network timeout / missing --yolo). playwright webServer env CONTACT_TEST_HOOKS=1. Known, not fixing now: reduced-motion/no-JS users get the scroll layout until hydration (review #9).
+- 2026-10-15 04:12 — Committed 0553279 (all 15 review fixes + Suspense shells; typecheck/biome/49 tests green) and 3ba4678 (README with Mermaid + env docs; lhci → :3200 over /, /work, /contact). Chrome: contact validation + success ("Message sent") OK; cursor dot+ring settle on pointer. In flight: docker rebuild (bg, scratchpad docker-build2.log), agy e2e 20261015-040041-95467-691 (untracked e2e/*.spec.ts are its output, smoke.spec.ts deleted), agy review 20261015-040041-95499-32067. NEXT: docker smoke :3901 (OG 200, headers, contact fail-closed → mailto), run e2e myself, lhci, demo video, final summary.
+- 2026-10-15 04:25 — Docker rebuilt + smoke OK on :3901 (all routes 200, 404 → 404, /opengraph-image 200 image/png, all 6 security headers); contact fail-closed in prod shows mailto (Chrome). Demo video committed f59b9b3 (public/media/demo.mp4 59 s 4.3 MB + demo-poster.avif; scripts/demo-video.mjs). README deploy section. agy review merged: 9 of 15 already fixed; fixed 7 (cmdk title inside DialogContent), 10 (what-i-do hover rAF on demand), 11 (TOC visible set), 12+13 (deleted /lab prototypes) → 5f3ea0f; skipped 15 (one rect read per pointermove, no DOM writes). `.next/types` is stale (lab routes) until the next build — typecheck errors only there. agy e2e still running (Playwright on :3100). NEXT: e2e result → run it myself, fix APP BUGs; pnpm build + typecheck; lhci; final summary.
+
+- 2026-10-15 05:05 — Core P0–P6 done. e2e green (95), 4 app bugs it found fixed (h1 on /work + /notes, ⌘K group keywords, contrast of decorative text; hidden slug = 200+noindex accepted per Next docs). LHCI pass. Ambient three.js starts after load (perf 84→90). NEXT (stretch, Window A until 07:00): S0 creative pass; regenerate stock covers after 06:40 when the agy image quota resets.
 
 ## Notes for the next run
 - agy image quota (gemini-3.1-flash-image) exhausted at 02:30; resets ~06:37 Bangkok. Missing covers: cap-frontend, cap-mobile, cap-backend, cap-devops, work-offline-field-notes, work-link-shortener-analytics, work-zero-downtime-deploy-pipeline, og-background. Prompts in DECISIONS/CREDITS; rerun after 06:40, then `node scripts/optimize-media.mjs`.
@@ -48,11 +52,11 @@ Spec: `docs/handoffs/2026-10-15-portfolio-build.md`. Times are Asia/Bangkok.
 ### P3 Pages
 - [x] P3 (03:53: home, resume.pdf, 404 scene done; earlier 02:48: work, notes, RSS, résumé page, uses, contact, ⌘K, 404 shell done; home sections in flight; resume.pdf + 404 scene pending) all §6 pages, contact Server Action, /resume + PDF, ⌘K, 404
 ### P4 SEO + polish
-- [~] P4 (02:52: metadataBase, OG image, sitemap, robots, JSON-LD done; responsive pass, motion tuning, design QA, View-Transition theme switch pending) metadata, OG, sitemap/robots/RSS, JSON-LD, responsive, design QA
+- [x] P4 (05:02; responsive + design QA in Chrome dark/light/mobile, View-Transition theme switch, h1 per page, contrast fixes) metadata, OG, sitemap/robots/RSS, JSON-LD, responsive, design QA
 ### P5 Quality
-- [ ] P5 e2e + axe + visual, LHCI, Docker check, reviews + fixes
+- [x] P5 (05:00; e2e 95 passed/3 skipped desktop-only, axe 0 serious/critical both themes, LHCI all 3 URLs pass (perf ≥0.8; LCP warn ~3.3 s simulated), Docker smoke OK, Claude + agy reviews fixed) e2e + axe + visual, LHCI, Docker check, reviews + fixes
 ### P6 Demo + handover
-- [ ] P6 demo video, README, final summary
+- [x] P6 (05:05; public/media/demo.mp4, README with Mermaid/env/deploy, summary below) demo video, README, final summary
 
 ## Stretch backlog (Window A only)
 - [ ] S0 creative iteration loop
@@ -64,8 +68,24 @@ Spec: `docs/handoffs/2026-10-15-portfolio-build.md`. Times are Asia/Bangkok.
 - [ ] S6 Umami behind flag
 - [ ] S7 2 more notes + /now
 
+## Final summary (core done 05:05, Window A)
+**What works** (all local commits on `main`, nothing pushed or deployed):
+- Home: "Signal" particle hero (6 chapters, text opposite the formation, chapter rail), sheets below it; dark/light from the OS on first visit, 2-state toggle with a View-Transition; 3D mood follows the theme.
+- Ambient 3D background on every route (starts after load), custom cursor, CSS scroll reveals, Lenis with a wheel cap for high-sensitivity mice.
+- Pages: /work (+ case studies), /notes (+ RSS), /resume (+ public/resume.pdf), /uses, /contact (Server Action, zod, rate limit, Resend), ⌘K menu, 404 with the same particle engine.
+- SEO: metadata, OG image, sitemap, robots, JSON-LD. Security headers.
+- Quality: 49 unit tests, 95 e2e (pages, content, contact, ⌘K, theme, hero, axe both themes), LHCI budgets, Docker standalone image (non-root, healthcheck), CI workflow (not pushed).
+- Demo: public/media/demo.mp4 (59 s). Try it: `pnpm dev` → http://localhost:3000.
+
+**Mock / placeholder**: all profile copy, email, GitHub/LinkedIn, experience, 4 of 5 case studies and all 6 notes (hidden in production builds). Full list: `content/TODO-CONFIRM.md`.
+
+**Known limits**: reduced-motion/no-JS visitors see the tall hero layout until hydration; hidden slugs return 200 + noindex (Next 16 streaming); simulated mobile LCP ~3.3 s (real desktop 0.1 s); rate limit is per process.
+
 ## Open questions for the owner
-- (none yet)
+1. Confirm the hero intro text (`profile.intro`) and the rest of the copy in `content/TODO-CONFIRM.md`.
+2. Add `RESEND_API_KEY`, `CONTACT_TO_EMAIL`, `CONTACT_FROM_EMAIL` on the host so the contact form delivers.
+3. Replace the `[MOCK]` email and GitHub/LinkedIn links in `src/content/profile.ts`.
+4. Pick a host (Vercel or the Docker image) and set `NEXT_PUBLIC_SITE_URL`.
 
 ## In flight (run 1, 02:29) — if resumed after a compact, check these with agy-job status/result
 - lab prototypes: blueprint 20261015-022144-49104-14107, cluster 20261015-022145-49126-8172 (src/app/lab/*)

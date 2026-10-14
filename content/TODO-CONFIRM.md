@@ -41,3 +41,5 @@ All six are `mock: true` drafts, hidden in production.
 - [ ] **Site URL**: set `NEXT_PUBLIC_SITE_URL` when deploying (used by the sitemap, RSS, OG and JSON-LD).
 - [ ] **Hosting**: nothing has been deployed or pushed. Vercel or the Docker image both work (see README).
 - [ ] **Burmese locale** (stretch): wanted or not?
+
+- [ ] `profile.intro` (hero description, added 03:25): "I design, build and run web and mobile products end to end: typed APIs, solid data models, fast interfaces, and the pipelines that ship them." Reword if it does not sound like you.

@@ -7,6 +7,8 @@ Spec: `docs/handoffs/2026-10-15-portfolio-build.md`. Times are Asia/Bangkok.
 
 - 2026-10-15 02:52 — State: P0, R, P1 done; P3 pages except home+404 scene done; P4 SEO plumbing done. In flight: P2a scene core, P3 home sections. NEXT: when both land → run gates, wire src/app/page.tsx (StackHero with hero text + About block fading in during RUN, then <HomeSections/>), 404 scene variant in not-found.tsx (stack-404-slot), hero poster script (scripts/hero-poster.mjs, Playwright swiftshader, dark+light at progress 1), resume.pdf, View Transition theme switch, then P5 e2e/axe/LHCI/Docker.
 
+- 2026-10-15 03:12 — Committed 5b59471 (home hero + sheets; Lenis scroll fix; hydration fix via CSS scroll reveals). Owner asked (03:10) for more motion: D6. In flight: sonnet A hero scene fixes (scratchpad sonnet-scene-fix.md), sonnet B ambient backgrounds (sonnet-ambient.md), agy cursor 20261015-031051-65856-1440 (agy-cursor.md). NEXT: verify each in Chrome + scratchpad shoot-hero.mjs, commit, then 404 scene, posters, resume.pdf, P5.
+
 ## Notes for the next run
 - agy image quota (gemini-3.1-flash-image) exhausted at 02:30; resets ~06:37 Bangkok. Missing covers: cap-frontend, cap-mobile, cap-backend, cap-devops, work-offline-field-notes, work-link-shortener-analytics, work-zero-downtime-deploy-pipeline, og-background. Prompts in DECISIONS/CREDITS; rerun after 06:40, then `node scripts/optimize-media.mjs`.
 - Owner requirements added mid-run: theme = OS on first visit, two-state toggle (D2); animations/3D must adapt to dark vs light mood (D4). Read DECISIONS.md D2–D4 before P2.

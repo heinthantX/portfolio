@@ -51,3 +51,11 @@ Prototypes on `/lab/blueprint` and `/lab/cluster`; screenshots in `lab/`.
 - Blueprint: the exploded, labelled stack (bp-45) reads "full stack" in under a second — the strongest 5-second test. Weak: the drawing phase was nearly empty, slabs were oversized dark boxes, packets rendered as white blobs, containers invisible (bp-82). All tuning problems, not concept problems.
 - Cluster: very clean and legible, the HUD panel is excellent (cl-45), node failure reads well (cl-82). But it says "Kubernetes" only, and the subject is small in frame.
 **Winner: Blueprint**, absorbing Cluster's best parts: INFRA becomes a node grid with pods, failure + reschedule and a rollout wave; the HUD panel becomes the hero status line (in the DOM). Full spec in `SPEC.md`.
+
+## D6 — More motion: ambient 3D on sub-pages, interactive cursor, CSS scroll reveals (2026-10-15 03:12)
+
+Owner request (03:10): "add scroll animations and make it smooth, make the 3D not just one, also on other page backgrounds, make the cursor interactive."
+- **Scroll reveals are CSS scroll-driven animations** (`animation-timeline: view()`), replacing the GSAP RevealController. The GSAP version lived in the layout and wrote inline styles before the page segment hydrated, which caused a React hydration mismatch the owner saw. CSS needs no JS, never touches the DOM and runs off the main thread. Browsers without support just show the content.
+- **Lenis tick fix:** the effect read `lenisRef.current.lenis` once on mount, before ReactLenis created it, so `raf` never ran and wheel/trackpad scroll was dead. The tick now resolves the instance every frame (Lenis docs pattern).
+- **Ambient 3D backgrounds** (`src/features/ambient-scene`): one cheap R3F canvas behind sub-pages, a variant per route. /work = floating drawing sheets, /notes = dot field with a cursor ripple, /resume + /uses = service graph that lights up near the cursor, /contact = routed packets. Home keeps the hero scene. No bloom, low contrast, lazy after idle, paused when hidden, static under reduced motion, nothing without WebGL (the CSS dot-grid stays).
+- **Interactive cursor:** dot + lerped ring on fine pointers only, which grows on links and shows a label on `data-cursor` (View / Read). Magnetic hero CTAs via `data-magnetic`. It is off for touch and reduced motion, and the native cursor stays on inputs.

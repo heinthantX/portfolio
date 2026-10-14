@@ -275,7 +275,7 @@ export function SignalPoints({ shapes, count, drive, interactive = true, maskRef
     u.uAlpha.value = c.alpha;
 
     // size: world point size -> pixels, scaled with the formation
-    const worldSize = dark ? 0.022 : 0.026;
+    const worldSize = dark ? 0.022 : 0.02;
     u.uSize.value =
       (worldSize * state.size.height * state.viewport.dpr * pose.scale) /
       (2 * Math.tan((FOV * Math.PI) / 360));

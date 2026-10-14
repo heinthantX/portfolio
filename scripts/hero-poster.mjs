@@ -24,7 +24,17 @@ for (const theme of ["dark", "light"]) {
     window.scrollTo(0, end - 2);
   });
   await page.waitForTimeout(4000);
-  const png = await canvas.screenshot({ omitBackground: false });
+  // Only the 3D: hide the HTML drawn over the canvas (text, header, dev badge), then crop a square around the formation.
+  await page.addStyleTag({
+    content:
+      "body * { visibility: hidden !important; } [data-stack-stage] canvas { visibility: visible !important; }",
+  });
+  await page.waitForTimeout(300);
+  const box = await canvas.boundingBox();
+  const side = Math.round(box.height * 0.8);
+  const png = await page.screenshot({
+    clip: { x: box.x + (box.width - side) / 2, y: box.y + box.height * 0.04, width: side, height: side },
+  });
   const out = `public/media/hero-poster-${theme}.avif`;
   await sharp(png).avif({ quality: 55 }).toFile(out);
   console.log(out);

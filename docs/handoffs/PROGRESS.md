@@ -17,9 +17,10 @@ Spec: `docs/handoffs/2026-10-15-portfolio-build.md`. Times are Asia/Bangkok.
 - 2026-10-15 04:25 — Docker rebuilt + smoke OK on :3901 (all routes 200, 404 → 404, /opengraph-image 200 image/png, all 6 security headers); contact fail-closed in prod shows mailto (Chrome). Demo video committed f59b9b3 (public/media/demo.mp4 59 s 4.3 MB + demo-poster.avif; scripts/demo-video.mjs). README deploy section. agy review merged: 9 of 15 already fixed; fixed 7 (cmdk title inside DialogContent), 10 (what-i-do hover rAF on demand), 11 (TOC visible set), 12+13 (deleted /lab prototypes) → 5f3ea0f; skipped 15 (one rect read per pointermove, no DOM writes). `.next/types` is stale (lab routes) until the next build — typecheck errors only there. agy e2e still running (Playwright on :3100). NEXT: e2e result → run it myself, fix APP BUGs; pnpm build + typecheck; lhci; final summary.
 
 - 2026-10-15 05:05 — Core P0–P6 done. e2e green (95), 4 app bugs it found fixed (h1 on /work + /notes, ⌘K group keywords, contrast of decorative text; hidden slug = 200+noindex accepted per Next docs). LHCI pass. Ambient three.js starts after load (perf 84→90). NEXT (stretch, Window A until 07:00): S0 creative pass; regenerate stock covers after 06:40 when the agy image quota resets.
+- 2026-10-15 06:48 — Last 4 stock covers (cap-frontend, cap-mobile, work-offline-field-notes, work-link-shortener-analytics) regenerated with agy image-generator in the house style, optimized, CREDITS updated, checked in prod build + Chrome hover reveal → def3806. All covers are now AI or own screenshots. Note: `.next/cache/images` keeps old optimized images across builds; delete it after replacing a file in public/media. Run stopped at 06:50 (Window A ends 07:00; core done, so no Window B).
 
 ## Notes for the next run
-- agy image quota (gemini-3.1-flash-image) exhausted at 02:30; resets ~06:37 Bangkok. Missing covers: cap-frontend, cap-mobile, cap-backend, cap-devops, work-offline-field-notes, work-link-shortener-analytics, work-zero-downtime-deploy-pipeline, og-background. Prompts in DECISIONS/CREDITS; rerun after 06:40, then `node scripts/optimize-media.mjs`.
+- Covers: all done (06:48). To regenerate one, prompts are in public/media/CREDITS.md; then `node scripts/optimize-media.mjs` and `rm -rf .next/cache/images`.
 - Owner requirements added mid-run: theme = OS on first visit, two-state toggle (D2); animations/3D must adapt to dark vs light mood (D4). Read DECISIONS.md D2–D4 before P2.
 - Owner is asleep from 02:15: act fully autonomously (pre-approvals in §2 still bound the scope). Autocompact at 350k context: keep this file current after every step.
 - Next.js 16.4: read `node_modules/next/dist/docs/` before writing Next code (cacheComponents is on).
@@ -44,7 +45,7 @@ Spec: `docs/handoffs/2026-10-15-portfolio-build.md`. Times are Asia/Bangkok.
 - [x] P1c (02:27) profile.ts + zod; Velite collections + mock filter
 - [x] P1d (02:18) content: 4 mock case studies, real portfolio case study, 6 notes
 - [x] P1e (02:31) TODO-CONFIRM.md, docs/EDITING.md
-- [x] P1f (02:52; 4 AI + 4 concept frames + 4 CC0 stock duotoned; regenerate stock ones after 06:40 if quota allows) cover + OG images (agy image-generator)
+- [x] P1f (02:52; 4 AI + 4 concept frames; the 4 stock ones replaced by AI covers at 06:48) cover + OG images (agy image-generator)
 ### P2 3D scene
 - [x] P2a (03:50; replaced by D7 "Signal" particle morph, src/features/signal-scene) layers/objects/labels, packets, containers
 - [x] P2b (03:50; 6 chapters, eased progress, cursor repel; chapter rail replaces Ship it again per D7) scroll timeline, tilt, hover
@@ -68,13 +69,14 @@ Spec: `docs/handoffs/2026-10-15-portfolio-build.md`. Times are Asia/Bangkok.
 - [ ] S6 Umami behind flag
 - [ ] S7 2 more notes + /now
 
-## Final summary (core done 05:05, Window A)
+## Final summary (core done 05:05, covers 06:48, run stopped 06:50)
 **What works** (all local commits on `main`, nothing pushed or deployed):
 - Home: "Signal" particle hero (6 chapters, text opposite the formation, chapter rail), sheets below it; dark/light from the OS on first visit, 2-state toggle with a View-Transition; 3D mood follows the theme.
 - Ambient 3D background on every route (starts after load), custom cursor, CSS scroll reveals, Lenis with a wheel cap for high-sensitivity mice.
 - Pages: /work (+ case studies), /notes (+ RSS), /resume (+ public/resume.pdf), /uses, /contact (Server Action, zod, rate limit, Resend), ⌘K menu, 404 with the same particle engine.
 - SEO: metadata, OG image, sitemap, robots, JSON-LD. Security headers.
 - Quality: 49 unit tests, 95 e2e (pages, content, contact, ⌘K, theme, hero, axe both themes), LHCI budgets, Docker standalone image (non-root, healthcheck), CI workflow (not pushed).
+- Covers: all AI-generated in one style (prompts in public/media/CREDITS.md), no stock photos left.
 - Demo: public/media/demo.mp4 (59 s). Try it: `pnpm dev` → http://localhost:3000.
 
 **Mock / placeholder**: all profile copy, email, GitHub/LinkedIn, experience, 4 of 5 case studies and all 6 notes (hidden in production builds). Full list: `content/TODO-CONFIRM.md`.

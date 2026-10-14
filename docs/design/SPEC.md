@@ -1,5 +1,7 @@
 # Design spec (final, from Phase R)
 
+> **Hero scene superseded (2026-10-15 03:20):** the owner rejected the slab-stack scene below. The hero is now **"Signal"**, a particle formation that morphs per chapter, with the text flowing opposite it; see DECISIONS.md **D7** and `src/features/signal-scene/`. The rest of this spec still applies: sheets framing, theme moods (D4), fallbacks, perf tiers and the 404 variant. The slab-specific parts (phases, HUD, "Ship it again") are kept only as history.
+
 Where this file and the handoff disagree, this file wins on creative matters; the handoff wins on the floor (a11y, fallbacks, mobile, content safety) and the run rules. Rationale lives in `DECISIONS.md`.
 
 ## 1. Concept: "Blueprint → Stack → Cluster"

@@ -9,16 +9,18 @@ const poster = { dark: "/media/hero-poster-dark.avif", light: "/media/hero-poste
 
 export default function Home() {
   const about = (
-    <div className="max-w-[52ch]">
-      <Eyebrow>SHEET 01 · about</Eyebrow>
-      <blockquote className="mt-4 text-2xl leading-snug text-balance sm:text-3xl">
-        {profile.pullQuote}
-      </blockquote>
-      {profile.bio.map((p) => (
-        <p key={p} className="mt-4 text-muted-foreground">
-          {p}
-        </p>
-      ))}
+    <div className="grid gap-8 lg:grid-cols-12 lg:items-end">
+      <div className="lg:col-span-7" data-reveal>
+        <Eyebrow>SHEET 01 · about</Eyebrow>
+        <blockquote className="mt-4 text-3xl leading-tight text-balance sm:text-4xl">
+          {profile.pullQuote}
+        </blockquote>
+      </div>
+      <div className="space-y-4 text-muted-foreground lg:col-span-4 lg:col-start-9" data-reveal>
+        {profile.bio.map((p) => (
+          <p key={p}>{p}</p>
+        ))}
+      </div>
     </div>
   );
 

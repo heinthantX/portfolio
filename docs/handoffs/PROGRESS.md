@@ -6,6 +6,7 @@ Spec: `docs/handoffs/2026-10-15-portfolio-build.md`. Times are Asia/Bangkok.
 - 2026-10-15 01:56 — Run 1 started (Window A). git init, Next 16.4.1 scaffold, deps installed.
 
 ## Notes for the next run
+- Owner is asleep from 02:15: act fully autonomously (pre-approvals in §2 still bound the scope). Autocompact at 350k context: keep this file current after every step.
 - Next.js 16.4: read `node_modules/next/dist/docs/` before writing Next code (cacheComponents is on).
 - Background agy jobs: `agy-job` / `/antigravity:status`.
 - agy: no Pro model on this plan (`Gemini 3.1 Pro` gone; `Gemini 4 Argon` listed but "Unavailable" as of 02:06). Use `--model "Gemini 3.8 Flash (High)"` for pro-tier work; switch to Argon once `agy models` lists it. Always pass `--timeout 30m` (default 5m kills big jobs).
@@ -13,9 +14,9 @@ Spec: `docs/handoffs/2026-10-15-portfolio-build.md`. Times are Asia/Bangkok.
 ## Core backlog
 ### R Research + brainstorm
 - [x] R1 (02:05; 13/20 screenshots captured) Research → docs/design/RESEARCH.md + refs screenshots
-- [ ] R2 Concept panel (4 panelists × 3 concepts)
-- [ ] R3 Key-frame images for top 5 concepts
-- [ ] R4 Judge → DECISIONS.md
+- [x] R2 (02:18) Concept panel (4 panelists × 3 concepts)
+- [x] R3 (02:21) Key-frame images for top 5 concepts
+- [x] R4 (02:25; Blueprint 24 vs Cluster 21) Judge → DECISIONS.md
 - [ ] R5 /lab prototypes top 2 → pick
 - [ ] R6 docs/design/SPEC.md
 ### P0 Scaffold + DevOps tooling
@@ -25,8 +26,8 @@ Spec: `docs/handoffs/2026-10-15-portfolio-build.md`. Times are Asia/Bangkok.
 ### P1 Design system + content
 - [ ] P1a tokens, fonts, dot grid, layout shell, header/footer, theme toggle
 - [ ] P1b shadcn/ui base components restyled, useReveal
-- [ ] P1c profile.ts + zod; Velite collections + mock filter
-- [ ] P1d content: 4 mock case studies, real portfolio case study, 6 notes
+- [~] P1c profile+velite done; mock filter + #site alias pending — profile.ts + zod; Velite collections + mock filter
+- [x] P1d (02:18) content: 4 mock case studies, real portfolio case study, 6 notes
 - [ ] P1e TODO-CONFIRM.md, docs/EDITING.md
 - [ ] P1f cover + OG images (agy image-generator)
 ### P2 3D scene

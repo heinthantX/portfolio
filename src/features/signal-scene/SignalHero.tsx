@@ -89,6 +89,15 @@ function FinaleBody({ finale }: { finale: React.ReactNode }) {
   );
 }
 
+interface Rect {
+  l: number;
+  t: number;
+  w: number;
+  h: number;
+  x: number;
+  y: number;
+}
+
 export interface SignalHeroProps {
   /** Intro: eyebrow, h1 name, tagline, CTAs, availability. */
   children: React.ReactNode;
@@ -107,6 +116,9 @@ export function SignalHero({ children, finale, poster }: SignalHeroProps) {
   const railRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const gate = useSignalGate(stageRef);
   const lenis = useLenis();
+  // Layout cache (stage-relative, scroll independent) so the rAF loop never reads layout.
+  const layoutRef = useRef({ sw: 1, sh: 1, blocks: [] as Rect[] });
+  const appliedRef = useRef<{ x: number; y: number }[]>([]); // transform currently on each block
 
   // Progress comes from ScrollTrigger; everything below is a pure function of it.
   useEffect(() => {
@@ -129,9 +141,37 @@ export function SignalHero({ children, finale, poster }: SignalHeroProps) {
     return () => st.kill();
   }, [gate.fallback]);
 
-  // Text + rail: DOM writes from rAF, no React state per frame.
+  // Measure block rects once per resize / ScrollTrigger refresh (not per frame).
   useEffect(() => {
     if (gate.fallback) return;
+    const measure = () => {
+      const stage = stageRef.current;
+      if (!stage) return;
+      const sr = stage.getBoundingClientRect();
+      layoutRef.current = {
+        sw: sr.width || 1,
+        sh: sr.height || 1,
+        blocks: blockRefs.current.map((el, i) => {
+          const r = el?.getBoundingClientRect();
+          const a = appliedRef.current[i] ?? { x: 0, y: 0 };
+          return r
+            ? { l: r.left - sr.left, t: r.top - sr.top, w: r.width, h: r.height, x: a.x, y: a.y }
+            : { l: 0, t: 0, w: 0, h: 0, x: 0, y: 0 };
+        }),
+      };
+    };
+    measure();
+    ScrollTrigger.addEventListener("refresh", measure);
+    window.addEventListener("resize", measure);
+    return () => {
+      ScrollTrigger.removeEventListener("refresh", measure);
+      window.removeEventListener("resize", measure);
+    };
+  }, [gate.fallback]);
+
+  // Text + rail: DOM writes from rAF, no React state per frame. Paused off-screen / hidden tab.
+  useEffect(() => {
+    if (gate.fallback || !gate.active) return;
     let raf = 0;
     let last = performance.now();
     const tick = (now: number) => {
@@ -148,11 +188,12 @@ export function SignalHero({ children, finale, poster }: SignalHeroProps) {
         const y = i === 0 ? -24 * leave : i === CHAPTERS - 1 ? 24 * enter : 0;
         el.style.opacity = String(opacity);
         el.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+        appliedRef.current[i] = { x, y };
         el.inert = opacity < 0.5;
         el.style.visibility = opacity < 0.01 ? "hidden" : "visible";
       }
-      const stage = stageRef.current;
-      if (stage) {
+      {
+        const { sw, sh, blocks } = layoutRef.current;
         let best = 0;
         let bi = 0;
         for (let i = 0; i < CHAPTERS; i++) {
@@ -162,15 +203,17 @@ export function SignalHero({ children, finale, poster }: SignalHeroProps) {
             bi = i;
           }
         }
-        const el = blockRefs.current[bi];
-        const sr = stage.getBoundingClientRect();
-        if (el && best > 0) {
-          const r = el.getBoundingClientRect();
+        const r = blocks[bi];
+        const applied = appliedRef.current[bi];
+        if (r && applied && best > 0) {
+          // cached layout rect, shifted by how far the block has moved since it was measured
+          const cx = r.l + r.w / 2 + (applied.x - r.x);
+          const cy = r.t + r.h / 2 + (applied.y - r.y);
           const m = maskRef.current;
-          m.x = (((r.left + r.right) / 2 - sr.left) / sr.width) * 2 - 1;
-          m.y = -((((r.top + r.bottom) / 2 - sr.top) / sr.height) * 2 - 1);
-          m.w = r.width / sr.width + 0.06;
-          m.h = r.height / sr.height + 0.1;
+          m.x = (cx / sw) * 2 - 1;
+          m.y = -((cy / sh) * 2 - 1);
+          m.w = r.w / sw + 0.06;
+          m.h = r.h / sh + 0.1;
           m.a = best;
         } else maskRef.current.a = 0;
       }
@@ -178,13 +221,17 @@ export function SignalHero({ children, finale, poster }: SignalHeroProps) {
       railRefs.current.forEach((b, i) => {
         if (!b) return;
         const on = String(i === active);
-        if (b.dataset.active !== on) b.dataset.active = on;
+        if (b.dataset.active !== on) {
+          b.dataset.active = on;
+          if (i === active) b.setAttribute("aria-current", "step");
+          else b.removeAttribute("aria-current");
+        }
       });
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [gate.fallback]);
+  }, [gate.fallback, gate.active]);
 
   const go = (i: number) => {
     const section = sectionRef.current;
@@ -306,6 +353,7 @@ export function SignalHero({ children, finale, poster }: SignalHeroProps) {
               type="button"
               aria-label={label}
               data-active={i === 0 ? "true" : "false"}
+              aria-current={i === 0 ? "step" : undefined}
               onClick={() => go(i)}
               className="group flex size-6 items-center justify-center md:justify-end"
             >

@@ -1,6 +1,7 @@
 "use server";
 
 import { headers } from "next/headers";
+import { profile } from "@/content/profile";
 import { rateLimiter } from "./rate-limit";
 import { contactSchema } from "./schema";
 import { sendContactMessage } from "./send";
@@ -63,16 +64,19 @@ export async function submitContact(
     };
   }
 
-  // E2E test hook: if the email is exactly 'ratelimit@example.com', treat as rate-limited
-  // immediately to enable deterministic end-to-end testing without hitting actual limits.
-  if (parsed.data.email === "ratelimit@example.com") {
+  // E2E test hook (only when CONTACT_TEST_HOOKS=1): 'ratelimit@example.com' is treated as
+  // rate-limited immediately for deterministic end-to-end testing.
+  if (process.env.CONTACT_TEST_HOOKS === "1" && parsed.data.email === "ratelimit@example.com") {
     return { status: "rate-limited", retryAfterSec: 60 };
   }
 
-  // Rate limiting keyed by client IP from x-forwarded-for header
+  // Rate limiting keyed by x-real-ip, else the LAST x-forwarded-for hop (added by our proxy;
+  // earlier entries are client-controlled and spoofable).
   const headerList = await headers();
-  const forwardedFor = headerList.get("x-forwarded-for");
-  const ip = forwardedFor?.split(",")[0]?.trim() ?? "local";
+  const ip =
+    headerList.get("x-real-ip")?.trim() ||
+    headerList.get("x-forwarded-for")?.split(",").at(-1)?.trim() ||
+    "anon";
 
   const rateResult = rateLimiter.check(ip);
   if (!rateResult.allowed) {
@@ -82,7 +86,13 @@ export async function submitContact(
     };
   }
 
-  await sendContactMessage(parsed.data);
+  const sent = await sendContactMessage(parsed.data);
+  if (!sent.ok) {
+    return {
+      status: "error",
+      message: `Your message could not be sent. Please email me directly at ${profile.contact.email}.`,
+    };
+  }
 
   return { status: "success" };
 }

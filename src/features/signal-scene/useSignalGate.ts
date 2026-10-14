@@ -55,6 +55,8 @@ export function useSignalGate(stage: RefObject<HTMLElement | null>) {
     fallback,
     ready,
     count,
+    /** Stage on screen and tab visible: the only time per-frame work is worth doing. */
+    active: visible && !hidden,
     frameloop: visible && !hidden ? ("always" as const) : ("never" as const),
   };
 }

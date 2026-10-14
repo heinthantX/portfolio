@@ -1,7 +1,7 @@
 "use client";
 
 import { Canvas } from "@react-three/fiber";
-import { type RefObject, useCallback, useEffect, useState } from "react";
+import { type RefObject, useCallback, useEffect, useMemo, useState } from "react";
 import { profile } from "@/content/profile";
 import { sampleText } from "./glyph";
 import { CAMERA, type DriveFn, SignalPoints, type TextMask } from "./SignalPoints";
@@ -29,12 +29,12 @@ export default function SignalCanvas({ variant, progressRef, maskRef, count, fra
     };
   }, [hero]);
 
-  const shapes = (() => {
+  const shapes = useMemo(() => {
     if (!samples) return null;
     if (hero) return heroShapes(count, samples);
     const g = glyph(samples, count, 7, 4.0);
     return [g, g];
-  })();
+  }, [samples, hero, count]);
 
   // Pure function of progress (hero) or of the clock (404 scatter / reform loop).
   const drive: DriveFn = useCallback(

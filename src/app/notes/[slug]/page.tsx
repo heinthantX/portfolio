@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 import { ReadingProgress } from "@/components/article/reading-progress";
 import { TableOfContents } from "@/components/article/toc";
 import { mdxComponents } from "@/components/mdx/components";
@@ -31,7 +32,22 @@ export async function generateMetadata({
   };
 }
 
-export default async function NoteDetailPage({ params }: { params: Promise<{ slug: string }> }) {
+// The shell renders instantly; the part that awaits params streams in (Next 16 instant navigation).
+export default function NoteDetailPage({ params }: { params: Promise<{ slug: string }> }) {
+  return (
+    <Suspense
+      fallback={
+        <Container className="pt-32 pb-24" aria-busy="true">
+          <div className="h-4 w-40 animate-pulse rounded bg-surface-2" />
+        </Container>
+      }
+    >
+      <NoteDetail params={params} />
+    </Suspense>
+  );
+}
+
+async function NoteDetail({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const note = getNote(slug);
 

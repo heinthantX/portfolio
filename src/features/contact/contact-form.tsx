@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { profile } from "@/content/profile";
 import { type ContactFormState, submitContact } from "./actions";
 import { type ContactInput, contactSchema } from "./schema";
 
@@ -82,7 +83,7 @@ export function ContactForm() {
             <p className="font-mono text-xs tracking-[0.12em] uppercase">Message sent</p>
           </div>
           <p className="mt-2 text-sm text-ok">
-            Thank you for reaching out. Your message has been delivered, and I’ll reply shortly.
+            Thank you for reaching out. Your message has been sent, and I’ll reply shortly.
           </p>
         </div>
       )}
@@ -112,7 +113,13 @@ export function ContactForm() {
           role="alert"
           className="rounded-md border border-danger/40 bg-surface p-4 font-mono text-xs text-danger"
         >
-          {state.message}
+          <p>{state.message}</p>
+          <a
+            href={`mailto:${profile.contact.email}`}
+            className="mt-2 inline-block underline underline-offset-4"
+          >
+            Email {profile.contact.email}
+          </a>
         </div>
       )}
 

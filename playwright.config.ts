@@ -14,6 +14,8 @@ export default defineConfig({
   webServer: {
     command: `pnpm start -p ${port}`,
     url: baseURL,
+    // Enables the contact form's deterministic test paths (ratelimit@example.com, logged send).
+    env: { CONTACT_TEST_HOOKS: "1" },
     reuseExistingServer: !process.env.CI,
   },
   projects: [

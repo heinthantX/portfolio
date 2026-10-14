@@ -33,7 +33,12 @@ for (const theme of ["dark", "light"]) {
   const box = await canvas.boundingBox();
   const side = Math.round(box.height * 0.8);
   const png = await page.screenshot({
-    clip: { x: box.x + (box.width - side) / 2, y: box.y + box.height * 0.04, width: side, height: side },
+    clip: {
+      x: box.x + (box.width - side) / 2,
+      y: box.y + box.height * 0.04,
+      width: side,
+      height: side,
+    },
   });
   const out = `public/media/hero-poster-${theme}.avif`;
   await sharp(png).avif({ quality: 55 }).toFile(out);

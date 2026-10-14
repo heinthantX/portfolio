@@ -8,3 +8,8 @@ playwright-report
 .lighthouseci
 .claude
 *.log
+.env*
+!.env.example
+.velite
+tsconfig.tsbuildinfo
+coverage

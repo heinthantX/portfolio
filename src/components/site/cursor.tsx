@@ -189,6 +189,7 @@ function CursorImpl() {
     const onPointerMove = (event: PointerEvent) => {
       targetX = event.clientX;
       targetY = event.clientY;
+      startLoop();
       // The dot is the real pointer position: move it right away, never a frame late.
       dot.style.transform = `translate3d(${targetX}px, ${targetY}px, 0) translate(-50%, -50%)`;
 
@@ -210,6 +211,7 @@ function CursorImpl() {
     };
 
     const onPointerOver = (event: PointerEvent) => {
+      startLoop();
       updateHoverState(event.target as Element | null);
     };
 
@@ -227,16 +229,19 @@ function CursorImpl() {
 
     const onPointerDown = () => {
       isDown = true;
+      startLoop();
       currentScale = 0.8;
       ring.style.transform = `translate3d(${ringX}px, ${ringY}px, 0) translate(-50%, -50%) scale(0.8)`;
       if (downTimeout) clearTimeout(downTimeout);
       downTimeout = setTimeout(() => {
         isDown = false;
+        startLoop();
       }, 150);
     };
 
     const onPointerUp = () => {
       isDown = false;
+      startLoop();
       if (downTimeout) {
         clearTimeout(downTimeout);
         downTimeout = null;
@@ -262,12 +267,20 @@ function CursorImpl() {
 
       ring.style.transform = `translate3d(${ringX}px, ${ringY}px, 0) translate(-50%, -50%) scale(${currentScale.toFixed(4)})`;
 
-      rafId = requestAnimationFrame(loop);
+      // Settled: stop the loop; pointer move / hover / press restarts it.
+      const settled =
+        Math.abs(targetX - ringX) < 0.1 &&
+        Math.abs(targetY - ringY) < 0.1 &&
+        Math.abs(activeTargetScale - currentScale) < 0.001;
+      rafId = settled ? null : requestAnimationFrame(loop);
     };
 
-    if (typeof window !== "undefined" && typeof window.requestAnimationFrame === "function") {
+    const startLoop = () => {
+      if (rafId !== null || typeof window.requestAnimationFrame !== "function") return;
+      lastTime = performance.now();
       rafId = window.requestAnimationFrame(loop);
-    }
+    };
+    startLoop();
 
     window.addEventListener("pointermove", onPointerMove, { passive: true });
     // Chrome: raw pointer updates arrive earlier and more often, so the dot tracks the mouse tighter.
@@ -275,6 +288,7 @@ function CursorImpl() {
       const { clientX, clientY } = event as PointerEvent;
       targetX = clientX;
       targetY = clientY;
+      startLoop();
       dot.style.transform = `translate3d(${clientX}px, ${clientY}px, 0) translate(-50%, -50%)`;
     };
     const hasRaw = "onpointerrawupdate" in window;

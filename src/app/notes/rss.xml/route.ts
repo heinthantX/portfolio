@@ -1,5 +1,6 @@
 import { profile } from "@/content/profile";
 import { notes } from "@/lib/content";
+import { absolute } from "@/lib/site";
 
 function escapeXml(unsafe: string): string {
   return unsafe.replace(/[<>&'"]/g, (c) => {
@@ -21,13 +22,12 @@ function escapeXml(unsafe: string): string {
 }
 
 export async function GET() {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
   const channelTitle = `${profile.name} — ${profile.title}`;
   const channelDesc = profile.tagline || profile.bio[0];
 
   const itemsXml = notes
     .map((note) => {
-      const itemUrl = `${siteUrl}/notes/${note.slug}`;
+      const itemUrl = escapeXml(absolute(`/notes/${note.slug}`));
       const pubDate = new Date(note.date).toUTCString();
       const categories = note.tags
         .map((tag) => `      <category>${escapeXml(tag)}</category>`)
@@ -48,11 +48,11 @@ ${categories}
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>${escapeXml(channelTitle)}</title>
-    <link>${siteUrl}/notes</link>
+    <link>${escapeXml(absolute("/notes"))}</link>
     <description>${escapeXml(channelDesc)}</description>
     <language>en</language>
     <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
-    <atom:link href="${siteUrl}/notes/rss.xml" rel="self" type="application/rss+xml"/>
+    <atom:link href="${escapeXml(absolute("/notes/rss.xml"))}" rel="self" type="application/rss+xml"/>
 ${itemsXml}
   </channel>
 </rss>`;

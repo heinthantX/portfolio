@@ -1,5 +1,6 @@
 "use client";
 
+import { useTheme } from "next-themes";
 import { useEffect, useId, useRef, useState } from "react";
 
 interface MermaidProps {
@@ -11,6 +12,7 @@ export function Mermaid({ chart }: MermaidProps) {
   const [isVisible, setIsVisible] = useState(false);
   const [svg, setSvg] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
+  const { resolvedTheme } = useTheme();
   const rawId = useId();
   const diagramId = `mermaid-${rawId.replace(/[^a-zA-Z0-9]/g, "")}`;
 
@@ -39,6 +41,7 @@ export function Mermaid({ chart }: MermaidProps) {
   }, [isVisible]);
 
   // 2. Lazy-import mermaid and render SVG with theme 'base' & tokens
+  // biome-ignore lint/correctness/useExhaustiveDependencies: resolvedTheme triggers a re-render on theme change
   useEffect(() => {
     if (!isVisible || !chart) return;
     let isCancelled = false;
@@ -83,7 +86,7 @@ export function Mermaid({ chart }: MermaidProps) {
             fontFamily: "var(--font-mono, ui-monospace, monospace)",
             fontSize: "13px",
           },
-          securityLevel: "loose",
+          securityLevel: "strict",
         });
 
         const { svg: renderedSvg } = await mermaid.render(diagramId, chart);
@@ -105,7 +108,7 @@ export function Mermaid({ chart }: MermaidProps) {
     return () => {
       isCancelled = true;
     };
-  }, [isVisible, chart, diagramId]);
+  }, [isVisible, chart, diagramId, resolvedTheme]);
 
   if (failed) {
     return (

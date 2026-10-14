@@ -158,4 +158,21 @@ describe("rate-limiter", () => {
     const afterWindow = limiter.check(ip);
     expect(afterWindow.allowed).toBe(true);
   });
+
+  it("caps the store: sweeps expired entries, then evicts oldest", () => {
+    let now = 0;
+    const limiter = createRateLimiter({ limit: 1, windowMs: 1000, maxKeys: 3, now: () => now });
+    limiter.check("a");
+    limiter.check("b");
+    limiter.check("c");
+    // Cap reached with all live: oldest ("a") is evicted, so it gets a fresh window.
+    limiter.check("d");
+    expect(limiter.check("a").allowed).toBe(true);
+    // "c" is still tracked (blocked): only the oldest entries were evicted.
+    expect(limiter.check("c").allowed).toBe(false);
+    // After expiry the sweep clears stale keys instead of evicting live ones.
+    now += 2000;
+    limiter.check("e");
+    expect(limiter.check("e").allowed).toBe(false);
+  });
 });

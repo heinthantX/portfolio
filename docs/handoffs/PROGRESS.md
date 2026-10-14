@@ -5,6 +5,8 @@ Spec: `docs/handoffs/2026-10-15-portfolio-build.md`. Times are Asia/Bangkok.
 ## Status log
 - 2026-10-15 01:56 — Run 1 started (Window A). git init, Next 16.4.1 scaffold, deps installed.
 
+- 2026-10-15 02:52 — State: P0, R, P1 done; P3 pages except home+404 scene done; P4 SEO plumbing done. In flight: P2a scene core, P3 home sections. NEXT: when both land → run gates, wire src/app/page.tsx (StackHero with hero text + About block fading in during RUN, then <HomeSections/>), 404 scene variant in not-found.tsx (stack-404-slot), hero poster script (scripts/hero-poster.mjs, Playwright swiftshader, dark+light at progress 1), resume.pdf, View Transition theme switch, then P5 e2e/axe/LHCI/Docker.
+
 ## Notes for the next run
 - agy image quota (gemini-3.1-flash-image) exhausted at 02:30; resets ~06:37 Bangkok. Missing covers: cap-frontend, cap-mobile, cap-backend, cap-devops, work-offline-field-notes, work-link-shortener-analytics, work-zero-downtime-deploy-pipeline, og-background. Prompts in DECISIONS/CREDITS; rerun after 06:40, then `node scripts/optimize-media.mjs`.
 - Owner requirements added mid-run: theme = OS on first visit, two-state toggle (D2); animations/3D must adapt to dark vs light mood (D4). Read DECISIONS.md D2–D4 before P2.
@@ -27,8 +29,8 @@ Spec: `docs/handoffs/2026-10-15-portfolio-build.md`. Times are Asia/Bangkok.
 - [x] P0c (02:06) Dockerfile + compose, GH Actions, Renovate, .editorconfig, README skeleton
 ### P1 Design system + content
 - [x] P1a (02:25) tokens, fonts, dot grid, layout shell, header/footer, theme toggle
-- [ ] P1b shadcn/ui base components restyled, useReveal
-- [~] P1c profile+velite done; mock filter + #site alias pending — profile.ts + zod; Velite collections + mock filter
+- [x] P1b (02:27) shadcn/ui base components restyled, useReveal
+- [x] P1c (02:27) profile.ts + zod; Velite collections + mock filter
 - [x] P1d (02:18) content: 4 mock case studies, real portfolio case study, 6 notes
 - [x] P1e (02:31) TODO-CONFIRM.md, docs/EDITING.md
 - [x] P1f (02:52; 4 AI + 4 concept frames + 4 CC0 stock duotoned; regenerate stock ones after 06:40 if quota allows) cover + OG images (agy image-generator)
@@ -37,9 +39,9 @@ Spec: `docs/handoffs/2026-10-15-portfolio-build.md`. Times are Asia/Bangkok.
 - [ ] P2b 5-phase scroll timeline, Ship it again, tilt, hover
 - [ ] P2c fallbacks, perf tiers, 404 variant, hero posters
 ### P3 Pages
-- [ ] P3 all §6 pages, contact Server Action, /resume + PDF, ⌘K, 404
+- [~] P3 (02:48: work, notes, RSS, résumé page, uses, contact, ⌘K, 404 shell done; home sections in flight; resume.pdf + 404 scene pending) all §6 pages, contact Server Action, /resume + PDF, ⌘K, 404
 ### P4 SEO + polish
-- [ ] P4 metadata, OG, sitemap/robots/RSS, JSON-LD, responsive, design QA
+- [~] P4 (02:52: metadataBase, OG image, sitemap, robots, JSON-LD done; responsive pass, motion tuning, design QA, View-Transition theme switch pending) metadata, OG, sitemap/robots/RSS, JSON-LD, responsive, design QA
 ### P5 Quality
 - [ ] P5 e2e + axe + visual, LHCI, Docker check, reviews + fixes
 ### P6 Demo + handover
@@ -64,3 +66,4 @@ Spec: `docs/handoffs/2026-10-15-portfolio-build.md`. Times are Asia/Bangkok.
 - covers: background bash writing docs/design/covers-src/*.png (12 images)
 - Prompts for all jobs: scratchpad p3-*.txt / lab-*.txt (session-local)
 - P2a scene core 20261015-024230-4252-28264 (src/features/stack-scene, prompt scratchpad p2a.txt)
+- P3 home sections 20261015-024909-20520-14396 (src/components/home, prompt scratchpad p3-home.txt)

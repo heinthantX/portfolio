@@ -271,7 +271,14 @@ html.lenis body {
   mix-blend-mode: normal;
 }
 
-/* Interactive cursor: the native pointer stays (zero lag); the ring follows it as decoration. */
+/* Interactive cursor: custom dot + ring replace the native pointer (inputs keep the text cursor). */
+html.has-cursor,
+html.has-cursor * {
+  cursor: none;
+}
+html.has-cursor :is(input, textarea, select, [contenteditable]) {
+  cursor: auto;
+}
 
 @media print {
   .custom-cursor {

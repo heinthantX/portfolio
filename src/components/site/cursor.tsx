@@ -270,6 +270,15 @@ function CursorImpl() {
     }
 
     window.addEventListener("pointermove", onPointerMove, { passive: true });
+    // Chrome: raw pointer updates arrive earlier and more often, so the dot tracks the mouse tighter.
+    const onRawUpdate = (event: Event) => {
+      const { clientX, clientY } = event as PointerEvent;
+      targetX = clientX;
+      targetY = clientY;
+      dot.style.transform = `translate3d(${clientX}px, ${clientY}px, 0) translate(-50%, -50%)`;
+    };
+    const hasRaw = "onpointerrawupdate" in window;
+    if (hasRaw) window.addEventListener("pointerrawupdate", onRawUpdate, { passive: true });
     document.addEventListener("pointerover", onPointerOver, { passive: true });
     document.addEventListener("pointerout", onPointerOut, { passive: true });
     window.addEventListener("pointerdown", onPointerDown, { passive: true });
@@ -290,6 +299,7 @@ function CursorImpl() {
       resetMagnetic();
 
       window.removeEventListener("pointermove", onPointerMove);
+      if (hasRaw) window.removeEventListener("pointerrawupdate", onRawUpdate);
       document.removeEventListener("pointerover", onPointerOver);
       document.removeEventListener("pointerout", onPointerOut);
       window.removeEventListener("pointerdown", onPointerDown);
@@ -304,7 +314,7 @@ function CursorImpl() {
       <div
         ref={dotRef}
         aria-hidden="true"
-        className="custom-cursor no-print pointer-events-none fixed top-0 left-0 z-[60] hidden h-[6px] w-[6px] rounded-full bg-signal"
+        className="custom-cursor no-print pointer-events-none fixed top-0 left-0 z-[60] h-[6px] w-[6px] rounded-full bg-signal opacity-0 transition-opacity duration-150"
         style={{ willChange: "transform", opacity: 0 }}
       />
       <div

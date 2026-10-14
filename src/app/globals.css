@@ -227,3 +227,10 @@ html.lenis body {
 .link-underline:focus-visible {
   background-size: 100% 1px;
 }
+
+/* Theme switch: the new snapshot is revealed by a clip-path circle (theme-toggle.tsx). */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}

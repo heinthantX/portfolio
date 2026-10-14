@@ -103,7 +103,7 @@ void main(){
   vec2 qm = abs(nd - uMask.xy) - uMask.zw;
   float away = smoothstep(0.0, 0.22, length(max(qm, 0.0)));
   float keep = mix(1.0, mix(0.04, 1.0, away), uMaskA);
-  float sig = step(fract(aRand * 91.7), 0.18);
+  float sig = step(fract(aRand * 91.7), 0.3);
   float far = smoothstep(5.0, 9.2, depth);
   vColor = mix(mix(uText, uSignal, sig), uMuted, far * 0.5);
   float fade = mix(1.0, mix(1.0, 0.45, far), uDark);
@@ -267,7 +267,7 @@ export function SignalPoints({ shapes, count, drive, interactive = true, maskRef
     c.signal.lerp(tmp.set(target.signal[0], target.signal[1], target.signal[2]), k);
     c.muted.lerp(tmp.set(target.muted[0], target.muted[1], target.muted[2]), k);
     c.dark += ((dark ? 1 : 0) - c.dark) * k;
-    c.alpha += ((dark ? 0.8 : 0.62) - c.alpha) * k;
+    c.alpha += ((dark ? 0.6 : 0.62) - c.alpha) * k;
     u.uText.value.copy(c.text);
     u.uSignal.value.copy(c.signal);
     u.uMuted.value.copy(c.muted);
@@ -275,7 +275,7 @@ export function SignalPoints({ shapes, count, drive, interactive = true, maskRef
     u.uAlpha.value = c.alpha;
 
     // size: world point size -> pixels, scaled with the formation
-    const worldSize = dark ? 0.03 : 0.026;
+    const worldSize = dark ? 0.022 : 0.026;
     u.uSize.value =
       (worldSize * state.size.height * state.viewport.dpr * pose.scale) /
       (2 * Math.tan((FOV * Math.PI) / 360));

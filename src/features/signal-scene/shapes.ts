@@ -302,11 +302,11 @@ export function shipped(n: number, seed = 6): Float32Array {
   const R = 0.82;
   const parts: Part[] = [
     {
-      w: 9,
+      w: 14,
       p: (r) => {
         // uniform-ish sphere; stratified by a random fibonacci slot
-        const k = Math.floor(r() * 900);
-        const y = 1 - (2 * (k + 0.5)) / 900;
+        const k = Math.floor(r() * 2400);
+        const y = 1 - (2 * (k + 0.5)) / 2400;
         const rr = Math.sqrt(1 - y * y);
         const phi = k * 2.399963229728653;
         return [Math.cos(phi) * rr * R, y * R, Math.sin(phi) * rr * R];
@@ -318,7 +318,7 @@ export function shipped(n: number, seed = 6): Float32Array {
     const om = Math.acos(dot);
     const so = Math.sin(om) || 1;
     parts.push({
-      w: 3,
+      w: 0.9,
       p: (r) => {
         const t = r();
         const s0 = Math.sin((1 - t) * om) / so;
@@ -333,7 +333,7 @@ export function shipped(n: number, seed = 6): Float32Array {
     });
     for (const e of [a, b]) {
       parts.push({
-        w: 0.7,
+        w: 0.2,
         p: sphereShell(e[0] * R * 1.02, e[1] * R * 1.02, e[2] * R * 1.02, 0.05),
       });
     }

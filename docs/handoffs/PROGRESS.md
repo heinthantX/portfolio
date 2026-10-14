@@ -31,7 +31,7 @@ Spec: `docs/handoffs/2026-10-15-portfolio-build.md`. Times are Asia/Bangkok.
 - [~] P1c profile+velite done; mock filter + #site alias pending — profile.ts + zod; Velite collections + mock filter
 - [x] P1d (02:18) content: 4 mock case studies, real portfolio case study, 6 notes
 - [x] P1e (02:31) TODO-CONFIRM.md, docs/EDITING.md
-- [ ] P1f cover + OG images (agy image-generator)
+- [x] P1f (02:52; 4 AI + 4 concept frames + 4 CC0 stock duotoned; regenerate stock ones after 06:40 if quota allows) cover + OG images (agy image-generator)
 ### P2 3D scene
 - [ ] P2a layers/objects/labels, packets, containers
 - [ ] P2b 5-phase scroll timeline, Ship it again, tilt, hover
@@ -63,3 +63,4 @@ Spec: `docs/handoffs/2026-10-15-portfolio-build.md`. Times are Asia/Bangkok.
 - P3 u1 articles 20261015-022844-72485-29996, u2 resume+uses 20261015-022844-72502-21336, u3 contact 20261015-022903-73419-20582, u4 cmdk+404 20261015-022844-72559-30847
 - covers: background bash writing docs/design/covers-src/*.png (12 images)
 - Prompts for all jobs: scratchpad p3-*.txt / lab-*.txt (session-local)
+- P2a scene core 20261015-024230-4252-28264 (src/features/stack-scene, prompt scratchpad p2a.txt)

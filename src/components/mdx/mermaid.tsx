@@ -3,6 +3,19 @@
 import { useTheme } from "next-themes";
 import { useEffect, useId, useRef, useState } from "react";
 
+// Mermaid's colour parser only knows hex/rgb/hsl; the browser resolves tokens to lab()/oklch().
+// Painting one pixel converts any CSS colour to sRGB.
+function toRgb(color: string, fallback: string): string {
+  if (!color) return fallback;
+  const ctx = document.createElement("canvas").getContext("2d", { willReadFrequently: true });
+  if (!ctx) return fallback;
+  ctx.fillStyle = fallback;
+  ctx.fillStyle = color;
+  ctx.fillRect(0, 0, 1, 1);
+  const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
 interface MermaidProps {
   chart: string;
 }
@@ -51,18 +64,21 @@ export function Mermaid({ chart }: MermaidProps) {
         const mermaid = (await import("mermaid")).default;
 
         const rootStyles = getComputedStyle(document.documentElement);
-        const lineStrong =
+        const lineStrong = toRgb(
           rootStyles.getPropertyValue("--line-strong").trim() ||
-          rootStyles.getPropertyValue("--color-line-strong").trim() ||
-          "#3A4350";
-        const text =
+            rootStyles.getPropertyValue("--color-line-strong").trim(),
+          "#3A4350",
+        );
+        const text = toRgb(
           rootStyles.getPropertyValue("--text").trim() ||
-          rootStyles.getPropertyValue("--color-text").trim() ||
-          "#E6EAF0";
-        const surface =
+            rootStyles.getPropertyValue("--color-text").trim(),
+          "#E6EAF0",
+        );
+        const surface = toRgb(
           rootStyles.getPropertyValue("--surface").trim() ||
-          rootStyles.getPropertyValue("--color-surface").trim() ||
-          "#12161B";
+            rootStyles.getPropertyValue("--color-surface").trim(),
+          "#12161B",
+        );
         const isDark =
           document.documentElement.classList.contains("dark") ||
           !document.documentElement.classList.contains("light");

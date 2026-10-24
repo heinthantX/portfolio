@@ -1,23 +1,26 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { hasWebGL, lowPower } from "@/features/signal-scene/useSignalGate";
 import { useHero } from "./store";
 
-const SignalCanvas = dynamic(() => import("@/features/signal-scene/SignalCanvas"), {
-  ssr: false,
-});
+const WaveCanvas = dynamic(() => import("./WaveCanvas"), { ssr: false });
 
-/** WebGL present, motion allowed, idle reached; point count by device; tab visibility. */
+/**
+ * WebGL present and idle reached; point count and pixel ratio by device; tab visibility. Under
+ * reduced motion the wave still loads, as one still frame.
+ */
 function useSiteGate() {
   const [ready, setReady] = useState(false);
-  const [count, setCount] = useState(16000);
+  const [still, setStill] = useState(false);
+  const [mobile, setMobile] = useState(false);
   const [hidden, setHidden] = useState(false);
 
   useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches || !hasWebGL()) return;
-    if (lowPower()) setCount(6000);
+    if (!hasWebGL()) return;
+    setStill(window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+    setMobile(lowPower());
     const go = () => setReady(true);
     if ("requestIdleCallback" in window) {
       const id = window.requestIdleCallback(go, { timeout: 800 });
@@ -33,53 +36,29 @@ function useSiteGate() {
     return () => document.removeEventListener("visibilitychange", vis);
   }, []);
 
-  return { ready, count, hidden };
+  return { ready, still, mobile, count: mobile ? 6000 : 16000, hidden };
 }
 
-/** One fixed canvas behind every page, kept across route changes. The hero drives it. */
+/**
+ * One fixed canvas behind every page, kept across route changes: the site-wide stream. On the
+ * home page the hero drives it, and its shapes dissolve into the stream after "shipped".
+ */
 export function SiteWave() {
   const hero = useHero();
   const gate = useSiteGate();
-  const wrap = useRef<HTMLDivElement>(null);
-  const [onScreen, setOnScreen] = useState(true);
-
-  useEffect(() => {
-    const el = hero?.stageRef.current;
-    if (!el) return;
-    const io = new IntersectionObserver(([e]) => setOnScreen(e.isIntersecting));
-    io.observe(el);
-    return () => io.disconnect();
-  }, [hero]);
-
-  // ride along with the sticky stage, so the canvas leaves exactly when it does
-  useEffect(() => {
-    const el = hero?.stageRef.current;
-    if (!el || !onScreen) return;
-    let raf = 0;
-    const tick = () => {
-      const top = Math.min(0, el.getBoundingClientRect().top);
-      if (wrap.current) wrap.current.style.transform = `translate3d(0, ${top}px, 0)`;
-      raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [hero, onScreen]);
-
-  if (!gate.ready || !hero) return null;
+  if (!gate.ready) return null;
   return (
     <div
-      ref={wrap}
       aria-hidden="true"
       data-site-wave
-      data-hero="true"
-      className="no-print pointer-events-none fixed inset-x-0 top-0 -z-10 h-[100svh]"
+      data-hero={hero ? "true" : "false"}
+      className="no-print pointer-events-none fixed inset-x-0 top-0 -z-10 h-[100lvh]"
     >
-      <SignalCanvas
-        variant="hero"
-        progressRef={hero.progressRef}
-        maskRef={hero.maskRef}
+      <WaveCanvas
         count={gate.count}
-        frameloop={onScreen && !gate.hidden ? "always" : "never"}
+        still={gate.still}
+        mobile={gate.mobile}
+        frameloop={gate.still ? "demand" : gate.hidden ? "never" : "always"}
       />
     </div>
   );

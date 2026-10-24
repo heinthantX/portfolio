@@ -29,9 +29,16 @@ export function shapeIndex(p: number): number {
 /** Chapter whose text/rail tick is active. */
 export const activeChapter = (p: number) => Math.min(CHAPTERS - 1, Math.round(shapeIndex(p)));
 
-/** Scroll progress that rests on chapter i. */
+/** Scroll progress that rests on chapter i. The last one rests before the dissolve to flow. */
 export const chapterProgress = (i: number) =>
-  i === 0 ? 0 : i === CHAPTERS - 1 ? 0.99 : (i + 0.5) / CHAPTERS;
+  i === 0 ? 0 : i === CHAPTERS - 1 ? 0.925 : (i + 0.5) / CHAPTERS;
+
+/** Hand-off after "shipped": over the last stretch of progress the globe dissolves into the site flow. */
+export const FLOW_FROM = 0.945;
+export const flowMix = (p: number) => {
+  const t = local(p, FLOW_FROM, 1);
+  return t * t * (3 - 2 * t);
+};
 
 /** How far into its chapter the word-by-word reveal runs (progress units after it starts entering). */
 const REVEAL_SPAN = CHAPTER_IDS.map((id) => (id === "wave" ? 0.07 : 0.06));
@@ -117,6 +124,9 @@ function basePose(i: number, view: { w: number; h: number; mobile: boolean }): P
     scale: Math.min(SCALE[c], (FIT[c] * view.w) / 4.4),
   };
 }
+
+/** Idle life: a slow ~7 s scale pulse instead of a side-to-side sway. */
+export const breathe = (t: number) => 1 + Math.sin(t * 0.9) * 0.012;
 
 /** Frame-rate independent ease of `shown` toward `target`; dt in seconds. */
 export const easeToward = (shown: number, target: number, dt: number, rate = 5) =>

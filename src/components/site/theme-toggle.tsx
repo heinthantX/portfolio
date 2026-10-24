@@ -12,7 +12,7 @@ export function ThemeToggle() {
   const toggle = (event: React.MouseEvent<HTMLButtonElement>) => {
     const next = resolvedTheme === "light" ? "dark" : "light";
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (!document.startViewTransition || reduced) {
+    if (!document.startViewTransition || reduced || document.hidden) {
       setTheme(next);
       return;
     }
@@ -24,16 +24,20 @@ export function ThemeToggle() {
     const transition = document.startViewTransition(() => {
       flushSync(() => setTheme(next));
     });
-    transition.ready.then(() => {
-      document.documentElement.animate(
-        { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${radius}px at ${x}px ${y}px)`] },
-        {
-          duration: 450,
-          easing: "cubic-bezier(0.2, 0.7, 0.2, 1)",
-          pseudoElement: "::view-transition-new(root)",
-        },
-      );
-    });
+    // A transition aborted mid-way (tab hidden, another transition) rejects; the theme still applies.
+    transition.finished.catch(() => {});
+    transition.ready
+      .then(() => {
+        document.documentElement.animate(
+          { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${radius}px at ${x}px ${y}px)`] },
+          {
+            duration: 450,
+            easing: "cubic-bezier(0.2, 0.7, 0.2, 1)",
+            pseudoElement: "::view-transition-new(root)",
+          },
+        );
+      })
+      .catch(() => {});
   };
 
   return (

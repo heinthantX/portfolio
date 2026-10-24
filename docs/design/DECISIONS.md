@@ -203,6 +203,7 @@ Owner asked for "a little fun sliding animation on page switching like going fro
   - The new page slides up from 14vh below over 0.62s, with a 1.2deg tilt pivoting from its top edge and a small overshoot (`cubic-bezier(0.2, 1.3, 0.35, 1)`). It starts 80ms after the old page.
   - Reduced motion turns both off.
 - **Theme toggle is unaffected.** React names the snapshots only during its own transitions, and the theme toggle's manual `startViewTransition` is not one of them.
+- **Hidden tab (fix).** A view transition started while the document is hidden is aborted with `InvalidStateError: Transition was aborted because of invalid state. Document hidden` (seen as a recoverable error in dev, e.g. a Fast Refresh in a background tab). `PageTransition` (`src/components/site/page-transition.tsx`) tracks `visibilitychange` with `useSyncExternalStore` and sets `default="none"` while hidden. The theme toggle skips the transition when `document.hidden` and catches `ready`/`finished` rejections; the theme still applies.
 
 ## D20 — Visible output selection, close light, Home link (2026-10-24)
 

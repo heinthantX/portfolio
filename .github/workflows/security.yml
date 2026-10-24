@@ -18,9 +18,9 @@ jobs:
   dependency-audit:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       - name: pnpm audit (prod, high+)
@@ -33,7 +33,7 @@ jobs:
     container:
       image: zricethezav/gitleaks:v8.28.0
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: gitleaks (new commits)
@@ -48,7 +48,7 @@ jobs:
     container:
       image: semgrep/semgrep:1.140.0
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # --severity ERROR = high only. Mark reviewed false positives with a
       # `// nosemgrep: <rule-id>` comment on the line, with a reason.
       - name: semgrep (ERROR severity)

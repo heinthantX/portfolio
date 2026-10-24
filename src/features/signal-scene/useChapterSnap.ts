@@ -328,8 +328,9 @@ export function useChapterSnap(
       touching = false;
       onScroll();
     };
-    const onDown = () => {
-      pressed = true;
+    // touch pointers end in pointercancel once the browser scrolls; `touching` covers them
+    const onDown = (e: PointerEvent) => {
+      if (e.pointerType !== "touch") pressed = true;
     };
     const onUp = () => {
       pressed = false;
@@ -342,6 +343,7 @@ export function useChapterSnap(
     window.addEventListener("touchcancel", onTouchEnd, opts);
     window.addEventListener("pointerdown", onDown, opts);
     window.addEventListener("pointerup", onUp, opts);
+    window.addEventListener("pointercancel", onUp, opts);
     return () => {
       release();
       lenis.options.lerp = baseLerp;
@@ -354,6 +356,7 @@ export function useChapterSnap(
       window.removeEventListener("touchcancel", onTouchEnd);
       window.removeEventListener("pointerdown", onDown);
       window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
     };
   }, [enabled, lenis, stops]);
 

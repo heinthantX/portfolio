@@ -15,7 +15,9 @@
 | Scroll-linked text | Use ScrollWords, not per-word JS. Accent matching strips case and punctuation on both sides. Blur only at ≥768px. | docs/memory/conventions.md | 2026-10-24 |
 | Chapter jumps | Chapter jumps call `goTo` from `useChapterSnap`, never `lenis.scrollTo` directly. | docs/memory/conventions.md | 2026-10-24 |
 | Skill tags | Show skill breadth in copy. Never highlight individual tags. Write MySQL, not MariaDB. | docs/memory/conventions.md | 2026-10-24 |
-| E2E on prod server | Kill the port before rebuilding while `next start` runs. Otherwise stale chunks load and the canvas never mounts. | docs/memory/conventions.md | 2026-10-24 |
+| E2E on prod server | Kill the port before rebuilding while `next start` runs. Rebuild before e2e after UI changes (`reuseExistingServer`). Otherwise stale chunks or markup load. | docs/memory/conventions.md | 2026-10-25 |
+| Mobile menu | Below `md` the nav is a hamburger at far right with a top-right dropdown panel. Home is a text link off-home; the House icon is removed. Closed panel is `inert`. | docs/memory/conventions.md | 2026-10-25 |
+| Nav hover arrow z-index | Put `z-index` on the arrow svgs inside `.nav-shot` (isolation: isolate), never on the `.shot-arrow` wrapper. A wrapper z-index traps the front layer behind the label. | docs/memory/conventions.md | 2026-10-25 |
 | Command menu placeholder | Keep "Type a command or search..." unchanged. The e2e tests rely on it. | docs/memory/conventions.md | 2026-10-24 |
 | Wheel interception | Lenis `virtualScroll` returning false skips Lenis but not native scroll. The interceptor must call `event.preventDefault()`. | docs/memory/fixes.md | 2026-10-24 |
 | Snap completion | Lenis drops a `scrollTo` `onComplete` when the scroll is interrupted. Track a `busyUntil` timestamp instead. | docs/memory/fixes.md | 2026-10-24 |
@@ -25,3 +27,4 @@
 | R3F Clock patch | `@react-three/fiber` 9.8.x constructs a deprecated `THREE.Clock`. Keep the pnpm patch; re-check or drop it on upgrade. | docs/memory/fixes.md | 2026-10-24 |
 | Tab in Radix Dialog | Tab handlers need `stopPropagation` as well as `preventDefault`, or FocusScope wraps focus off the input. | docs/memory/fixes.md | 2026-10-24 |
 | shadcn data-* variants | `data-selected:` (and similar shadcn variants) match only `="true"`; set the attribute to "true", not "". | docs/memory/fixes.md | 2026-10-24 |
+| Hero snap on touch | `pointercancel` fires when the browser takes over a touch scroll. Treat it as pointerup, and ignore touch pointers for `pressed`. | docs/memory/fixes.md | 2026-10-24 |

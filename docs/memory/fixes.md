@@ -49,3 +49,7 @@ react-three-fiber 9.8.1 resets `clock` to 0 whenever `frameloop` changes. The ho
 - **Hydration mismatch from reveal markers (2026-10-24):** text-reveal.tsx set `data-para` on nodes the MutationObserver saw before React hydrated them, so React reported an attribute mismatch (Eyebrow on /contact). Fix: no DOM writes; reveal with `el.animate()` and track state in a WeakSet.
 
 - **Reveals did not replay on back/forth navigation (2026-10-24):** Next keeps visited routes mounted but hidden (2 `[data-paras]` regions in the DOM), so returning showed already-revealed nodes. Fix: on each pathname change, next frame, cancel and re-observe reveals of blocks that are `checkVisibility()`.
+
+## Hero chapters never snapped on phones (pointercancel) (2026-10-24)
+Root cause: when the browser takes over a touch scroll it fires `pointercancel` instead of `pointerup`. `useChapterSnap` kept its `pressed` flag true, so `settle()` deferred forever. The first 7 home chapters never snapped on phones, leaving text half-revealed and blurred between stops.
+Fix: `pressed` ignores touch pointers (touchstart/touchend `touching` covers touch), and `pointercancel` is treated as `pointerup`. Source: `src/features/signal-scene/useChapterSnap.ts`. See `docs/specs/signal-hero.md`.

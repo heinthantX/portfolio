@@ -2,7 +2,7 @@ import Link from "next/link";
 import { profile } from "@/content/profile";
 import { CommandMenu } from "./command-menu";
 import { getCommandMenuItems } from "./command-menu-data";
-import { MainNav } from "./main-nav";
+import { MainNav, MobileMenu } from "./main-nav";
 import { StackGlyph } from "./stack-glyph";
 import { ThemeToggle } from "./theme-toggle";
 
@@ -11,7 +11,7 @@ export function SiteHeader({ children }: { children?: React.ReactNode }) {
 
   return (
     <header className="no-print fixed inset-x-0 top-0 z-40 border-b border-line/60 bg-bg/70 backdrop-blur-md">
-      <div className="mx-auto flex h-14 max-w-[1280px] items-center gap-6 px-4 sm:px-6 lg:px-10">
+      <div className="mx-auto flex h-14 max-w-[1280px] items-center gap-1 px-4 md:gap-6 sm:px-6 lg:px-10">
         <Link
           href="/"
           className="mr-auto flex items-center gap-2 font-mono text-[0.8125rem] tracking-tight"
@@ -24,6 +24,7 @@ export function SiteHeader({ children }: { children?: React.ReactNode }) {
           <CommandMenu items={items} />
           {children}
           <ThemeToggle />
+          <MobileMenu />
         </div>
       </div>
     </header>

@@ -30,7 +30,13 @@ Every chapter jump (rail, stack outline, layer grid, wheel) calls `goTo` from `u
 Do not highlight individual skill tags (no signal-coloured tag for MongoDB or NoSQL). The owner rejected that. Show breadth in the copy instead, e.g. "SQL and NoSQL: Postgres and MySQL for relational data, MongoDB for documents". Write MySQL, not MariaDB (MariaDB is a fork). See `docs/design/DECISIONS.md` D10.
 
 ## E2E against the prod server: kill the port first
-`next start` keeps serving the old build after a rebuild, so stale chunks load and the canvas never mounts in e2e. Kill the port before restarting the server, then run the tests.
+`next start` keeps serving the old build after a rebuild, so stale chunks load and the canvas never mounts in e2e. Kill the port before restarting the server, then run the tests. Playwright uses `pnpm start` with `reuseExistingServer`, so rebuild before running e2e after any UI change, or the tests hit stale markup.
+
+## Mobile menu is a header dropdown, not a bottom sheet
+Below `md` the nav lives behind a hamburger at the far right of the header, in a panel that drops from the top-right. Chosen over a full-screen overlay to keep the page visible behind it. The mobile-only House icon Home link is gone; Home is a text link in the panel off-home. The closed panel is `inert`. See `docs/specs/mobile-menu.md`.
+
+## Nav arrow: z-index goes on the svgs, not the wrapper
+The desktop nav hover arrow has a lap (back layer only) and a cross through the label. The cross is a moving dash on the front masked layer and its halo, and it leaves no cross at rest, so the text stays readable. The current-page rest arrow (0.35 opacity) keeps its head; the head sits off the label's top-right corner. Put the `z-index` on the svgs inside `.nav-shot` (`isolation: isolate`, `z-index: 1` so the head paints over the preview card). A `z-index` on the `.shot-arrow` wrapper creates a stacking context and traps the front layer behind the label. Any `useId` value used in a `url()` must have its colons stripped. The arrow dives into the card's nail hole (`.pv-hole`), so the card is pinned by the arrow itself. Reduced motion disables the card swing and the hole pop. See `docs/specs/nav-hover-preview.md`.
 
 ## Command menu placeholder is a test contract
 The command menu input keeps the placeholder "Type a command or search...". The e2e tests rely on it, so change the copy only together with the tests. See `docs/specs/command-menu.md`.

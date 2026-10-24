@@ -91,6 +91,8 @@ function CursorImpl() {
     const updateHoverState = (rawTarget: EventTarget | null) => {
       const target = getElement(rawTarget);
       if (!target) return;
+      // regions with their own hover effect (the nav's arrows) opt out of the ring
+      ring.style.visibility = target.closest("[data-no-ring]") ? "hidden" : "";
 
       const inputEl = target.closest(
         "input, textarea, select, [contenteditable], [contenteditable='true']",

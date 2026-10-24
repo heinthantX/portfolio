@@ -63,18 +63,22 @@ test("route /does-not-exist returns 404 and shows 404 text", async ({ page }) =>
 });
 
 test("header shows Home off the home page and marks the current page", async ({ page }, info) => {
-  const home =
-    info.project.name === "mobile"
-      ? page.getByRole("banner").getByRole("link", { name: "Home", exact: true })
-      : page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Home" });
+  const mobile = info.project.name === "mobile";
+  const menu = page.getByRole("button", { name: "Open menu" });
+  const main = page.getByRole("navigation", { name: "Main" });
   await page.goto("/");
-  await expect(home).toHaveCount(0);
+  if (mobile) await menu.click();
+  await expect(main.getByRole("link", { name: "Home" })).toHaveCount(0);
   await page.goto("/work/this-portfolio");
-  await expect(home).toBeVisible();
-  if (info.project.name !== "mobile")
+  if (mobile) {
+    // the Home icon sits in the header itself, outside the menu
     await expect(
-      page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Work" }),
-    ).toHaveAttribute("aria-current", "page");
-  await home.click();
+      page.getByRole("banner").getByRole("link", { name: "Home", exact: true }),
+    ).toBeVisible();
+    await menu.click();
+  }
+  await expect(main.getByRole("link", { name: "Work" })).toHaveAttribute("aria-current", "page");
+  await main.getByRole("link", { name: "Home" }).click();
   await expect(page).toHaveURL(/\/$/);
+  if (mobile) await expect(page.getByRole("button", { name: "Open menu" })).toBeVisible();
 });

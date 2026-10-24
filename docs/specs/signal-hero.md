@@ -57,7 +57,7 @@ Rationale and history: `docs/design/DECISIONS.md` (D7 concept, D8 motion rules, 
     - **Free scroll:** only for a hard fling (2500+ raw px within the first 250ms) or three swipes within 900ms. A wheel held at swipe speed counts as another swipe every 400ms (`SUSTAIN_MS`), so a long mouse spin goes free. On going free, Lenis is credited the delta the gesture already sent (from + held). After a fling it settles forward to the next chapter in its direction, never back.
     - **Trackpad push:** a new push is a delta that rises to 20 or more and more than 3x the trough reached after the peak. The trough resets on ramp-up, so a swipe's own ramp is not a second push.
     - **Wheel during a glide:** stops the finishing glide in place (`scrollTo` at `animatedScroll`, immediate), then follows. No dip back.
-    - **Touch, keys, scrollbar:** `settleStop` runs once scrolling is quiet. Past the nudge, it finishes in the direction of travel.
+    - **Touch, keys, scrollbar:** `settleStop` runs once scrolling is quiet. Past the nudge, it finishes in the direction of travel. Touch pointers never set the `pressed` flag, and `pointercancel` counts as `pointerup` (phones cancel the pointer once they take over the scroll; otherwise the snap never settles).
     - Snap tracks a `busyUntil` timestamp, not `onComplete`, because Lenis drops `onComplete` when a scroll is interrupted (`docs/memory/fixes.md`).
 
 ## Edge Cases

@@ -9,8 +9,8 @@ Chose an inline `ARM_SCRIPT` in `src/app/layout.tsx` that adds `html.paras-armed
 ## Above-the-fold reveals wait for the view transition
 Chose a 450ms delay before load-time reveals, with an 80ms stagger per batch. Reason: the page-switch view transition snapshot covers the page for about 0.7s, so earlier reveals played invisibly.
 
-## Slide-in is entry-only, from the left
-`data-block="slide"` (What I do and Experience rows on home) slides in from the left once when it enters. Reason: this is a one-shot entry, not a sway. It follows the D12 precedent for hero text. It is the only reveal that moves sideways, and it must not be made repeating or ping-pong.
+## Stagger replaces the left slide for home rows
+Chose `data-block="stagger"` over the left-entry `data-block="slide"` for home rows. The container stays still and each `[data-part]` child is observed and revealed on its own entry. Reason: rows used to reveal as one block triggered by their top edge, so on narrow screens (stacked Featured work cards) the lower text finished animating off-screen and "only animated sometimes". The slide was also the only sideways reveal. Spec: `docs/specs/text-reveal.md`.
 
 ## Per-route Lenis feel
 Chose separate Lenis tuning per route through `RouteFeel`: home keeps `lerp` 0.09 and `wheelMultiplier` 0.9, other routes use `lerp` 0.18 and `wheelMultiplier` 1. Reason: trackpad scrolling felt heavy on sub-routes, while home's cinematic hero needs the slower feel.

@@ -3,7 +3,8 @@
 | Topic/Domain | 1-Line Core Rule / Decision | Detail File | Updated |
 |---|---|---|---|
 | Motion: no sideways travel | No ping-pong or sway left/right. Hero text blocks may slide in from the side (D12). Page switches slide vertically (D19). Cursor parallax and hover nudges are allowed. | docs/memory/conventions.md | 2026-10-24 |
-| Text reveal mechanism | Reveals are opt-in via `data-paras` and use JS IntersectionObserver, not CSS `view()` timelines. Arm in head before paint. Above-the-fold waits 450ms. `data-block="slide"` is a one-shot left entry. | docs/memory/architecture.md | 2026-10-24 |
+| Text reveal mechanism | Reveals are opt-in via `data-paras`, driven by JS IntersectionObserver and WAAPI, not CSS `view()` timelines. Arm in head before paint. Above-the-fold waits 450ms. | docs/memory/architecture.md | 2026-10-25 |
+| Home row stagger | `data-block="stagger"`: the container stays still and each `[data-part]` reveals on its own viewport entry (tall rows animated off-screen otherwise). Replaces the left slide, which is removed. | docs/memory/architecture.md | 2026-10-25 |
 | Per-route Lenis feel | Home uses lerp 0.09 and wheelMultiplier 0.9. Other routes use lerp 0.18 and wheelMultiplier 1. | docs/memory/architecture.md | 2026-10-24 |
 | Text reveal: head arm | Add `html.paras-armed` in the head script before first paint. Arming after hydration hides painted text. | docs/memory/fixes.md | 2026-10-24 |
 | Text reveal: view transition | Load-time reveals played behind the ~0.7s view-transition snapshot. Delay them 450-500ms. | docs/memory/fixes.md | 2026-10-24 |

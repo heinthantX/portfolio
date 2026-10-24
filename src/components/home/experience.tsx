@@ -22,34 +22,43 @@ export function Experience({ index = "03", total = 8 }: ExperienceProps) {
             <li
               key={`${entry.role}-${entry.company}-${entry.years}`}
               className="relative flex flex-col md:flex-row md:items-start"
-              data-block="slide"
+              data-block="stagger"
             >
               {/* Dot per entry on the pipeline line */}
               <span
+                data-part
                 className="absolute top-2 left-[11px] size-2.5 -translate-x-1/2 rounded-full bg-signal ring-4 ring-bg md:left-[180px] lg:left-[220px]"
                 aria-hidden="true"
               />
 
               {/* Mobile years display */}
-              <div className="mb-1 pl-8 font-mono text-xs text-muted-foreground md:hidden">
+              <div
+                data-part
+                className="mb-1 pl-8 font-mono text-xs text-muted-foreground md:hidden"
+              >
                 {entry.years}
               </div>
 
               {/* Desktop left column: years in mono */}
-              <div className="hidden shrink-0 pt-0.5 font-mono text-xs text-muted-foreground md:block md:w-[180px] md:pr-8 md:text-right lg:w-[220px] lg:pr-10 sm:text-sm">
+              <div
+                data-part
+                className="hidden shrink-0 pt-0.5 font-mono text-xs text-muted-foreground md:block md:w-[180px] md:pr-8 md:text-right lg:w-[220px] lg:pr-10 sm:text-sm"
+              >
                 {entry.years}
               </div>
 
               {/* Right column: role, company, 2–3 bullets */}
               <div className="flex-1 min-w-0 pl-8 md:pl-8 lg:pl-10">
-                <h3 className="text-xl font-semibold tracking-[-0.03em] text-text">{entry.role}</h3>
-                <p className="mt-1 font-mono text-xs text-muted-foreground sm:text-sm">
+                <h3 data-part className="text-xl font-semibold tracking-[-0.03em] text-text">
+                  {entry.role}
+                </h3>
+                <p data-part className="mt-1 font-mono text-xs text-muted-foreground sm:text-sm">
                   {entry.company}
                 </p>
 
                 <ul className="mt-4 space-y-2.5 text-sm leading-relaxed text-muted-foreground sm:text-base">
                   {entry.bullets.map((bullet) => (
-                    <li key={bullet} className="flex items-start gap-2.5">
+                    <li key={bullet} data-part className="flex items-start gap-2.5">
                       <span
                         className="mt-2 size-1.5 shrink-0 rounded-full bg-line-strong"
                         aria-hidden="true"

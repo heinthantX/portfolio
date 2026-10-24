@@ -103,7 +103,7 @@ export function WhatIDo({ index = "02", total = 8 }: WhatIDoProps) {
               <li
                 key={cap.id}
                 className="group relative py-6 transition-colors sm:py-8"
-                data-block="slide"
+                data-block="stagger"
               >
                 {/* Full-width focusable button row with visible focus style and aria-expanded */}
                 <button
@@ -128,7 +128,7 @@ export function WhatIDo({ index = "02", total = 8 }: WhatIDoProps) {
                 >
                   <div className="grid grid-cols-1 items-baseline gap-2 lg:grid-cols-12 lg:items-center lg:gap-6">
                     {/* Mono number + Title */}
-                    <div className="flex items-center gap-4 lg:col-span-3">
+                    <div className="flex items-center gap-4 lg:col-span-3" data-part>
                       <span className="shrink-0 font-mono text-xs text-muted-foreground transition-colors group-hover:text-signal group-focus-within:text-signal sm:text-sm">
                         {num}
                       </span>
@@ -138,17 +138,23 @@ export function WhatIDo({ index = "02", total = 8 }: WhatIDoProps) {
                     </div>
 
                     {/* Mono stack row (muted) */}
-                    <div className="font-mono text-xs text-muted-foreground lg:col-span-4">
+                    <div
+                      className="font-mono text-xs text-muted-foreground lg:col-span-4"
+                      data-part
+                    >
                       {cap.stack.join(" · ")}
                     </div>
 
                     {/* Pitch */}
-                    <div className="text-sm leading-relaxed text-muted-foreground lg:col-span-4">
+                    <div
+                      className="text-sm leading-relaxed text-muted-foreground lg:col-span-4"
+                      data-part
+                    >
                       {cap.pitch}
                     </div>
 
                     {/* Arrow indicator */}
-                    <div className="flex justify-end lg:col-span-1">
+                    <div className="flex justify-end lg:col-span-1" data-part>
                       <span
                         aria-hidden="true"
                         className={cn(

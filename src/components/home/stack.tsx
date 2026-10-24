@@ -14,15 +14,15 @@ export function Stack({ index = "06", total = 8 }: StackProps) {
         {profile.stackLayers.map((layer) => (
           <li
             key={layer.id}
-            data-block
+            data-block="stagger"
             className="grid grid-cols-1 items-baseline gap-4 py-6 sm:py-8 md:grid-cols-12 md:gap-8"
           >
-            <div className="md:col-span-4 lg:col-span-3">
+            <div className="md:col-span-4 lg:col-span-3" data-part>
               <h3 className="font-mono text-xs uppercase tracking-[0.14em] text-muted-foreground">
                 {layer.label}
               </h3>
             </div>
-            <div className="flex flex-wrap gap-2 md:col-span-8 lg:col-span-9">
+            <div className="flex flex-wrap gap-2 md:col-span-8 lg:col-span-9" data-part>
               {layer.tech.map((tech) => (
                 <Tag key={tech}>{tech}</Tag>
               ))}

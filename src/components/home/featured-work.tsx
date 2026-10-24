@@ -25,12 +25,12 @@ export function FeaturedWork({ index = "04", total = 8 }: FeaturedWorkProps) {
           return (
             <article
               key={item.slug}
-              data-block
+              data-block="stagger"
               className="group py-12 first:pt-6 last:pb-6 sm:py-16"
             >
               <div className="grid grid-cols-1 items-center gap-8 lg:grid-cols-12 lg:gap-12">
                 {/* 16:10 cover image with a 1px frame that turns amber on hover */}
-                <div className={cn("lg:col-span-6", !isEven && "lg:order-2")}>
+                <div className={cn("lg:col-span-6", !isEven && "lg:order-2")} data-part>
                   <Link
                     href={`/work/${item.slug}`}
                     tabIndex={-1}
@@ -57,14 +57,17 @@ export function FeaturedWork({ index = "04", total = 8 }: FeaturedWorkProps) {
                     !isEven && "lg:order-1",
                   )}
                 >
-                  <div className="mb-4 flex flex-wrap items-center gap-2">
+                  <div className="mb-4 flex flex-wrap items-center gap-2" data-part>
                     {item.tags.map((tag) => (
                       <Tag key={tag}>{tag}</Tag>
                     ))}
                     <SampleBadge mock={item.mock} />
                   </div>
 
-                  <h3 className="text-2xl font-semibold tracking-[-0.03em] text-text sm:text-3xl">
+                  <h3
+                    data-part
+                    className="text-2xl font-semibold tracking-[-0.03em] text-text sm:text-3xl"
+                  >
                     <Link
                       href={`/work/${item.slug}`}
                       className="transition-colors hover:text-signal"
@@ -74,11 +77,14 @@ export function FeaturedWork({ index = "04", total = 8 }: FeaturedWorkProps) {
                     </Link>
                   </h3>
 
-                  <p className="mt-3 max-w-[56ch] text-sm leading-relaxed text-muted-foreground sm:mt-4 sm:text-base">
+                  <p
+                    data-part
+                    className="mt-3 max-w-[56ch] text-sm leading-relaxed text-muted-foreground sm:mt-4 sm:text-base"
+                  >
                     {item.outcome}
                   </p>
 
-                  <div className="mt-6">
+                  <div className="mt-6" data-part>
                     <Link
                       href={`/work/${item.slug}`}
                       className="link-underline inline-flex items-center gap-1 font-mono text-xs uppercase tracking-[0.12em] text-signal transition-colors hover:text-signal-strong"

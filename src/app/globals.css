@@ -243,7 +243,14 @@ html.lenis body {
       table,
       img,
       hr
-    ):not([data-words], [data-words] *, [data-block] *, [data-reveal="headline"] *) {
+    ):not(
+      [data-words],
+      [data-words] *,
+      [data-block] *,
+      [data-reveal="headline"] *,
+      [data-block="stagger"]
+    ),
+  .paras-armed [data-paras] [data-block="stagger"] [data-part] {
     opacity: 0;
     animation: none;
   }

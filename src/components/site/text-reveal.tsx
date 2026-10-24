@@ -5,10 +5,13 @@ import { useEffect } from "react";
 
 /**
  * Reveal blocks inside a `[data-paras]` region: paragraph-level text, or a whole `[data-block]`
- * (a row, a card) that then moves as one. Keep in sync with the `.paras-armed` rule in globals.css.
+ * (a row, a card) that then moves as one. `data-block="stagger"` keeps the row still and reveals
+ * each of its `[data-part]` pieces as that piece scrolls in, so the bottom of a tall card isn't
+ * done animating before you reach it. `ScrollWords mode="in"` words inside a block
+ * flip in word by word with it. Keep in sync with the `.paras-armed` rules in globals.css.
  */
 const BLOCKS =
-  "[data-paras] :is([data-block], [data-reveal='headline'], p, li, h2, h3, h4, blockquote, pre, figure, table, img, hr):not([data-words], [data-words] *, [data-block] *, [data-reveal='headline'] *)";
+  "[data-paras] :is([data-block], [data-reveal='headline'], p, li, h2, h3, h4, blockquote, pre, figure, table, img, hr):not([data-words], [data-words] *, [data-block] *, [data-reveal='headline'] *, [data-block='stagger']), [data-paras] [data-block='stagger'] [data-part]";
 /** Waits out the page-switch view transition, so above-the-fold text animates where you can see it. */
 const AFTER_PAGE_SWITCH = 450;
 const STEP = 80;
@@ -18,24 +21,59 @@ export const ARM_SCRIPT = `(function(){var d=document.documentElement;if(matchMe
 
 const HEADLINE = "[data-reveal='headline']";
 const EASE = "cubic-bezier(0.2, 0.7, 0.2, 1)";
-/** Each block's reveal; its fill-forwards keeps it visible over the CSS that hides it. */
-const reveals = new WeakMap<Element, Animation>();
+/** Each block's reveals; their fill-forwards keeps it visible over the CSS that hides it. */
+const reveals = new WeakMap<Element, Animation[]>();
+
+const RISE: Keyframe[] = [
+  { opacity: 0, translate: "0 22px", filter: "blur(6px)" },
+  { opacity: 1, translate: "0 0", filter: "blur(0px)" },
+];
+/** Same flip as the `word-in` keyframes that page titles use on load. */
+const WORD: Keyframe[] = [
+  {
+    opacity: 0.04,
+    filter: "blur(14px)",
+    transform: "perspective(30em) translateY(0.9em) rotateX(-75deg) scale(0.9)",
+  },
+  { opacity: 1, filter: "blur(0px)", transform: "none" },
+];
+
+function reveal(el: HTMLElement, delay: number): Animation[] {
+  const opts = { easing: EASE, fill: "both" } as const;
+  const anims = [
+    el.animate(keyframes(el), {
+      ...opts,
+      duration: el.matches(HEADLINE) ? 900 : 800,
+      delay,
+    }),
+  ];
+  for (const words of el.querySelectorAll<HTMLElement>("[data-words='in']")) {
+    const w = words.querySelectorAll<HTMLElement>("[data-w]");
+    const step = Math.min(45, 1000 / w.length);
+    w.forEach((word, i) => {
+      anims.push(word.animate(WORD, { ...opts, duration: 700, delay: delay + 150 + i * step }));
+    });
+  }
+  return anims;
+}
 
 function keyframes(el: HTMLElement): Keyframe[] {
+  if (!el.matches(HEADLINE)) return RISE;
   const to = { opacity: 1, translate: "0 0", filter: "blur(0px)" };
-  if (el.matches(HEADLINE))
-    return [
-      {
-        opacity: 0,
-        translate: "0 0.9em",
-        filter: "blur(16px)",
-        scale: "0.92",
-        letterSpacing: "0.06em",
-      },
-      { ...to, scale: "1", letterSpacing: "normal" },
-    ];
-  const from = el.dataset.block === "slide" ? "-48px 0" : "0 22px";
-  return [{ opacity: 0, translate: from, filter: "blur(6px)" }, to];
+  return [
+    {
+      opacity: 0,
+      translate: "0 0.9em",
+      filter: "blur(16px)",
+      scale: "0.92",
+      letterSpacing: "0.06em",
+    },
+    { ...to, scale: "1", letterSpacing: "normal" },
+  ];
+}
+
+function cancel(el: Element) {
+  for (const a of reveals.get(el) ?? []) a.cancel();
 }
 
 export function TextReveal() {
@@ -56,16 +94,8 @@ export function TextReveal() {
           if (!e.isIntersecting) continue;
           const el = e.target as HTMLElement;
           io.unobserve(el);
-          reveals.get(el)?.cancel();
-          reveals.set(
-            el,
-            el.animate(keyframes(el), {
-              duration: el.matches(HEADLINE) ? 900 : 800,
-              delay: wait + Math.min(n++, 8) * STEP,
-              easing: EASE,
-              fill: "both",
-            }),
-          );
+          cancel(el);
+          reveals.set(el, reveal(el, wait + Math.min(n++, 8) * STEP));
         }
       },
       { rootMargin: "0px 0px -6% 0px" },
@@ -81,7 +111,7 @@ export function TextReveal() {
     const replay = requestAnimationFrame(() => {
       for (const el of document.querySelectorAll<HTMLElement>(BLOCKS)) {
         if (!reveals.has(el) || !el.checkVisibility()) continue;
-        reveals.get(el)?.cancel();
+        cancel(el);
         reveals.delete(el);
       }
       scan();

@@ -16,19 +16,26 @@ export function HowIWork({ index = "05", total = 8 }: HowIWorkProps) {
           return (
             <article
               key={item.title}
-              data-block
+              data-block="stagger"
               className="flex flex-col border-t border-line pt-6 sm:pt-8"
             >
               <span
                 aria-hidden="true"
+                data-part
                 className="font-mono text-3xl font-semibold tracking-tight text-muted-foreground select-none sm:text-4xl"
               >
                 {num}
               </span>
-              <h3 className="mt-3 text-lg font-semibold tracking-[-0.03em] text-text sm:text-xl">
+              <h3
+                data-part
+                className="mt-3 text-lg font-semibold tracking-[-0.03em] text-text sm:text-xl"
+              >
                 {item.title}
               </h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground sm:text-base">
+              <p
+                data-part
+                className="mt-2 text-sm leading-relaxed text-muted-foreground sm:text-base"
+              >
                 {item.body}
               </p>
             </article>

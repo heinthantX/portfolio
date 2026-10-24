@@ -158,8 +158,19 @@ export function CommandMenu({ items }: CommandMenuProps) {
   const [out, setOut] = useState<{ cmd: string; i: number }>({ cmd: "", i: -1 });
   const outIdx = out.cmd === command ? out.i : -1;
   const outRows = () => [...(outRef.current?.querySelectorAll<HTMLElement>("[data-out]") ?? [])];
-  const row = (i: number) => ({ "data-out": "", "data-selected": i === outIdx ? "" : undefined });
-  const rowClass = "-mx-1 rounded-sm px-1 data-selected:bg-surface-2 data-selected:text-signal";
+  const row = (i: number) => ({
+    "data-out": "",
+    // shadcn's data-selected variant matches only "true"
+    "data-selected": i === outIdx ? "true" : undefined,
+    onMouseMove: () => command && i !== outIdx && setOut({ cmd: command, i }),
+  });
+  // The selected row needs more than a colour change: help names are already gold on a dark panel.
+  const rowClass =
+    "-mx-1.5 rounded-sm px-1.5 outline-none data-selected:bg-signal/15 data-selected:text-text data-selected:ring-1 data-selected:ring-signal/40";
+  useEffect(() => {
+    if (outIdx >= 0)
+      outRef.current?.querySelectorAll("[data-out]")[outIdx]?.scrollIntoView({ block: "nearest" });
+  }, [outIdx]);
 
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     // Tab belongs to the prompt here: keep the dialog's focus trap from moving focus off the input
@@ -355,10 +366,18 @@ export function CommandMenu({ items }: CommandMenuProps) {
         >
           {/* Terminal window bar: one tab per section */}
           <div className="flex items-end gap-3 border-b border-line bg-surface-2/40 pt-2 pl-3.5">
-            <div className="flex shrink-0 gap-1.5 pb-2.5" aria-hidden="true">
-              <span className="size-2.5 rounded-full bg-line-strong" />
-              <span className="size-2.5 rounded-full bg-line-strong" />
-              <span className="size-2.5 rounded-full bg-signal/70" />
+            <div className="flex shrink-0 items-center gap-1.5 pb-2.5">
+              <span aria-hidden="true" className="size-2.5 rounded-full bg-line-strong" />
+              <span aria-hidden="true" className="size-2.5 rounded-full bg-line-strong" />
+              {/* the gold light closes the window, like a terminal's close button (Esc does the same) */}
+              <button
+                type="button"
+                tabIndex={-1}
+                aria-label="Close command palette"
+                title="Close"
+                onClick={() => handleOpenChange(false)}
+                className="size-2.5 cursor-pointer rounded-full bg-signal/70 transition-[background-color,transform] hover:scale-125 hover:bg-signal"
+              />
             </div>
             <div
               role="tablist"

@@ -203,3 +203,9 @@ Owner asked for "a little fun sliding animation on page switching like going fro
   - The new page slides up from 14vh below over 0.62s, with a 1.2deg tilt pivoting from its top edge and a small overshoot (`cubic-bezier(0.2, 1.3, 0.35, 1)`). It starts 80ms after the old page.
   - Reduced motion turns both off.
 - **Theme toggle is unaffected.** React names the snapshots only during its own transitions, and the theme toggle's manual `startViewTransition` is not one of them.
+
+## D20 — Visible output selection, close light, Home link (2026-10-24)
+
+- **Arrow keys in command output now show.** Root cause: shadcn's `data-selected:` variant matches only `[data-selected="true"]`, but the output rows set `data-selected=""`. The selection moved, and the e2e test passed on the attribute alone, but nothing was drawn. Rows now set `"true"`. The style is a gold tint, a ring and white text, because help names are already gold and a colour change alone disappears. The e2e test now also asserts a non-transparent background. Hovering a row moves the selection, and the selected row scrolls into view.
+- **The gold window light closes the palette.** The third traffic-light dot is a button with `aria-label="Close command palette"` (tabIndex -1; Esc remains the keyboard path). It grows on hover.
+- **Home link off the home page.** The new client component `MainNav` (`src/components/site/main-nav.tsx`) puts "Home" first in the header list on every page except `/`. On mobile, where the list is hidden, it shows a house icon instead. The current section's link gets `aria-current="page"` and full-strength text.

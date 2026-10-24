@@ -47,3 +47,4 @@ A terminal-styled command palette. It is a site feature, not a page, and it live
 - The prompt shows the active tab path, so the user always knows which group they are filtering.
 - Ghost completion hint: the rest of the first match shows behind the input, so the completion is visible before Tab is pressed.
 - Tab completes commands and hrefs, and Shift+Tab or empty-input Tab switches tabs, all from the keyboard.
+- The gold traffic-light dot closes the palette (D20). Output-row selection uses `data-selected="true"`: shadcn's variant ignores an empty value.

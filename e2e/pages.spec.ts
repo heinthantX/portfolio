@@ -61,3 +61,20 @@ test("route /does-not-exist returns 404 and shows 404 text", async ({ page }) =>
   await expect(page.getByRole("heading", { name: /layer not found/i })).toBeVisible();
   await expect(page.getByText("404")).toBeVisible();
 });
+
+test("header shows Home off the home page and marks the current page", async ({ page }, info) => {
+  const home =
+    info.project.name === "mobile"
+      ? page.getByRole("banner").getByRole("link", { name: "Home", exact: true })
+      : page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Home" });
+  await page.goto("/");
+  await expect(home).toHaveCount(0);
+  await page.goto("/work/this-portfolio");
+  await expect(home).toBeVisible();
+  if (info.project.name !== "mobile")
+    await expect(
+      page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Work" }),
+    ).toHaveAttribute("aria-current", "page");
+  await home.click();
+  await expect(page).toHaveURL(/\/$/);
+});

@@ -45,10 +45,22 @@ test.describe("Command Menu", () => {
     await page.keyboard.press("ArrowDown");
     await page.keyboard.press("ArrowDown");
     await expect(dialog.locator("[data-out][data-selected]")).toHaveText("whoami");
+    await expect(dialog.locator("[data-out][data-selected]")).not.toHaveCSS(
+      "background-color",
+      "rgba(0, 0, 0, 0)",
+    );
     await page.keyboard.press("ArrowUp");
     await expect(dialog.locator("[data-out][data-selected]")).toHaveText("help");
     await page.keyboard.press("ArrowDown");
     await page.keyboard.press("Enter");
     await expect(input).toHaveValue("whoami");
+  });
+
+  test("the gold window light closes the palette", async ({ page }) => {
+    await page.keyboard.press("ControlOrMeta+KeyK");
+    const dialog = page.getByRole("dialog");
+    await expect(page.getByPlaceholder("Type a command or search...")).toBeFocused();
+    await dialog.getByRole("button", { name: "Close command palette" }).click();
+    await expect(dialog).toBeHidden({ timeout: 10000 });
   });
 });

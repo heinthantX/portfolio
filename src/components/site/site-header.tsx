@@ -2,7 +2,7 @@ import Link from "next/link";
 import { profile } from "@/content/profile";
 import { CommandMenu } from "./command-menu";
 import { getCommandMenuItems } from "./command-menu-data";
-import { nav } from "./nav";
+import { MainNav } from "./main-nav";
 import { StackGlyph } from "./stack-glyph";
 import { ThemeToggle } from "./theme-toggle";
 
@@ -19,17 +19,7 @@ export function SiteHeader({ children }: { children?: React.ReactNode }) {
           <StackGlyph className="size-5 text-signal" />
           <span>{profile.name.toLowerCase().replace(" ", ".")}</span>
         </Link>
-        <nav aria-label="Main" className="hidden md:block">
-          <ul className="flex items-center gap-6 font-mono text-[0.8125rem] text-muted-foreground">
-            {nav.map((item) => (
-              <li key={item.href}>
-                <Link href={item.href} className="link-underline hover:text-text">
-                  {item.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
+        <MainNav />
         <div className="flex items-center gap-1">
           <CommandMenu items={items} />
           {children}

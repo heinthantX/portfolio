@@ -2,7 +2,7 @@
 
 import { type RefObject, useEffect, useState } from "react";
 
-export function hasWebGL() {
+function hasWebGL() {
   try {
     const c = document.createElement("canvas");
     return !!(c.getContext("webgl2") || c.getContext("webgl"));
@@ -10,10 +10,6 @@ export function hasWebGL() {
     return false;
   }
 }
-
-/** Phones and narrow views draw fewer points. */
-export const lowPower = () =>
-  window.matchMedia("(pointer: coarse)").matches || window.innerWidth < 768;
 
 /**
  * Decides, after hydration, whether the canvas may load: WebGL present, motion allowed,
@@ -32,7 +28,7 @@ export function useSignalGate(stage: RefObject<HTMLElement | null>) {
       setFallback(true);
       return;
     }
-    if (lowPower()) setCount(6000);
+    if (window.matchMedia("(pointer: coarse)").matches || window.innerWidth < 768) setCount(6000);
     const go = () => setReady(true);
     if ("requestIdleCallback" in window) {
       const id = window.requestIdleCallback(go, { timeout: 800 });

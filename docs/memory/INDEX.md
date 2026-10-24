@@ -2,7 +2,7 @@
 
 | Topic/Domain | 1-Line Core Rule / Decision | Detail File | Updated |
 |---|---|---|---|
-| Motion: no sideways travel | No ping-pong or sway left/right. Hero text blocks may slide in from the side (D12). The site wave may wander sideways organically (noise, never sin; D21). Page switches slide vertically (D19). Cursor parallax and hover nudges are allowed. | docs/memory/conventions.md | 2026-10-24 |
+| Motion: no sideways travel | No ping-pong or sway left/right. Hero text blocks may slide in from the side (D12). Page switches slide vertically (D19). Cursor parallax and hover nudges are allowed. | docs/memory/conventions.md | 2026-10-24 |
 | Scroll state | Scroll progress lives in rAF/useFrame, never in React state. | docs/memory/conventions.md | 2026-10-24 |
 | Typecheck on fresh checkout | Run `pnpm exec next typegen` before `pnpm typecheck`. | docs/memory/conventions.md | 2026-10-24 |
 | Chapter indices | Derive chapter constants from `CHAPTER_IDS`. Layer j is chapter `j + LAYER_OFFSET`, never `j + 1`. | docs/memory/conventions.md | 2026-10-24 |
@@ -19,5 +19,4 @@
 | Snap easing | Snap steps use ease-out. easeInOut barely moves in its first 200ms and reads as lag on a swipe. | docs/memory/fixes.md | 2026-10-24 |
 | R3F Clock patch | `@react-three/fiber` 9.8.x constructs a deprecated `THREE.Clock`. Keep the pnpm patch; re-check or drop it on upgrade. | docs/memory/fixes.md | 2026-10-24 |
 | Tab in Radix Dialog | Tab handlers need `stopPropagation` as well as `preventDefault`, or FocusScope wraps focus off the input. | docs/memory/fixes.md | 2026-10-24 |
-| One canvas | The site has one persistent WebGL canvas (`SiteWave` in the root layout); the hero drives it through `site-wave/store.ts`. Don't add per-page canvases. It pauses while a modal is open. | docs/specs/site-wave.md | 2026-10-24 |
 | shadcn data-* variants | `data-selected:` (and similar shadcn variants) match only `="true"`; set the attribute to "true", not "". | docs/memory/fixes.md | 2026-10-24 |

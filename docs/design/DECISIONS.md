@@ -230,3 +230,10 @@ Owner asked for every page to be joined by one flowing wave: "a real side-to-sid
   - Stream speed is uniform across the screen.
   - The stream shows softly through the header's blur.
   - The hero's last chapter holds a little shorter (it rests at 0.925).
+
+## D22: Site-wide stream reverted; per-page backgrounds back (2026-10-24)
+
+The owner explained what "stream flow" meant: "the flow of particle on the home page between object when scrolling instead of stream flowing all over the page as always". They asked to "bring back replaced animations on work and notes and other pages".
+
+- **Reverted D21.** The site-wave canvas, its store and driver, the hoisted canvas and the stream mode in the shader are gone. The hero owns its canvas again, and `AmbientBackground` is back in the layout with all four variants (sheets, field, graph, packets). The source matches b998834. The later work stays: the page slide (D19), the command menu and Home link (D20), and the infra shape (D18). The stream code is still in git at 8d7a1dd, and its spec is in `docs/archive/site-wave.md`.
+- **Next:** the "stream" is the hero's own particle flow between formations, made more live and interactive, starting with intro → wave (D23).

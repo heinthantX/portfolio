@@ -1,12 +1,3 @@
-> **Archived 2026-10-24 (D21).** The site-wide wave (`docs/specs/site-wave.md`) replaced these per-route backgrounds. The code is kept in two places:
-> - Git branch `backup/ambient-scene` (commit b998834), the last version of the site that had them.
-> - `docs/archive/ambient-scene-src.tar.gz`, a copy of `src/features/ambient-scene/` taken from that commit.
->
-> To restore:
-> 1. Run `git checkout backup/ambient-scene -- src/features/ambient-scene`, or `tar xzf docs/archive/ambient-scene-src.tar.gz`.
-> 2. Mount `<AmbientBackground />` in `src/app/layout.tsx` again.
-> 3. Bring back the `.ambient-mask` CSS from that commit's `src/app/globals.css`.
-
 # Ambient scene (sub-page backgrounds)
 
 Rationale: `docs/design/DECISIONS.md` (D6 for the ambient canvas, D8 for vertical-only motion, D10 for firing networks). Hero scene: `docs/specs/signal-hero.md`.

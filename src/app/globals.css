@@ -377,3 +377,20 @@ html.has-cursor :is(input, textarea, select, [contenteditable]) {
     display: none !important;
   }
 }
+
+/* Ambient 3D stays vivid at the edges and quiet behind the content column, so text stays readable. */
+.ambient-mask {
+  mask-image: linear-gradient(
+    90deg,
+    #000 0%,
+    rgb(0 0 0 / 0.22) calc(50% - 38rem),
+    rgb(0 0 0 / 0.22) calc(50% + 38rem),
+    #000 100%
+  );
+}
+@media (max-width: 767px) {
+  .ambient-mask {
+    mask-image: none;
+    opacity: 0.35;
+  }
+}

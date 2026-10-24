@@ -1,14 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  activeChapter,
-  CAM_Z,
-  CHAPTERS,
-  chapterPose,
-  chapterProgress,
-  FOV,
-  flowMix,
-  WAVE_CHAPTER,
-} from "./timeline";
+import { CAM_Z, chapterPose, FOV, WAVE_CHAPTER } from "./timeline";
 
 const H = 2 * CAM_Z * Math.tan((FOV * Math.PI) / 360);
 const views = [
@@ -31,21 +22,5 @@ describe("chapterPose: wave", () => {
     const nearY = p.y - p.scale * Math.sin(p.rotX);
     const nearDepth = CAM_Z - p.scale * Math.cos(p.rotX);
     expect(-nearY / nearDepth).toBeGreaterThanOrEqual(Math.tan((FOV * Math.PI) / 360));
-  });
-});
-
-describe("flowMix: hand-off to the site stream", () => {
-  const last = chapterProgress(CHAPTERS - 1);
-  it("keeps the last chapter whole at its rest stop", () => {
-    expect(activeChapter(last)).toBe(CHAPTERS - 1);
-    expect(flowMix(last)).toBe(0);
-  });
-  it("is all stream at the end of the section, rising monotonically", () => {
-    expect(flowMix(1)).toBe(1);
-    let prev = 0;
-    for (let p = last; p <= 1; p += 0.005) {
-      expect(flowMix(p)).toBeGreaterThanOrEqual(prev);
-      prev = flowMix(p);
-    }
   });
 });

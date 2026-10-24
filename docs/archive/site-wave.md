@@ -1,3 +1,5 @@
+> **Archived 2026-10-24 (D22).** Reverted the same day: the owner meant the particle flow between hero shapes, not a stream across every page. The code is in git at 8d7a1dd (`src/features/site-wave/`).
+
 # Site wave (one stream across every page)
 
 Rationale: `docs/design/DECISIONS.md` D21. Hero: `docs/specs/signal-hero.md`. Replaced: `docs/archive/ambient-scene.md`.

@@ -259,3 +259,7 @@ Owner asked whether the object itself should flow while scrolling instead of sta
 - **Also:** wave mid-flight thinning eased from 0.85 to 0.5 so the travelling body stays visible.
 - **Supersedes** the D2-era rule "a change of side reads as the swarm regathering, never as the whole formation sliding".
 - **Revert:** `git checkout main && git reset --hard backup/hero-stream-pinned`.
+
+## D25: Home page stream after "shipped" (2026-10-24)
+
+Owner asked for "the network packets to stream flow ... after shipped" and chose "Flows down home page". The D21 stream returns on `/` only: the hero's particles dissolve out of the shipped globe and become the stream behind the rest of the home page, ending in a gold funnel at Contact. Other routes keep their AmbientBackground variants, so D22's revert of the site-wide version stands. One fixed canvas on home (`src/features/home-stream/`), mounted from the layout so it fades instead of popping on route change. Shipped now rests at 92.5% of hero scroll to make room for the hand-off. Spec: `docs/specs/home-stream.md`.

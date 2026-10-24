@@ -27,7 +27,7 @@ for (const theme of THEMES) {
         // Scroll reveals leave below-the-fold text mid-fade; axe would score that opacity as low contrast.
         await page.addStyleTag({
           content:
-            "[data-reveal], .animate-pulse { animation: none !important; opacity: 1 !important; }",
+            "[data-reveal], [data-w], [data-line], .animate-pulse { animation: none !important; opacity: 1 !important; filter: none !important; }",
         });
 
         const results = await new AxeBuilder({ page })

@@ -6,7 +6,7 @@ import { profile } from "@/content/profile";
 import { sampleText } from "./glyph";
 import { CAMERA, type DriveFn, SignalPoints, type TextMask } from "./SignalPoints";
 import { glyph, heroShapes } from "./shapes";
-import { poseAt, shapeIndex } from "./timeline";
+import { CHAPTERS, chapterPose, shapeIndex, WAVE_CHAPTER } from "./timeline";
 
 /** Idle life: a slow ~7 s scale pulse instead of a side-to-side sway. */
 const breathe = (t: number) => 1 + Math.sin(t * 0.9) * 0.012;
@@ -44,14 +44,19 @@ export default function SignalCanvas({ variant, progressRef, maskRef, count, fra
     (elapsed, view) => {
       if (hero) {
         const s = shapeIndex(progressRef?.current ?? 0);
-        const pose = poseAt(s, view);
-        pose.scale *= breathe(elapsed);
-        return { s, pose };
+        const i = Math.min(Math.floor(s), CHAPTERS - 2);
+        const b = breathe(elapsed);
+        const from = chapterPose(i, view);
+        const to = chapterPose(i + 1, view);
+        from.scale *= b;
+        to.scale *= b;
+        return { s, from, to };
       }
       const phase = elapsed % 9;
       const s = Math.min(1, Math.max(0, (phase - 5.5) / 3));
       const scale = Math.min(1.45, (0.9 * view.w) / 4) * breathe(elapsed);
-      return { s, pose: { x: 0, y: 0, rotX: 0, rotY: 0, scale } };
+      const pose = { x: 0, y: 0, rotX: 0, rotY: 0, scale };
+      return { s, from: pose, to: pose };
     },
     [hero, progressRef],
   );
@@ -70,6 +75,7 @@ export default function SignalCanvas({ variant, progressRef, maskRef, count, fra
         shapes={shapes}
         count={count}
         drive={drive}
+        waveShape={hero ? WAVE_CHAPTER : -1}
         interactive={
           typeof window !== "undefined" && !window.matchMedia("(pointer: coarse)").matches
         }

@@ -18,9 +18,9 @@ test.describe("Hero Scene & Timeline", () => {
     const canvas = stage.locator("canvas");
     await expect(canvas).toBeAttached({ timeout: 15000 });
 
-    // the chapter rail buttons exist (6)
+    // the chapter rail buttons exist (7)
     const railButtons = page.locator('nav[aria-label="Hero chapters"] button');
-    await expect(railButtons).toHaveCount(6);
+    await expect(railButtons).toHaveCount(7);
 
     const initialScrollY = await page.evaluate(() => window.scrollY);
 

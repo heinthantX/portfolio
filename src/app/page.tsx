@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { HomeSections } from "@/components/home/sections";
 import { Container, Eyebrow, StatusDot } from "@/components/site/primitives";
+import { ScrollWords } from "@/components/site/scroll-words";
 import { Button } from "@/components/ui/button";
 import { profile } from "@/content/profile";
 import { SignalHero } from "@/features/signal-scene";
@@ -10,15 +11,20 @@ const poster = { dark: "/media/hero-poster-dark.avif", light: "/media/hero-poste
 export default function Home() {
   const about = (
     <div className="grid gap-8 lg:grid-cols-12 lg:items-end">
-      <div className="lg:col-span-7" data-reveal>
-        <Eyebrow>SHEET 01 · about</Eyebrow>
-        <blockquote className="mt-4 text-3xl leading-tight text-balance sm:text-4xl">
-          {profile.pullQuote}
-        </blockquote>
+      <div className="lg:col-span-7">
+        <div data-reveal>
+          <Eyebrow>SHEET 01 · about</Eyebrow>
+        </div>
+        <ScrollWords
+          as="blockquote"
+          text={profile.pullQuote}
+          accent={["every", "layer"]}
+          className="mt-4 text-3xl leading-tight text-balance sm:text-4xl"
+        />
       </div>
-      <div className="space-y-4 text-muted-foreground lg:col-span-4 lg:col-start-9" data-reveal>
+      <div className="space-y-4 text-muted-foreground lg:col-span-4 lg:col-start-9">
         {profile.bio.map((p) => (
-          <p key={p}>{p}</p>
+          <ScrollWords key={p} text={p} />
         ))}
       </div>
     </div>

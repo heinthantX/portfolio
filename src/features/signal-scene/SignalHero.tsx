@@ -6,6 +6,7 @@ import { useLenis } from "lenis/react";
 import dynamic from "next/dynamic";
 import { useEffect, useRef } from "react";
 import { Eyebrow, Tag } from "@/components/site/primitives";
+import { ScrollWords } from "@/components/site/scroll-words";
 import { profile } from "@/content/profile";
 import {
   activeChapter,
@@ -13,7 +14,9 @@ import {
   chapterProgress,
   easeToward,
   FORMATION_SIDE,
+  LAYER_OFFSET,
   textState,
+  WAVE_CHAPTER,
 } from "./timeline";
 import { useSignalGate } from "./useSignalGate";
 
@@ -44,7 +47,10 @@ const LAYERS = [
   },
 ] as const;
 
-const RAIL_LABELS = ["Intro", "Interface", "API", "Data", "Infrastructure", "Shipped"];
+const RAIL_LABELS = ["Intro", "Approach", "Interface", "API", "Data", "Infrastructure", "Shipped"];
+
+const MANIFESTO =
+  "Nobody sees the stack. They feel it: a screen that answers before they blink, an API that says the same thing twice, data that is still right a year later, and a deploy nobody noticed. I build every layer, so it all feels like one product.";
 const POSTER_ALT =
   "Particle diagram of the stack: interface, API, data and infrastructure, shipped";
 
@@ -53,12 +59,24 @@ function LayerBody({ index, onJump }: { index: number; onJump?: (chapter: number
   const { tech = [], points = [] } = profile.stackLayers.find((l) => l.id === layer.id) ?? {};
   return (
     <>
-      <Eyebrow>
-        {String(index + 1).padStart(2, "0")} / {String(LAYERS.length).padStart(2, "0")}
-      </Eyebrow>
-      <h2 className="mt-3 text-[length:var(--text-h2)] leading-[1.05]">{layer.title}</h2>
-      <p className="mt-4 max-w-[38ch] text-muted-foreground">{layer.line}</p>
-      <ul className="mt-5 flex flex-wrap gap-1.5">
+      <div data-line>
+        <Eyebrow>
+          {String(index + 1).padStart(2, "0")} / {String(LAYERS.length).padStart(2, "0")}
+        </Eyebrow>
+      </div>
+      <h2 data-line className="mt-3 text-[length:var(--text-h2)] leading-[1.05]">
+        {layer.title}
+      </h2>
+      <ScrollWords
+        mode="driven"
+        text={layer.line}
+        className="mt-4 max-w-[38ch] text-muted-foreground"
+      />
+      <ul
+        data-line
+        style={{ "--d": 0.3 } as React.CSSProperties}
+        className="mt-5 flex flex-wrap gap-1.5"
+      >
         {tech.map((t) => (
           <li key={t}>
             <Tag>{t}</Tag>
@@ -67,8 +85,13 @@ function LayerBody({ index, onJump }: { index: number; onJump?: (chapter: number
       </ul>
       {points.length > 0 && (
         <ul className="mt-5 space-y-2 text-sm">
-          {points.map((pt) => (
-            <li key={pt} className="flex gap-2.5">
+          {points.map((pt, j) => (
+            <li
+              key={pt}
+              data-line
+              style={{ "--d": 0.45 + j * 0.1 } as React.CSSProperties}
+              className="flex gap-2.5"
+            >
               <span aria-hidden="true" className="mt-[0.6em] h-px w-2.5 shrink-0 bg-signal" />
               <span>{pt}</span>
             </li>
@@ -91,7 +114,7 @@ function StackOutline({ active, onJump }: { active: number; onJump: (chapter: nu
           <li key={l.id}>
             <button
               type="button"
-              onClick={() => onJump(j + 1)}
+              onClick={() => onJump(j + LAYER_OFFSET)}
               aria-current={on ? "step" : undefined}
               className={`flex w-full items-baseline gap-3 py-1 text-left text-sm transition-colors duration-200 ${on ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}
             >
@@ -107,6 +130,55 @@ function StackOutline({ active, onJump }: { active: number; onJump: (chapter: nu
         );
       })}
     </ol>
+  );
+}
+
+/** The chapter over the wave: what the stack is for, then the four layers at a glance. */
+function ManifestoBody({ onJump }: { onJump?: (chapter: number) => void }) {
+  return (
+    <>
+      <div data-line>
+        <Eyebrow>00 / how it fits together</Eyebrow>
+      </div>
+      <ScrollWords
+        mode={onJump ? "driven" : "view"}
+        text={MANIFESTO}
+        accent={["feel", "one"]}
+        className="mt-4 max-w-[34ch] text-[clamp(1.5rem,2.7vw,2.5rem)] leading-[1.2] tracking-tight"
+      />
+      {onJump && (
+        <ol className="mt-8 grid max-w-[46rem] grid-cols-2 gap-x-6 gap-y-3 border-line border-t pt-4 sm:grid-cols-4">
+          {LAYERS.map((l, j) => {
+            const tech = profile.stackLayers.find((s) => s.id === l.id)?.tech ?? [];
+            return (
+              <li key={l.id} data-line style={{ "--d": 0.5 + j * 0.08 } as React.CSSProperties}>
+                <button
+                  type="button"
+                  onClick={() => onJump(j + LAYER_OFFSET)}
+                  className="group flex w-full flex-col items-start gap-0.5 text-left"
+                >
+                  <span className="font-mono text-[0.6875rem] text-signal">
+                    {String(j + 1).padStart(2, "0")}
+                  </span>
+                  <span className="text-sm text-foreground transition-colors duration-200 group-hover:text-signal">
+                    {l.title}{" "}
+                    <span
+                      aria-hidden="true"
+                      className="inline-block transition-transform duration-200 group-hover:translate-x-1"
+                    >
+                      →
+                    </span>
+                  </span>
+                  <span className="truncate font-mono text-[0.6875rem] text-muted-foreground">
+                    {tech.slice(0, 2).join(" · ")}
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ol>
+      )}
+    </>
   );
 }
 
@@ -160,6 +232,7 @@ export function SignalHero({ children, finale, poster }: SignalHeroProps) {
   // Layout cache (stage-relative, scroll independent) so the rAF loop never reads layout.
   const layoutRef = useRef({ sw: 1, sh: 1, blocks: [] as Rect[] });
   const appliedRef = useRef<{ x: number; y: number }[]>([]); // transform currently on each block
+  const revealRef = useRef<number[]>([]); // --reveal currently on each block
 
   // Progress comes from ScrollTrigger; everything below is a pure function of it.
   useEffect(() => {
@@ -223,7 +296,7 @@ export function SignalHero({ children, finale, poster }: SignalHeroProps) {
       for (let i = 0; i < CHAPTERS; i++) {
         const el = blockRefs.current[i];
         if (!el) continue;
-        const { opacity, enter, leave } = textState(p, i);
+        const { opacity, enter, leave, reveal } = textState(p, i);
         // vertical only: rises in from below, leaves upward, following the scroll direction
         const y = 24 * enter - 24 * leave;
         el.style.opacity = String(opacity);
@@ -231,6 +304,11 @@ export function SignalHero({ children, finale, poster }: SignalHeroProps) {
         appliedRef.current[i] = { x: 0, y };
         el.inert = opacity < 0.5;
         el.style.visibility = opacity < 0.01 ? "hidden" : "visible";
+        // words sharpen from CSS off one number; only write it when it moves
+        if (Math.abs((revealRef.current[i] ?? -1) - reveal) > 0.002) {
+          revealRef.current[i] = reveal;
+          el.style.setProperty("--reveal", reveal.toFixed(3));
+        }
       }
       {
         const { sw, sh, blocks } = layoutRef.current;
@@ -295,6 +373,9 @@ export function SignalHero({ children, finale, poster }: SignalHeroProps) {
           </div>
         </div>
         <div className="mx-auto max-w-[1280px] divide-y divide-line px-4 sm:px-6 lg:px-10">
+          <div className="py-12">
+            <ManifestoBody />
+          </div>
           {LAYERS.map((l, i) => (
             <div key={l.id} className="py-12">
               <LayerBody index={i} />
@@ -314,7 +395,7 @@ export function SignalHero({ children, finale, poster }: SignalHeroProps) {
   const card = "max-md:rounded-lg max-md:bg-bg/80 max-md:p-4 max-md:backdrop-blur-md";
 
   return (
-    <section ref={sectionRef} data-stack-hero className="relative h-[400vh] w-full">
+    <section ref={sectionRef} data-stack-hero className="relative h-[450vh] w-full">
       <div
         ref={stageRef}
         data-stack-stage
@@ -345,15 +426,30 @@ export function SignalHero({ children, finale, poster }: SignalHeroProps) {
           </div>
         </div>
 
+        {/* approach: copy in the upper half, the wave field below it */}
+        <div className="pointer-events-none absolute inset-0 mx-auto flex max-w-[1280px] items-start px-4 pt-[14svh] sm:px-6 md:pt-[16svh] lg:px-10">
+          <div
+            ref={(el) => {
+              blockRefs.current[WAVE_CHAPTER] = el;
+            }}
+            inert
+            style={{ opacity: 0 }}
+            className={`${block} w-full md:w-auto ${card}`}
+          >
+            <Scrim />
+            <ManifestoBody onJump={go} />
+          </div>
+        </div>
+
         {/* layers: text on the side opposite the formation */}
         {LAYERS.map((l, i) => (
           <div
             key={l.id}
-            className={`${row} ${FORMATION_SIDE[i + 1] === 1 ? "justify-start" : "justify-end"}`}
+            className={`${row} ${FORMATION_SIDE[i + LAYER_OFFSET] === 1 ? "justify-start" : "justify-end"}`}
           >
             <div
               ref={(el) => {
-                blockRefs.current[i + 1] = el;
+                blockRefs.current[i + LAYER_OFFSET] = el;
               }}
               inert
               style={{ opacity: 0 }}

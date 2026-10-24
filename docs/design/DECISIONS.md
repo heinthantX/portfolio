@@ -86,10 +86,22 @@ Brainstorm, scored 1–5 on look / professional / story / text-flow / mobile+per
 
 The owner rejected motion that travels left and right, and the one-topic-per-screen pacing. Principles taken from a reference video on particle scrollytelling: points swarm with per-point lag instead of fading, scroll is one 0..1 number read in the frame loop, and the scene gathers on load.
 
-- **Formation holds one column.** `FORMATION_SIDE` is `[0, 1, 1, 1, 1, 0]`: the formation stays on the right through all four layers and the text stays on the left. Yaw (`ROT_Y`) is constant per layer. Only the intro → Interface step moves the formation once, during the shape morph.
+- **Formation holds one column.** `FORMATION_SIDE` is `[0, 1, 1, 1, 1, 0]`: the formation stays on the right through all four layers and the text stays on the left. Yaw (`ROT_Y`) is constant per layer. Only the intro → Interface step moves the formation once, during the shape morph. _Superseded by D9: side is set per chapter, morphs are per point, and the wave step sits between intro and Interface._
 - **Text moves vertically only.** Cards rise in from 24px below and leave 24px upward. No `translateX` anywhere in the hero.
 - **Idle life is a scale pulse,** about 1.2% over ~7 s (`breathe()` in `SignalCanvas.tsx`), replacing the yaw sway. The 404 scene breathes too. Ambient sheets drift vertically, not sideways. Cursor-driven parallax stays.
 - **Intro swarm (2.8 s):** points gather inward from a loose cloud with a per-point lag (`uIntro`, `INTRO_S` in `SignalPoints.tsx`).
-- **Shorter, denser story:** the hero is `400vh` (3 screens of scroll, was 5.5). Each layer card shows the tech tags, 3 capability bullets (`stackLayers[].points` in `profile.ts`), and a stack outline of all four layers that jumps to each chapter (desktop only). Morph window `W` = 0.09 and the text windows widen to 0.05 to suit the shorter scroll.
+- **Shorter, denser story:** the hero is `400vh` (3 screens of scroll, was 5.5). Each layer card shows the tech tags, 3 capability bullets (`stackLayers[].points` in `profile.ts`), and a stack outline of all four layers that jumps to each chapter (desktop only). Morph window `W` = 0.09 and the text windows widen to 0.05 to suit the shorter scroll. _Superseded by D9: 450vh, `W` = 0.077, text windows 0.004–0.043._
 - Hover arrow nudges (`group-hover:translate-x-1` on "→" links) stay: they point in the link's direction and are user-triggered.
+
+## D9 — Wave chapter, per-point morph and ScrollWords (2026-10-24)
+
+Owner reference: a particle scrollytelling video. The D8 no-sideways rule stays. The hero gains a drop beat between the name and the interface.
+
+- **Wave chapter.** After the name, the points drop into a perspective dotted field across the bottom third of the screen, then condense into Interface in the right column. The drop is near-vertical: `matchByX` pairs points left to right. The field swells in place and its crests roll along z only. Lost: any sideways travel for the wave (D8).
+- **Per-point morph replaces the rigid group pose.** Lost: the group transform. It moved every point together, so any side change slid the whole formation sideways even with a per-point stagger. Now each point blends its own two world-space poses in the shader, so a side change reads as the swarm regathering. `Drive` is `{s, from, to}`, with resting values from `chapterPose(i, view)` in place of `poseAt`.
+- **Leaving the wave dissolves.** Points lift and thin mid-flight (`uDissolve`), then condense into Interface. Chosen over a direct morph, which would read as a slide.
+- **Seven chapters, 450vh.** Chapters come from `CHAPTER_IDS` (intro, wave, interface, api, data, infra, shipped), and the hero is 450vh to fit the extra chapter (was 400vh with six). Morph window `W` = 0.077 (was 0.09). Text windows 0.004–0.043 (was 0.05). `FORMATION_SIDE` = `[0,0,1,1,1,1,0]`.
+- **Manifesto and layer grid.** The wave chapter carries the "Nobody sees the stack" copy. The 4-column layer grid below it doubles as navigation.
+- **ScrollWords for scroll text.** CSS view timelines on the home page, and one frame-loop `--reveal` variable in the hero, over per-word JS. This keeps scroll state out of React and runs the work off the main thread, the same reasoning as D6.
+- **Backups.** Branch `feat/hero-scroll-scenes`. Tags `backup/hero-animation-v1-original` (b60f47e) and `backup/hero-animation-v2-vertical` (29095a9).
 

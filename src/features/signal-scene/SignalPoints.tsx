@@ -9,7 +9,9 @@ import type { Pose } from "./timeline";
 export interface Drive {
   /** continuous shape index (integer = resting on that shape) */
   s: number;
-  pose: Pose;
+  /** resting poses of the shapes either side of `s` */
+  from: Pose;
+  to: Pose;
 }
 /** Screen rect (NDC centre + full size) of the active text block, and its strength 0..1. */
 export interface TextMask {
@@ -73,6 +75,9 @@ float snoise(vec3 v){
 
 const VERT = /* glsl */ `
 uniform float uT, uTime, uSize, uStrength, uRadius, uDark, uAlpha, uIntro;
+uniform float uWaveA, uWaveB, uDissolve;
+uniform mat4 uMatA, uMatB; // endpoint poses (local -> world)
+uniform vec2 uScaleAB;
 uniform vec3 uMouse, uText, uSignal, uMuted;
 uniform vec4 uMask; // centre.xy, half-size.xy in NDC
 uniform float uMaskA;
@@ -92,6 +97,13 @@ void main(){
   vec3 q = p * 0.65 + vec3(0.0, 0.0, uTime * 0.18);
   p += vec3(snoise(q), snoise(q + 31.4), snoise(q + 57.2)) * amp;
   p += sin(uTime * 1.3 + aRand * 40.0 + vec3(0.0, 2.1, 4.2)) * 0.006;
+  // the field swells in place: crests roll toward the camera, never sideways
+  float wv = mix(uWaveA, uWaveB, e);
+  if (wv > 0.0) {
+    p.y += wv * (0.10 * sin(p.z * 2.4 - uTime * 0.6)
+               + 0.07 * sin(p.x * 1.3) * sin(uTime * 0.45 + p.z)
+               + 0.06 * snoise(vec3(p.x * 0.7, p.z * 0.7, uTime * 0.1)));
+  }
   // intro: points gather inward from a loose cloud, each with its own lag (a swarm, not a fade)
   float it = clamp(uIntro * 1.4 - aRand * 0.4, 0.0, 1.0);
   float ie = 1.0 - pow(1.0 - it, 3.0);
@@ -99,14 +111,22 @@ void main(){
     vec3 cloud = p * 1.8 + vec3(snoise(p + 11.0), snoise(p + 23.0), snoise(p + 37.0)) * 0.8;
     p = mix(cloud, p, ie);
   }
+  // each point blends between the two endpoint poses on its own stagger, so a change of place
+  // reads as the swarm regathering, never as the whole formation sliding
+  vec3 w = mix((uMatA * vec4(p, 1.0)).xyz, (uMatB * vec4(p, 1.0)).xyz, e);
+  float sc = mix(uScaleAB.x, uScaleAB.y, e);
+  // leaving the field: points lift and thin mid-flight, then condense into the next shape
+  float mid = sin(st * 3.14159265) * uDissolve;
+  w.y += mid * 0.5;
   // cursor pushes points outward
-  vec3 d = p - uMouse; d.z *= 0.5;
+  vec3 d = w - uMouse; d.z *= 0.5;
   float push = smoothstep(uRadius, 0.0, length(d)) * uStrength;
-  p += normalize(d + 1e-4) * push * 0.5;
-  vec4 mv = modelViewMatrix * vec4(p, 1.0);
+  w += normalize(d + 1e-4) * push * 0.5 * sc;
+  vec4 mv = viewMatrix * vec4(w, 1.0);
   gl_Position = projectionMatrix * mv;
   float depth = -mv.z;
-  gl_PointSize = max(uSize * (0.55 + aRand * 0.9) / depth, 1.4);
+  // the field keeps one fine dot size at any scale, so phones get the same texture
+  gl_PointSize = max(uSize * mix(sc, 0.95, wv) * (0.55 + aRand * 0.9) / depth, 1.4);
   // thin out points that sit behind the active text block (soft edge)
   vec2 nd = gl_Position.xy / gl_Position.w;
   vec2 qm = abs(nd - uMask.xy) - uMask.zw;
@@ -116,7 +136,8 @@ void main(){
   float far = smoothstep(5.0, 9.2, depth);
   vColor = mix(mix(uText, uSignal, sig), uMuted, far * 0.5);
   float fade = mix(1.0, mix(1.0, 0.45, far), uDark);
-  vA = uAlpha * (0.55 + 0.45 * fract(aRand * 53.1)) * fade * (1.0 + sig * 0.25 * uDark) * keep * ie;
+  vA = uAlpha * (0.55 + 0.45 * fract(aRand * 53.1)) * fade * (1.0 + sig * 0.25 * uDark) * keep * ie
+     * (1.0 - mid * 0.85) * mix(1.0, smoothstep(2.25, 1.7, abs(p.x)), wv);
 }`;
 
 const FRAG = /* glsl */ `
@@ -140,18 +161,35 @@ interface Props {
   /** pointer repulsion enabled (off on touch) */
   interactive?: boolean;
   maskRef?: RefObject<TextMask>;
+  /** index in `shapes` of the swelling field, if any */
+  waveShape?: number;
 }
 
-export function SignalPoints({ shapes, count, drive, interactive = true, maskRef }: Props) {
+export function SignalPoints({
+  shapes,
+  count,
+  drive,
+  interactive = true,
+  maskRef,
+  waveShape = -1,
+}: Props) {
   const { colors, mood } = useThemeColors();
   const dark = mood === "dark";
-  const group = useRef<THREE.Group>(null);
   const seg = useRef(-1);
   const introStart = useRef(-1);
   const pointer = useRef({ x: 0, y: 0, inside: false });
   const raycaster = useMemo(() => new THREE.Raycaster(), []);
   const plane = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 0, 1), 0), []);
   const tmp = useMemo(() => new THREE.Vector3(), []);
+  const xf = useMemo(
+    () => ({
+      p: new THREE.Vector3(),
+      q: new THREE.Quaternion(),
+      e: new THREE.Euler(),
+      s: new THREE.Vector3(),
+    }),
+    [],
+  );
   const gl = useThree((s) => s.gl);
 
   const { geometry, material } = useMemo(() => {
@@ -177,10 +215,16 @@ export function SignalPoints({ shapes, count, drive, interactive = true, maskRef
         uTime: { value: 0 },
         uSize: { value: 1 },
         uStrength: { value: 0 },
-        uRadius: { value: 0.9 },
+        uRadius: { value: 0.95 },
         uDark: { value: 1 },
         uAlpha: { value: 0.8 },
         uIntro: { value: 0 },
+        uWaveA: { value: 0 },
+        uWaveB: { value: 0 },
+        uDissolve: { value: 0 },
+        uMatA: { value: new THREE.Matrix4() },
+        uMatB: { value: new THREE.Matrix4() },
+        uScaleAB: { value: new THREE.Vector2(1, 1) },
         uMouse: { value: v(99, 99, 0) },
         uText: { value: v(1, 1, 1) },
         uSignal: { value: v(1, 0.7, 0.2) },
@@ -240,7 +284,7 @@ export function SignalPoints({ shapes, count, drive, interactive = true, maskRef
       h: 2 * CAM_Z * Math.tan((FOV * Math.PI) / 360),
       mobile: state.size.width < 768,
     };
-    const { s, pose } = drive(state.clock.elapsedTime, view);
+    const { s, from, to } = drive(state.clock.elapsedTime, view);
     const sMax = shapes.length - 1;
     const sg = Math.min(Math.floor(s), sMax - 1);
     const t = Math.min(1, Math.max(0, s - sg));
@@ -258,13 +302,18 @@ export function SignalPoints({ shapes, count, drive, interactive = true, maskRef
     if (introStart.current < 0) introStart.current = state.clock.elapsedTime;
     u.uIntro.value = Math.min(1, (state.clock.elapsedTime - introStart.current) / INTRO_S);
 
-    const g = group.current;
-    if (g) {
-      g.position.set(pose.x, pose.y, 0);
-      g.rotation.set(pose.rotX, pose.rotY, 0);
-      g.scale.setScalar(pose.scale);
-      g.updateMatrixWorld();
-    }
+    const compose = (m: THREE.Matrix4, pose: Pose) =>
+      m.compose(
+        xf.p.set(pose.x, pose.y, 0),
+        xf.q.setFromEuler(xf.e.set(pose.rotX, pose.rotY, 0)),
+        xf.s.setScalar(pose.scale),
+      );
+    compose(u.uMatA.value, from);
+    compose(u.uMatB.value, to);
+    u.uScaleAB.value.set(from.scale, to.scale);
+    u.uWaveA.value = sg === waveShape ? 1 : 0;
+    u.uWaveB.value = sg + 1 === waveShape ? 1 : 0;
+    u.uDissolve.value = sg === waveShape ? 1 : 0;
 
     // theme colours ease
     const c = cur.current;
@@ -287,11 +336,10 @@ export function SignalPoints({ shapes, count, drive, interactive = true, maskRef
     u.uDark.value = c.dark;
     u.uAlpha.value = c.alpha;
 
-    // size: world point size -> pixels, scaled with the formation
+    // size: world point size -> pixels; the shader scales it with each point's pose
     const worldSize = dark ? 0.022 : 0.02;
     u.uSize.value =
-      (worldSize * state.size.height * state.viewport.dpr * pose.scale) /
-      (2 * Math.tan((FOV * Math.PI) / 360));
+      (worldSize * state.size.height * state.viewport.dpr) / (2 * Math.tan((FOV * Math.PI) / 360));
 
     const mk = maskRef?.current;
     if (mk) {
@@ -299,7 +347,7 @@ export function SignalPoints({ shapes, count, drive, interactive = true, maskRef
       u.uMaskA.value += (mk.a - u.uMaskA.value) * (1 - Math.exp(-dt * 10));
     }
 
-    // cursor on the formation plane, in local space
+    // cursor on the z = 0 plane, in world space
     const want = interactive && pointer.current.inside ? 1 : 0;
     u.uStrength.value += (want - u.uStrength.value) * (1 - Math.exp(-dt * 6));
     if (want) {
@@ -307,19 +355,11 @@ export function SignalPoints({ shapes, count, drive, interactive = true, maskRef
         new THREE.Vector2(pointer.current.x, pointer.current.y),
         state.camera,
       );
-      if (raycaster.ray.intersectPlane(plane, tmp) && g) {
-        g.worldToLocal(tmp);
-        u.uMouse.value.copy(tmp);
-      }
+      if (raycaster.ray.intersectPlane(plane, tmp)) u.uMouse.value.copy(tmp);
     }
-    u.uRadius.value = 0.95 / Math.max(pose.scale, 0.1);
   });
 
-  return (
-    <group ref={group}>
-      <points geometry={geometry} material={material} frustumCulled={false} />
-    </group>
-  );
+  return <points geometry={geometry} material={material} frustumCulled={false} />;
 }
 
 export const CAMERA = { position: [0, 0, CAM_Z] as [number, number, number], fov: FOV };

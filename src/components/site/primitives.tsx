@@ -60,7 +60,7 @@ export function SectionHeading({
   as?: "h1" | "h2";
 }) {
   return (
-    <div className={cn("max-w-[48rem]", className)} data-reveal>
+    <div className={cn("max-w-[48rem]", className)} data-reveal="headline">
       <Eyebrow>
         {index} / {slug}
       </Eyebrow>

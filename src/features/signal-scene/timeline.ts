@@ -1,14 +1,25 @@
 /** Pure functions of scroll progress (0..1) for the hero. Nothing here keeps state. */
-export const CHAPTERS = 6;
-/** Width of a morph window around each chapter boundary. */
-const W = 0.09;
+export const CHAPTER_IDS = [
+  "intro",
+  "wave",
+  "interface",
+  "api",
+  "data",
+  "infra",
+  "shipped",
+] as const;
+export const CHAPTERS = CHAPTER_IDS.length;
+/** Chapter index of the first stack layer; layers run LAYER_OFFSET..LAYER_OFFSET+3. */
+export const LAYER_OFFSET = CHAPTER_IDS.indexOf("interface");
+export const WAVE_CHAPTER = CHAPTER_IDS.indexOf("wave");
+/** Width of a morph window around each chapter boundary (~27vh of a 450vh section). */
+const W = 0.077;
 
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
 export const local = (p: number, a: number, b: number) => clamp01((p - a) / (b - a));
-const smooth = (t: number) => t * t * (3 - 2 * t);
 const boundary = (k: number) => (k + 1) / CHAPTERS;
 
-/** Continuous shape index 0..5: integer = resting on a shape, fraction = mid-morph. */
+/** Continuous shape index 0..CHAPTERS-1: integer = resting on a shape, fraction = mid-morph. */
 export function shapeIndex(p: number): number {
   let s = 0;
   for (let k = 0; k < CHAPTERS - 1; k++) s += clamp01((p - boundary(k)) / W + 0.5);
@@ -22,24 +33,38 @@ export const activeChapter = (p: number) => Math.min(CHAPTERS - 1, Math.round(sh
 export const chapterProgress = (i: number) =>
   i === 0 ? 0 : i === CHAPTERS - 1 ? 0.99 : (i + 0.5) / CHAPTERS;
 
-/** Text block state: opacity 0..1, `enter` 1->0 as it arrives, `leave` 0->1 as it goes. */
+/** How far into its chapter the word-by-word reveal runs (progress units after it starts entering). */
+const REVEAL_SPAN = CHAPTER_IDS.map((id) => (id === "wave" ? 0.07 : 0.06));
+
+/**
+ * Text block state: opacity 0..1, `enter` 1->0 as it arrives, `leave` 0->1 as it goes, and
+ * `reveal` 0->1 for the word-by-word reveal, which keeps running after the block is fully in.
+ */
 export function textState(p: number, i: number) {
-  const enter = i === 0 ? 0 : 1 - local(p, boundary(i - 1) + 0.004, boundary(i - 1) + 0.05);
-  const leave = i === CHAPTERS - 1 ? 0 : local(p, boundary(i) - 0.05, boundary(i) - 0.004);
-  return { opacity: (1 - enter) * (1 - leave), enter, leave };
+  const start = i === 0 ? 0 : boundary(i - 1);
+  const enter = i === 0 ? 0 : 1 - local(p, start + 0.004, start + 0.043);
+  const leave = i === CHAPTERS - 1 ? 0 : local(p, boundary(i) - 0.043, boundary(i) - 0.004);
+  const reveal = i === 0 ? 1 : local(p, start, start + REVEAL_SPAN[i]);
+  return { opacity: (1 - enter) * (1 - leave), enter, leave, reveal };
 }
 
 /**
- * Side the formation sits on per shape (1 right, -1 left, 0 centre). Text takes the opposite side.
- * The formation holds one column through the layers so nothing ping-pongs sideways; shapes
- * change in place and the text moves vertically.
+ * Per-chapter formation values. x is a side (1 right, -1 left, 0 centre) times 0.235 of the view
+ * width; text takes the opposite side. Each point morphs between the two endpoint poses on its
+ * own path (see SignalPoints), so a change of side reads as the swarm regathering, never as the
+ * whole formation sliding.
  */
-export const FORMATION_SIDE = [0, 1, 1, 1, 1, 0] as const;
-const ROT_Y = [0, -0.35, -0.35, -0.35, -0.35, 0];
-const ROT_X = [0, 0.05, -0.05, 0.42, 0.78, 0.22];
-const Y = [0.75, 0, 0, 0, 0, 0.45];
-const SCALE = [1.5, 1, 1, 1.05, 1, 1.7];
-const FIT = [0.92, 0.38, 0.38, 0.38, 0.38, 0.6];
+export const FORMATION_SIDE = [0, 0, 1, 1, 1, 1, 0] as const;
+const ROT_Y = [0, 0, -0.35, -0.35, -0.35, -0.35, 0];
+const ROT_X = [0, 0.35, 0.05, -0.05, 0.42, 0.78, 0.22];
+/** World-unit y offset, plus a share of the view height (the wave sits in the bottom third). */
+const Y = [0.75, 0, 0, 0, 0, 0, 0.45];
+const Y_H = [0, -0.37, 0, 0, 0, 0, 0];
+const SCALE = [1.5, 3.2, 1, 1, 1.05, 1, 1.7];
+const FIT = [0.92, 1.12, 0.38, 0.38, 0.38, 0.38, 0.6];
+const MOBILE_Y_H = [0.2, -0.3, 0.2, 0.2, 0.2, 0.2, 0.2];
+const MOBILE_FIT = [0.92, 1.35, 0.92, 0.92, 0.92, 0.92, 0.92];
+const MOBILE_ROT_X = [0, 0.5, 0.05, -0.05, 0.42, 0.78, 0.22];
 
 export interface Pose {
   x: number;
@@ -49,24 +74,20 @@ export interface Pose {
   scale: number;
 }
 
-const mix = (arr: readonly number[], i: number, f: number) =>
-  arr[i] + (arr[Math.min(i + 1, arr.length - 1)] - arr[i]) * f;
-
-/** Formation transform for shape index `s` in a view of world size w x h. */
-export function poseAt(s: number, view: { w: number; h: number; mobile: boolean }): Pose {
-  const i = Math.min(Math.floor(s), CHAPTERS - 1);
-  const f = smooth(s - i);
-  const fit = view.mobile ? 0.92 : mix(FIT, i, f);
-  const scale = Math.min(mix(SCALE, i, f), (fit * view.w) / 4.4);
-  return view.mobile
-    ? { x: 0, y: view.h * 0.2, rotX: mix(ROT_X, i, f), rotY: mix(ROT_Y, i, f) * 0.5, scale }
-    : {
-        x: mix(FORMATION_SIDE, i, f) * 0.235 * view.w,
-        y: mix(Y, i, f),
-        rotX: mix(ROT_X, i, f),
-        rotY: mix(ROT_Y, i, f),
-        scale,
-      };
+/** Resting formation transform for chapter i in a view of world size w x h. */
+export function chapterPose(i: number, view: { w: number; h: number; mobile: boolean }): Pose {
+  const c = Math.max(0, Math.min(CHAPTERS - 1, i));
+  if (view.mobile) {
+    const scale = Math.min(SCALE[c], (MOBILE_FIT[c] * view.w) / 4.4);
+    return { x: 0, y: MOBILE_Y_H[c] * view.h, rotX: MOBILE_ROT_X[c], rotY: ROT_Y[c] * 0.5, scale };
+  }
+  return {
+    x: FORMATION_SIDE[c] * 0.235 * view.w,
+    y: Y[c] + Y_H[c] * view.h,
+    rotX: ROT_X[c],
+    rotY: ROT_Y[c],
+    scale: Math.min(SCALE[c], (FIT[c] * view.w) / 4.4),
+  };
 }
 
 /** Frame-rate independent ease of `shown` toward `target`; dt in seconds. */

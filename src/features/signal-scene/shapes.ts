@@ -341,7 +341,50 @@ export function shipped(n: number, seed = 6): Float32Array {
   return build(n, seed, parts);
 }
 
-/** The ordered shapes used by the hero. `nameSamples` / `shapes` come from glyph.ts. */
+/**
+ * A dotted landscape: a grid on the XZ plane (z -1 far .. 1 near) with a gentle rolling height.
+ * The pose tilts it so the far rows sit toward a horizon; the shader adds the live swell.
+ */
+export function wave(n: number, seed = 7): Float32Array {
+  const out = new Float32Array(n * 3);
+  const r = mulberry32(seed);
+  const cols = Math.round(Math.sqrt(n * 2.6));
+  const rows = Math.max(2, Math.ceil(n / cols));
+  for (let i = 0; i < n; i++) {
+    const u = (i % cols) / (cols - 1);
+    const v = Math.floor(i / cols) / (rows - 1);
+    // rows pack tighter toward the horizon; far rows are wider so the field reads as receding
+    const z = -1 + 2 * v ** 1.35;
+    const x = (u * 2 - 1) * (2.2 - 0.6 * v) + (r() - 0.5) * 0.01;
+    const y = 0.09 * Math.sin(x * 1.3 + z * 0.8) + 0.06 * Math.sin(z * 3.1 - x * 0.5);
+    out[i * 3] = x;
+    out[i * 3 + 1] = y;
+    out[i * 3 + 2] = z;
+  }
+  return out;
+}
+
+/**
+ * Reorders `target` so the k-th point from the left in `ref` pairs with the k-th from the left in
+ * `target`. Morphs between the two then travel mostly vertically instead of criss-crossing.
+ */
+export function matchByX(ref: Float32Array, target: Float32Array): Float32Array {
+  const n = Math.min(ref.length, target.length) / 3;
+  const byX = (a: Float32Array) =>
+    Array.from({ length: n }, (_, i) => i).sort((i, j) => a[i * 3] - a[j * 3]);
+  const ri = byX(ref);
+  const ti = byX(target);
+  const out = new Float32Array(target.length);
+  for (let k = 0; k < n; k++) {
+    out.set(target.subarray(ti[k] * 3, ti[k] * 3 + 3), ri[k] * 3);
+  }
+  return out;
+}
+
+/** The ordered shapes used by the hero (see CHAPTER_IDS). `nameSamples` come from glyph.ts. */
 export function heroShapes(n: number, nameSamples: Float32Array): Float32Array[] {
-  return [glyph(nameSamples, n, 1, 4.2), interfaceShape(n), api(n), data(n), infra(n), shipped(n)];
+  const name = glyph(nameSamples, n, 1, 4.2);
+  // the name falls straight down into the field, which then rises into the interface
+  const field = matchByX(name, wave(n));
+  return [name, field, matchByX(field, interfaceShape(n)), api(n), data(n), infra(n), shipped(n)];
 }

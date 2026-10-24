@@ -24,7 +24,27 @@ export interface TextMask {
   h: number;
   a: number;
 }
-export type DriveFn = (elapsed: number, view: { w: number; h: number; mobile: boolean }) => Drive;
+/**
+ * The home stream, per frame: how much of the scene has become the stream (0 shapes .. 1 stream),
+ * the spine table (RGBA float, rows x lines: per channel offset, width, weight, alpha; then
+ * globals and text), the band the points wrap through and its per-speed-class offsets, up to two
+ * swirls, and the stream's overall alpha.
+ */
+export interface SiteFrame {
+  amount: number;
+  spine: THREE.DataTexture;
+  rows: number;
+  lines: number;
+  margin: number;
+  band: number;
+  off: Float32Array;
+  swirl: Float32Array;
+  alpha: number;
+}
+export type DriveFn = (
+  elapsed: number,
+  view: { w: number; h: number; mobile: boolean },
+) => Drive & { site?: SiteFrame };
 
 /** Seconds for the points to gather on first frame. */
 const INTRO_S = 2.8;
@@ -160,6 +180,13 @@ uniform float uFlow, uEnergy, uLag; // stream strength, eased scroll energy, mor
 uniform vec3 uMouse, uText, uSignal, uMuted;
 uniform vec4 uMask; // centre.xy, half-size.xy in NDC
 uniform float uMaskA;
+// the home stream: see SiteFrame
+uniform float uSite, uSiteA, uDpr, uBandL;
+uniform vec3 uSpineSize; // rows, lines, margin px
+uniform sampler2D uSpine;
+uniform vec4 uOff, uSw0, uSw1;
+uniform vec2 uPx, uView; // canvas size in css px, view size at z = 0 in world units
+attribute vec4 aSite; // channel, lateral u, phase, speed class + random fraction
 attribute vec3 aFrom;
 attribute vec3 aTo;
 attribute float aRand;
@@ -173,7 +200,31 @@ ${FIELD}
 ${PULSE}
 ${STREAM}
 ${ROUTE}
+vec4 spine(float row, float line){
+  float j = clamp(floor(row), 0.0, uSpineSize.x - 2.0);
+  float f = clamp(row - j, 0.0, 1.0);
+  float v = (line + 0.5) / uSpineSize.y;
+  vec4 a = texture2D(uSpine, vec2((j + 0.5) / uSpineSize.x, v));
+  vec4 b = texture2D(uSpine, vec2((j + 1.5) / uSpineSize.x, v));
+  return mix(a, b, f);
+}
+vec2 swirl(vec2 p, vec4 s, float ms){
+  vec2 d = p - s.xy;
+  float r = length(d);
+  if (s.z <= 0.0 || r >= s.z) return p;
+  float q = 1.0 - r / s.z;
+  float a = ms * s.w * q * q;
+  float c = cos(a), sn = sin(a);
+  return s.xy + vec2(d.x * c - d.y * sn, d.x * sn + d.y * c);
+}
 void main(){
+  // how far this point has gone over to the home stream (staggered, so the hand-off ripples)
+  float fm = clamp(uSite * 1.6 - aRand * 0.6, 0.0, 1.0);
+  fm = fm * fm * (3.0 - 2.0 * fm);
+  vec3 w = vec3(0.0);
+  float hSize = 1.0, hA = 0.0;
+  vec3 hColor = uText;
+  if (fm < 1.0) {
   // per-point stagger so morphs ripple instead of moving in lockstep
   float st = clamp(uT * (1.0 + uLag) - aRand * uLag, 0.0, 1.0);
   float e = st * st * (3.0 - 2.0 * st);
@@ -203,7 +254,7 @@ void main(){
   // the formation travels its curved route as a body; this point rides it a little ahead of or
   // behind the group by its own stagger, so the swarm strings out along the curve
   float r = routeR(e);
-  vec3 w = route(p, r);
+  w = route(p, r);
   float sc = routeScale(r);
   // in flight: ride the stream (world space, so currents stay coherent across the screen)
   float env = flight(st) * step(0.0001, uFlow);
@@ -236,30 +287,72 @@ void main(){
   vec3 dn = normalize(d + 1e-4);
   w += dn * push * 0.5 * sc * (1.0 + 0.6 * fly);
   w += vec3(-dn.y, dn.x, 0.0) * push * fly * 0.45 * sc;
-  vec4 mv = viewMatrix * vec4(w, 1.0);
-  gl_Position = projectionMatrix * mv;
-  float depth = -mv.z;
+  float depth = -(viewMatrix * vec4(w, 1.0)).z;
   // the field keeps one fine dot size at any scale, so phones get the same texture
-  gl_PointSize = max(uSize * mix(sc, 0.95, wv) * (0.55 + aRand * 0.9) * (1.0 + node * 0.7 + flash * 1.4)
+  hSize = max(uSize * mix(sc, 0.95, wv) * (0.55 + aRand * 0.9) * (1.0 + node * 0.7 + flash * 1.4)
     * (1.0 + glow * 0.6) / depth, 1.4);
+  float sig = step(fract(aRand * 91.7), 0.3);
+  float far = smoothstep(5.0, 9.2, depth);
+  hColor = mix(mix(mix(mix(uText, uSignal, sig), uMuted, far * 0.5), uSignal, lit), uSignal, glow);
+  float fade = mix(1.0, mix(1.0, 0.45, far), uDark);
+  hA = uAlpha * (0.55 + 0.45 * fract(aRand * 53.1)) * fade * (1.0 + sig * 0.25 * uDark) * ie
+     * (1.0 - mid * 0.5) * mix(1.0, smoothstep(3.15, 2.8, abs(p.x)), wv) * (1.0 + lit * 1.4)
+     * (1.0 + glow * 0.6);
+  }
+  // the home stream: the point streams down its channel; x comes from the spine table
+  vec3 fw = vec3(0.0);
+  float fSize = 1.0, fA = 0.0, land = 1.0;
+  vec3 fColor = uText;
+  if (fm > 0.0) {
+    float cls = floor(aSite.w);
+    float r = fract(aSite.w);
+    float r2 = fract(aRand * 53.1);
+    float off = cls < 0.5 ? uOff.x : cls < 1.5 ? uOff.y : cls < 2.5 ? uOff.z : uOff.w;
+    float yb = mod(aSite.z * uBandL + off, uBandL);
+    float row = yb / uBandL * (uSpineSize.x - 1.0);
+    vec4 ch = spine(row, aSite.x);
+    vec4 gb = spine(row, uSpineSize.y - 2.0);
+    vec4 tx = spine(row, uSpineSize.y - 1.0);
+    float wid = ch.y;
+    float x = uPx.x * 0.5 + ch.x + aSite.y * wid
+      + snoise(vec3(uTime * 0.5, r * 91.0, aSite.x)) * min(4.0, wid * 0.25);
+    vec2 q = swirl(vec2(x, yb - uSpineSize.z), uSw0, gb.z);
+    q = swirl(q, uSw1, gb.w);
+    // weak channels lose points instead of fading; text thins what crosses it, with a floor
+    float th = smoothstep(r * 0.85 - 0.06, r * 0.85 + 0.06, ch.z);
+    float dx = max(max(tx.x - q.x, 0.0), q.x - tx.y);
+    float dens = mix(1.0, 0.2 + 0.8 * smoothstep(0.0, 40.0, dx), tx.z);
+    float tv = smoothstep(r2 * 0.85 - 0.075, r2 * 0.85 + 0.075, dens);
+    float fz = 1.0 - smoothstep(1.15, 2.65, abs(aSite.y));
+    // points whose stream slot is empty (above the stream's start, a thinned channel) dissolve
+    // near the globe instead of flying off to it, so the hand-off reads as the globe pouring down
+    land = smoothstep(0.0, 0.1, ch.w * th);
+    fA = (1.0 - gb.x + gb.x * fz * fz) * ch.w * (0.55 + 0.45 * r2) * th * tv * uSiteA
+       * smoothstep(0.0, 0.6, uIntro);
+    fSize = max(gb.y * (0.75 + 0.5 * r) * uDpr, 1.0);
+    fw = vec3((q.x / uPx.x - 0.5) * uView.x, (0.5 - q.y / uPx.y) * uView.y, 0.0);
+    fColor = mix(uText, uSignal, step(fract(aRand * 91.7), 0.07));
+    // the cursor parts the stream
+    vec3 d = fw - uMouse; d.z *= 0.5;
+    fw += normalize(d + 1e-4) * smoothstep(uRadius, 0.0, length(d)) * uStrength * 0.25;
+  }
+  float f4 = fm * fm * fm * fm;
+  vec3 pos = mix(w, fw, fm * mix(mix(0.15, 1.0, land), 1.0, f4));
+  gl_Position = projectionMatrix * viewMatrix * vec4(pos, 1.0);
+  gl_PointSize = mix(hSize, fSize, fm);
   // thin out points that sit behind the active text block (soft edge)
   vec2 nd = gl_Position.xy / gl_Position.w;
   vec2 qm = abs(nd - uMask.xy) - uMask.zw;
   float away = smoothstep(0.0, 0.22, length(max(qm, 0.0)));
   float keep = mix(1.0, mix(0.04, 1.0, away), uMaskA);
-  float sig = step(fract(aRand * 91.7), 0.3);
-  float far = smoothstep(5.0, 9.2, depth);
-  vColor = mix(mix(mix(mix(uText, uSignal, sig), uMuted, far * 0.5), uSignal, lit), uSignal, glow);
-  float fade = mix(1.0, mix(1.0, 0.45, far), uDark);
-  vA = uAlpha * (0.55 + 0.45 * fract(aRand * 53.1)) * fade * (1.0 + sig * 0.25 * uDark) * keep * ie
-     * (1.0 - mid * 0.5) * mix(1.0, smoothstep(3.15, 2.8, abs(p.x)), wv) * (1.0 + lit * 1.4)
-     * (1.0 + glow * 0.6);
+  vColor = mix(hColor, fColor, fm);
+  vA = mix(hA, fA, fm) * keep;
 }`;
 
 /** A shape's network links: they ride the same shimmer, swell and route as its points. Current
  * runs along them by depth, and a link arcs like lightning while the current crosses it. */
 const LINE_VERT = /* glsl */ `
-uniform float uT, uTime, uStrength, uRadius, uIntro, uMode, uWave, uLag;
+uniform float uT, uTime, uStrength, uRadius, uIntro, uMode, uWave, uLag, uSite;
 uniform vec3 uMouse;
 uniform vec4 uMask;
 uniform float uMaskA;
@@ -296,7 +389,8 @@ void main(){
   vec2 nd = gl_Position.xy / gl_Position.w;
   vec2 qm = abs(nd - uMask.xy) - uMask.zw;
   float keep = mix(1.0, mix(0.04, 1.0, smoothstep(0.0, 0.22, length(max(qm, 0.0)))), uMaskA);
-  vA = vis * keep * smoothstep(0.7, 1.0, uIntro) * smoothstep(3.15, 2.8, abs(position.x));
+  vA = vis * keep * smoothstep(0.7, 1.0, uIntro) * smoothstep(3.15, 2.8, abs(position.x))
+     * (1.0 - smoothstep(0.0, 0.3, uSite));
   vDepth = aDepth;
   vPhase = aPhase;
 }`;
@@ -392,6 +486,8 @@ interface Props {
   waveShape?: number;
   /** stream strength 0..1 for the morph out of shape `k` (0 = straight swarm morph) */
   flow?: (k: number) => number;
+  /** per-point home stream attributes (4 floats each), when the drive returns a site frame */
+  siteAttr?: Float32Array;
 }
 
 const NO_FLOW = () => 0;
@@ -404,6 +500,7 @@ export function SignalPoints({
   maskRef,
   waveShape = -1,
   flow = NO_FLOW,
+  siteAttr,
 }: Props) {
   const { colors, mood } = useThemeColors();
   const dark = mood === "dark";
@@ -435,6 +532,7 @@ export function SignalPoints({
     g.setAttribute("aRand", new THREE.BufferAttribute(rnd, 1));
     g.setAttribute("aNodeA", new THREE.BufferAttribute(new Float32Array(count * 3), 3));
     g.setAttribute("aNodeB", new THREE.BufferAttribute(new Float32Array(count * 3), 3));
+    g.setAttribute("aSite", new THREE.BufferAttribute(siteAttr ?? new Float32Array(count * 4), 4));
     const v = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
     const m = new THREE.ShaderMaterial({
       vertexShader: VERT,
@@ -469,10 +567,21 @@ export function SignalPoints({
         uMuted: { value: v(0.5, 0.5, 0.5) },
         uMask: { value: new THREE.Vector4(0, 0, 0, 0) },
         uMaskA: { value: 0 },
+        uSite: { value: 0 },
+        uSiteA: { value: 1 },
+        uDpr: { value: 1 },
+        uBandL: { value: 1 },
+        uSpineSize: { value: v(2, 2, 0) },
+        uSpine: { value: null },
+        uOff: { value: new THREE.Vector4() },
+        uSw0: { value: new THREE.Vector4() },
+        uSw1: { value: new THREE.Vector4() },
+        uPx: { value: new THREE.Vector2(1, 1) },
+        uView: { value: new THREE.Vector2(1, 1) },
       },
     });
     return { geometry: g, material: m };
-  }, [count, rnd]);
+  }, [count, rnd, siteAttr]);
 
   // One network per shape (the wave's flows toward the viewer, the rest fire like neurons). Each
   // shares the points' uniform objects so the two stay in step.
@@ -506,6 +615,7 @@ export function SignalPoints({
             uMouse: u.uMouse,
             uMask: u.uMask,
             uMaskA: u.uMaskA,
+            uSite: u.uSite,
             uDark: u.uDark,
             uAlpha: u.uAlpha,
             uText: u.uText,
@@ -580,7 +690,7 @@ export function SignalPoints({
       h: 2 * CAM_Z * Math.tan((FOV * Math.PI) / 360),
       mobile: state.size.width < 768,
     };
-    const { s, from, to, route } = drive(state.clock.elapsedTime, view);
+    const { s, from, to, route, site } = drive(state.clock.elapsedTime, view);
     const sMax = shapes.length - 1;
     const sg = Math.min(Math.floor(s), sMax - 1);
     const t = Math.min(1, Math.max(0, s - sg));
@@ -605,6 +715,19 @@ export function SignalPoints({
     u.uTime.value = state.clock.elapsedTime;
     if (introStart.current < 0) introStart.current = state.clock.elapsedTime;
     u.uIntro.value = Math.min(1, (state.clock.elapsedTime - introStart.current) / INTRO_S);
+    u.uSite.value = site?.amount ?? 0;
+    if (site) {
+      u.uSpine.value = site.spine;
+      u.uSpineSize.value.set(site.rows, site.lines, site.margin);
+      u.uBandL.value = site.band;
+      u.uOff.value.fromArray(site.off);
+      u.uSw0.value.fromArray(site.swirl, 0);
+      u.uSw1.value.fromArray(site.swirl, 4);
+      u.uSiteA.value = site.alpha;
+      u.uDpr.value = state.viewport.dpr;
+      u.uPx.value.set(state.size.width, state.size.height);
+      u.uView.value.set(view.w, view.h);
+    }
 
     // the route the formation travels between the two poses (see ROUTE)
     u.uPosA.value.set(from.x, from.y, 0);
@@ -629,7 +752,7 @@ export function SignalPoints({
     nets.forEach((n, k) => {
       const mode = k === sg ? -1 : k === sg + 1 ? 1 : 0;
       const line = lineRefs.current[k];
-      if (line) line.visible = mode !== 0;
+      if (line) line.visible = mode !== 0 && u.uSite.value < 0.999;
       if (mode === 0) return;
       const lu = n.material.uniforms;
       lu.uMode.value = mode;

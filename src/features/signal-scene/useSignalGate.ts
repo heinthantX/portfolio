@@ -11,6 +11,10 @@ function hasWebGL() {
   }
 }
 
+/** Phones and narrow views draw fewer points at a lower pixel ratio. */
+export const lowPower = () =>
+  window.matchMedia("(pointer: coarse)").matches || window.innerWidth < 768;
+
 /**
  * Decides, after hydration, whether the canvas may load: WebGL present, motion allowed,
  * idle time reached. Also reports point count and whether the stage is on screen.
@@ -28,7 +32,7 @@ export function useSignalGate(stage: RefObject<HTMLElement | null>) {
       setFallback(true);
       return;
     }
-    if (window.matchMedia("(pointer: coarse)").matches || window.innerWidth < 768) setCount(6000);
+    if (lowPower()) setCount(6000);
     const go = () => setReady(true);
     if ("requestIdleCallback" in window) {
       const id = window.requestIdleCallback(go, { timeout: 800 });

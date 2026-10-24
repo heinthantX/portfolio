@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+  activeChapter,
   BASE_LAG,
   CAM_Z,
   CHAPTERS,
   chapterPose,
+  chapterProgress,
+  FLOW_FROM,
   FOV,
+  flowMix,
   flowStrength,
   type Pose,
   type Route,
@@ -187,6 +191,23 @@ describe("route between chapters", () => {
       // phone text sits under the formation: no flight sinks far into it
       if (k >= 2 && k <= 4)
         expect(Math.min(...m.path.map((p) => p.y))).toBeGreaterThan(m.from.y - 0.12 * phone.h);
+    }
+  });
+});
+
+describe("flowMix: hand-off to the home stream", () => {
+  const last = chapterProgress(CHAPTERS - 1);
+  it("keeps the last chapter whole at its rest stop, before the hand-off starts", () => {
+    expect(activeChapter(last)).toBe(CHAPTERS - 1);
+    expect(last).toBeLessThan(FLOW_FROM);
+    expect(flowMix(last)).toBe(0);
+  });
+  it("is all stream at the end of the section, rising monotonically", () => {
+    expect(flowMix(1)).toBe(1);
+    let prev = 0;
+    for (let p = last; p <= 1; p += 0.005) {
+      expect(flowMix(p)).toBeGreaterThanOrEqual(prev);
+      prev = flowMix(p);
     }
   });
 });

@@ -12,10 +12,10 @@ test.describe("Hero Scene & Timeline", () => {
     const hero = page.locator("[data-stack-hero]");
     await expect(hero).toBeVisible();
 
-    // a canvas appears inside [data-stack-stage] within 15s
-    const stage = page.locator("[data-stack-stage]");
-    await expect(stage).toBeVisible();
-    const canvas = stage.locator("canvas");
+    // the sticky stage is there, and the home stream canvas (fixed behind the page) is drawing
+    // the hero within 15s
+    await expect(page.locator("[data-stack-stage]")).toBeVisible();
+    const canvas = page.locator('[data-home-stream][data-hero="true"] canvas');
     await expect(canvas).toBeAttached({ timeout: 15000 });
 
     // the chapter rail buttons exist (7)
@@ -51,15 +51,16 @@ test.describe("Hero Scene & Timeline", () => {
   test.describe("Reduced Motion", () => {
     test.use({ reducedMotion: "reduce" });
 
-    test("reduced motion: no canvas, poster img visible, chapter headings in normal flow", async ({
+    test("reduced motion: no hero canvas or stream, poster img visible, chapter headings in normal flow", async ({
       page,
     }) => {
       await page.goto("/");
 
-      // no canvas in the hero
+      // no canvas in the hero, and no home stream behind the page
       const hero = page.locator("[data-stack-hero]");
       await expect(hero).toBeVisible();
       await expect(hero.locator("canvas")).toHaveCount(0);
+      await expect(page.locator("[data-home-stream]")).toHaveCount(0);
 
       // the poster <img> for the current theme is visible
       const poster = hero.locator("img:visible");

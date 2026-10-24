@@ -1,81 +1,52 @@
 "use client";
 
 import { Canvas } from "@react-three/fiber";
-import { type RefObject, useCallback, useEffect, useMemo, useState } from "react";
-import { profile } from "@/content/profile";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { sampleText } from "./glyph";
-import { CAMERA, type DriveFn, SignalPoints, type TextMask } from "./SignalPoints";
-import { glyph, heroShapes } from "./shapes";
-import {
-  CHAPTERS,
-  chapterPose,
-  flowStrength,
-  shapeIndex,
-  travelRoute,
-  WAVE_CHAPTER,
-} from "./timeline";
+import { CAMERA, type DriveFn, SignalPoints } from "./SignalPoints";
+import { glyph } from "./shapes";
+import { breathe } from "./timeline";
 
 /** The 404 glyph scatters into a full-strength stream and reforms. */
 const fullFlow = () => 1;
-
-/** Idle life: a slow ~7 s scale pulse instead of a side-to-side sway. */
-const breathe = (t: number) => 1 + Math.sin(t * 0.9) * 0.012;
+const still = { x: 0, y: 0, z: 0 };
 
 interface Props {
-  variant: "hero" | "not-found";
-  progressRef?: RefObject<number>;
-  maskRef?: RefObject<TextMask>;
   count: number;
   frameloop: "always" | "never";
 }
 
-/** Heavy part (three + shaders): loaded with next/dynamic, client only. */
-export default function SignalCanvas({ variant, progressRef, maskRef, count, frameloop }: Props) {
+/** The 404 scene: points form "404", scatter and reform; the cursor repels. Client only. */
+export default function SignalCanvas({ count, frameloop }: Props) {
   const [samples, setSamples] = useState<Float32Array | null>(null);
-  const hero = variant === "hero";
 
   useEffect(() => {
     let live = true;
-    sampleText(hero ? profile.name : "404").then((s) => live && setSamples(s));
+    sampleText("404").then((s) => live && setSamples(s));
     return () => {
       live = false;
     };
-  }, [hero]);
+  }, []);
 
   const shapes = useMemo(() => {
     if (!samples) return null;
-    if (hero) return heroShapes(count, samples);
     const g = glyph(samples, count, 7, 4.0);
     return [g, g];
-  }, [samples, hero, count]);
+  }, [samples, count]);
 
-  // Pure function of progress (hero) or of the clock (404 scatter / reform loop).
-  const drive: DriveFn = useCallback(
-    (elapsed, view) => {
-      if (hero) {
-        const s = shapeIndex(progressRef?.current ?? 0);
-        const i = Math.min(Math.floor(s), CHAPTERS - 2);
-        const b = breathe(elapsed);
-        const from = chapterPose(i, view);
-        const to = chapterPose(i + 1, view);
-        from.scale *= b;
-        to.scale *= b;
-        return { s, from, to, route: travelRoute(i, from, to, view) };
-      }
-      const phase = elapsed % 9;
-      const s = Math.min(1, Math.max(0, (phase - 5.5) / 3));
-      const scale = Math.min(1.45, (0.9 * view.w) / 4) * breathe(elapsed);
-      const pose = { x: 0, y: 0, rotX: 0, rotY: 0, scale };
-      const still = { x: 0, y: 0, z: 0 };
-      return {
-        s,
-        from: pose,
-        to: pose,
-        route: { c1: still, c2: still, spinX: 0, spinY: 0, grow: 0 },
-      };
-    },
-    [hero, progressRef],
-  );
+  // a pure function of the clock: scatter / reform loop
+  const drive: DriveFn = useCallback((elapsed, view) => {
+    const phase = elapsed % 9;
+    const s = Math.min(1, Math.max(0, (phase - 5.5) / 3));
+    const scale = Math.min(1.45, (0.9 * view.w) / 4) * breathe(elapsed);
+    const pose = { x: 0, y: 0, rotX: 0, rotY: 0, scale };
+    return {
+      s,
+      from: pose,
+      to: pose,
+      route: { c1: still, c2: still, spinX: 0, spinY: 0, grow: 0 },
+    };
+  }, []);
 
   if (!shapes) return null;
   return (
@@ -87,12 +58,10 @@ export default function SignalCanvas({ variant, progressRef, maskRef, count, fra
       style={{ background: "transparent" }}
     >
       <SignalPoints
-        maskRef={maskRef}
         shapes={shapes}
         count={count}
         drive={drive}
-        waveShape={hero ? WAVE_CHAPTER : -1}
-        flow={hero ? flowStrength : fullFlow}
+        flow={fullFlow}
         interactive={
           typeof window !== "undefined" && !window.matchMedia("(pointer: coarse)").matches
         }

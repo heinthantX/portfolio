@@ -3,11 +3,11 @@
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useLenis } from "lenis/react";
-import dynamic from "next/dynamic";
 import { useEffect, useRef } from "react";
 import { Eyebrow, Tag } from "@/components/site/primitives";
 import { ScrollWords } from "@/components/site/scroll-words";
 import { profile } from "@/content/profile";
+import { registerHero } from "@/features/home-stream/store";
 import {
   activeChapter,
   CHAPTERS,
@@ -21,8 +21,6 @@ import { useChapterSnap } from "./useChapterSnap";
 import { useSignalGate } from "./useSignalGate";
 
 gsap.registerPlugin(ScrollTrigger);
-
-const SignalCanvas = dynamic(() => import("./SignalCanvas"), { ssr: false });
 
 const LAYERS = [
   {
@@ -241,6 +239,12 @@ export function SignalHero({ children, finale, poster }: SignalHeroProps) {
   const appliedRef = useRef<{ x: number; y: number }[]>([]); // transform currently on each block
   const revealRef = useRef<number[]>([]); // --reveal currently on each block
 
+  // The home stream canvas (fixed, behind the page) draws the scene; it reads these refs every frame.
+  useEffect(() => {
+    if (!gate.ready) return;
+    return registerHero({ progressRef, maskRef, stageRef, count: gate.count });
+  }, [gate.ready, gate.count]);
+
   // Progress comes from ScrollTrigger; everything below is a pure function of it.
   useEffect(() => {
     const section = sectionRef.current;
@@ -405,18 +409,6 @@ export function SignalHero({ children, finale, poster }: SignalHeroProps) {
         data-stack-stage
         className="sticky top-0 h-[100svh] w-full overflow-hidden"
       >
-        <div aria-hidden="true" className="absolute inset-0">
-          {gate.ready && (
-            <SignalCanvas
-              variant="hero"
-              progressRef={progressRef}
-              maskRef={maskRef}
-              count={gate.count}
-              frameloop={gate.frameloop}
-            />
-          )}
-        </div>
-
         {/* intro */}
         <div className={`${row} justify-center md:items-end md:pb-[10svh]`}>
           <div

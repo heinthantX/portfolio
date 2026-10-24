@@ -9,6 +9,7 @@ import { ThemeProvider } from "@/components/site/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { profile } from "@/content/profile";
 import { AmbientBackground } from "@/features/ambient-scene";
+import { HomeStream } from "@/features/home-stream/HomeStream";
 import { personJsonLd, siteUrl } from "@/lib/site";
 import "./globals.css";
 
@@ -55,10 +56,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           </a>
           <div aria-hidden className="dot-grid pointer-events-none fixed inset-0 -z-10" />
           <AmbientBackground />
+          <HomeStream />
           <SmoothScroll>
             <SiteHeader />
             <main id="main" tabIndex={-1} className="outline-none">
-              {/* Route changes slide the page sheet; header, footer and the canvas stay put. */}
+              {/* Route changes slide the page sheet; header, footer and the canvases stay put. */}
               <PageTransition>{children}</PageTransition>
             </main>
             <SiteFooter />

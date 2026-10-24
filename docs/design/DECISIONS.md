@@ -209,3 +209,24 @@ Owner asked for "a little fun sliding animation on page switching like going fro
 - **Arrow keys in command output now show.** Root cause: shadcn's `data-selected:` variant matches only `[data-selected="true"]`, but the output rows set `data-selected=""`. The selection moved, and the e2e test passed on the attribute alone, but nothing was drawn. Rows now set `"true"`. The style is a gold tint, a ring and white text, because help names are already gold and a colour change alone disappears. The e2e test now also asserts a non-transparent background. Hovering a row moves the selection, and the selected row scrolls into view.
 - **The gold window light closes the palette.** The third traffic-light dot is a button with `aria-label="Close command palette"` (tabIndex -1; Esc remains the keyboard path). It grows on hover.
 - **Home link off the home page.** The new client component `MainNav` (`src/components/site/main-nav.tsx`) puts "Home" first in the header list on every page except `/`. On mobile, where the list is hidden, it shows a house icon instead. The current section's link gets `aria-current="page"` and full-strength text.
+
+## D21 — One site-wide wave replaces the per-page backgrounds (2026-10-24)
+
+Owner asked for every page to be joined by one flowing wave: "a real side-to-side wave", but not a "left right left right" sway and not a straight line. The owner approved the "Shifting Stream" sample and said "just build it on our main site".
+
+- **One persistent WebGL context (option A).**
+  - `SiteWave` in the root layout owns the only canvas, apart from the 404 scene's. The hero gave up its canvas and drives this one through `site-wave/store.ts`.
+  - After "Shipped", the same points dissolve into the stream, so the move from hero to page is one continuous system.
+  - Commits: d9f2279 hoists the canvas with no visual change; cc956cd adds the stream.
+- **Motion.**
+  - The spine wanders with noise octaves, a domain warp and a mean-reverting heading, never sin.
+  - Each section gets a regime (river, braid, delta, fibre, pool, funnel), and the regimes re-shuffle every 36 s.
+  - Gold packet trains choose channels at splits, sometimes drop and resend, and send rare acks upstream.
+  - The stream thins under text, pools behind cards and funnels into the Contact CTA.
+  - Scroll speed stirs it; the cursor pushes it aside.
+- **Paused while a modal is open.** The stream stops drawing while the body is scroll-locked, so the command palette costs no GPU time. Under software GL in e2e, the always-running stream had starved the dialog's exit animation.
+- **Lost:** the per-route backgrounds from D6/D10: floating sheets on Work, a firing dot field on Notes, the firing graph on Résumé and Uses, and rising packets on Contact. They are **backed up** at the owner's request, as git branch `backup/ambient-scene` (b998834) and as `docs/archive/ambient-scene-src.tar.gz`. Restore steps are in `docs/archive/ambient-scene.md`.
+- **Known:**
+  - Stream speed is uniform across the screen.
+  - The stream shows softly through the header's blur.
+  - The hero's last chapter holds a little shorter (it rests at 0.925).

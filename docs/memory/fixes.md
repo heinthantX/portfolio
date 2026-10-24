@@ -27,3 +27,6 @@ Fix: pnpm patch `patches/@react-three__fiber@9.8.1.patch` (listed under `patched
 ## Tab inside a Radix Dialog moves focus off the input
 Root cause: `preventDefault` on Tab stops the browser's focus move, but the keydown still bubbles. FocusScope's keydown handler on an ancestor then wraps focus away from the input when the input is the first or last tabbable element.
 Fix: the command menu's Tab handler calls `stopPropagation` as well as `preventDefault`, so FocusScope never sees the key. See `docs/specs/command-menu.md` (Core Flows 3) and `docs/design/DECISIONS.md` D12.
+
+## shadcn `data-selected:` needs "true" (2026-10-24)
+shadcn's tailwind.css defines `@custom-variant data-selected { &:where([data-selected="true"]) }`. Command-output rows set `data-selected=""`, so the selection moved but was never drawn. The e2e test checked only the attribute and passed. Set `"true"`, and assert a visible style in tests.

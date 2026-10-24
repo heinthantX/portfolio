@@ -23,3 +23,7 @@ Fix: track the trough reached after the peak. A new push is a delta of 20 or mor
 ## R3F 9.8.x constructs a deprecated THREE.Clock
 Root cause: `@react-three/fiber` 9.8.1 and 9.8.2 construct `THREE.Clock`, which three r186 deprecates and warns about.
 Fix: pnpm patch `patches/@react-three__fiber@9.8.1.patch` (listed under `patchedDependencies` in `pnpm-workspace.yaml`) swaps in a Clock-compatible object. Re-check or drop the patch when upgrading `@react-three/fiber`. See `docs/design/DECISIONS.md` D11.
+
+## Tab inside a Radix Dialog moves focus off the input
+Root cause: `preventDefault` on Tab stops the browser's focus move, but the keydown still bubbles. FocusScope's keydown handler on an ancestor then wraps focus away from the input when the input is the first or last tabbable element.
+Fix: the command menu's Tab handler calls `stopPropagation` as well as `preventDefault`, so FocusScope never sees the key. See `docs/specs/command-menu.md` (Core Flows 3) and `docs/design/DECISIONS.md` D12.

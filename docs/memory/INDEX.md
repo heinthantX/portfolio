@@ -2,7 +2,7 @@
 
 | Topic/Domain | 1-Line Core Rule / Decision | Detail File | Updated |
 |---|---|---|---|
-| Motion: no sideways travel | No autonomous left/right motion. Use vertical, scale or opacity. Cursor parallax and hover nudges are allowed. | docs/memory/conventions.md | 2026-10-24 |
+| Motion: no sideways travel | No autonomous left/right motion. Hero text blocks may slide in from the side on scroll (D12), and only that. Use vertical, scale or opacity otherwise. Cursor parallax and hover nudges are allowed. | docs/memory/conventions.md | 2026-10-24 |
 | Scroll state | Scroll progress lives in rAF/useFrame, never in React state. | docs/memory/conventions.md | 2026-10-24 |
 | Typecheck on fresh checkout | Run `pnpm exec next typegen` before `pnpm typecheck`. | docs/memory/conventions.md | 2026-10-24 |
 | Chapter indices | Derive chapter constants from `CHAPTER_IDS`. Layer j is chapter `j + LAYER_OFFSET`, never `j + 1`. | docs/memory/conventions.md | 2026-10-24 |
@@ -18,3 +18,4 @@
 | Wheel: free handback | Lenis keeps `targetScroll` near the animated position during `scrollTo`. Credit the swallowed delta explicitly when handing back. | docs/memory/fixes.md | 2026-10-24 |
 | Snap easing | Snap steps use ease-out. easeInOut barely moves in its first 200ms and reads as lag on a swipe. | docs/memory/fixes.md | 2026-10-24 |
 | R3F Clock patch | `@react-three/fiber` 9.8.x constructs a deprecated `THREE.Clock`. Keep the pnpm patch; re-check or drop it on upgrade. | docs/memory/fixes.md | 2026-10-24 |
+| Tab in Radix Dialog | Tab handlers need `stopPropagation` as well as `preventDefault`, or FocusScope wraps focus off the input. | docs/memory/fixes.md | 2026-10-24 |

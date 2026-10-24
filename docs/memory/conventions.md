@@ -1,7 +1,7 @@
 # Conventions
 
 ## Motion: no sideways travel
-Motion never moves left or right on its own. Use vertical, scale or opacity. Text cards rise 24px from below and leave 24px upward. Cursor parallax and user-triggered hover nudges (`translate-x-1` on "→") are allowed. Owner preference, see `docs/design/DECISIONS.md` D8.
+Motion never moves left or right on its own. Use vertical, scale or opacity. The one exception: hero text blocks slide in from the side as they scroll in, and leave back to the same side (`slideFrom` in `SignalHero.tsx`). Intro, wave and finale text rise from below instead. Cursor parallax and user-triggered hover nudges (`translate-x-1` on "→") are allowed. Owner preference, see `docs/design/DECISIONS.md` D8, relaxed for entrance slides by D12.
 
 ## Scroll state stays out of React
 Scroll progress is read in rAF or `useFrame` and never put in React state, so scrolling causes no re-renders. See `docs/specs/signal-hero.md`.
@@ -24,7 +24,7 @@ Split text with `ScrollWords` (`src/components/site/scroll-words.tsx`), not per-
 See `docs/specs/scroll-words.md`.
 
 ## Chapter jumps go through goTo
-Every chapter jump (rail, stack outline, layer grid, wheel) calls `goTo` from `useChapterSnap` (`src/features/signal-scene/useChapterSnap.ts`). Never call `lenis.scrollTo` directly for a chapter: a direct call fights the snap and skips its 1.05s easing. See `docs/specs/signal-hero.md` and `docs/design/DECISIONS.md` D10.
+Every chapter jump (rail, stack outline, layer grid, wheel) calls `goTo` from `useChapterSnap` (`src/features/signal-scene/useChapterSnap.ts`). Never call `lenis.scrollTo` directly for a chapter: a direct call fights the snap and skips the chapter pace (`STEP_S`, 1.4s since D12). See `docs/specs/signal-hero.md` and `docs/design/DECISIONS.md` D10 and D12.
 
 ## Show skill breadth in copy, not in highlights
 Do not highlight individual skill tags (no signal-coloured tag for MongoDB or NoSQL). The owner rejected that. Show breadth in the copy instead, e.g. "SQL and NoSQL: Postgres and MySQL for relational data, MongoDB for documents". Write MySQL, not MariaDB (MariaDB is a fork). See `docs/design/DECISIONS.md` D10.

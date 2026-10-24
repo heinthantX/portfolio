@@ -34,6 +34,23 @@ describe("shapes", () => {
     });
   }
 
+  it("data: a rigid lattice on the left, loose cards on the right, balanced in frame", () => {
+    const a = data(N);
+    let lo = 0;
+    let hi = 0;
+    let left = 0;
+    let right = 0;
+    for (let i = 0; i < N; i++) {
+      lo = Math.min(lo, a[i * 3]);
+      hi = Math.max(hi, a[i * 3]);
+      if (a[i * 3] < -0.3) left++;
+      else if (a[i * 3] > 0.7) right++;
+    }
+    expect(hi - lo).toBeGreaterThan(3.6);
+    expect(left).toBeGreaterThan(N * 0.3);
+    expect(right).toBeGreaterThan(N * 0.2);
+  });
+
   it("wave: a full-width field, finite, deterministic", () => {
     const a = wave(N);
     expect(a).toHaveLength(N * 3);

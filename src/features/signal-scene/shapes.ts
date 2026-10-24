@@ -76,13 +76,6 @@ const ringXY =
     return [cx + Math.cos(a) * rad, cy + Math.sin(a) * rad, cz];
   };
 
-const ringXZ =
-  (cx: number, cy: number, cz: number, rad: number): Part["p"] =>
-  (r) => {
-    const a = r() * Math.PI * 2;
-    return [cx + Math.cos(a) * rad, cy, cz + Math.sin(a) * rad];
-  };
-
 const sphereShell =
   (cx: number, cy: number, cz: number, rad: number): Part["p"] =>
   (r) => {
@@ -207,38 +200,144 @@ export function api(n: number, seed = 3): Float32Array {
   return build(n, seed, parts);
 }
 
-/** Three stacked database discs and a small cache ring. */
-export function data(n: number, seed = 4): Float32Array {
-  const cx = -0.3;
-  const rad = 1.0;
-  const hh = 0.275;
-  const parts: Part[] = [];
-  for (const y of [1.0, 0, -1.0]) {
-    parts.push({ w: 6, p: ringXZ(cx, y + hh, 0, rad) });
-    parts.push({ w: 5, p: ringXZ(cx, y - hh, 0, rad) });
-    parts.push({ w: 1.5, p: ringXZ(cx, y, 0, rad) });
-    parts.push({ w: 2.5, p: diskXZ(cx, y + hh, 0, rad) });
-    parts.push({
-      w: 2,
-      p: (r) => {
-        const a = r() * Math.PI * 2;
-        return [cx + Math.cos(a) * rad, y + (r() * 2 - 1) * hh, Math.sin(a) * rad];
-      },
-    });
-  }
-  // cache ring orbiting beside the stack
-  parts.push({ w: 6, p: ringXY(1.65, 0.45, 0.2, 0.42) });
-  parts.push({ w: 3, p: ringXY(1.65, 0.45, 0.2, 0.26) });
-  parts.push({ w: 1, p: sphereShell(1.65, 0.45, 0.2, 0.07) });
-  return build(n, seed, parts);
+/** Rotate about the origin by rx, ry, rz (in that order), squash depth by `depth`, then move. */
+function placed(p: Part["p"], rx: number, ry: number, rz: number, move: V3, depth = 1): Part["p"] {
+  const [sx, cx, sy, cy, sz, cz] = [
+    Math.sin(rx),
+    Math.cos(rx),
+    Math.sin(ry),
+    Math.cos(ry),
+    Math.sin(rz),
+    Math.cos(rz),
+  ];
+  return (r) => {
+    const [x0, y0, z0] = p(r);
+    const y1 = y0 * cx - z0 * sx;
+    const z1 = y0 * sx + z0 * cx;
+    const x2 = x0 * cy + z1 * sy;
+    const z2 = -x0 * sy + z1 * cy;
+    return [x2 * cz - y1 * sz + move[0], x2 * sz + y1 * cz + move[1], z2 * depth + move[2]];
+  };
 }
 
-function diskXZ(cx: number, cy: number, cz: number, rad: number): Part["p"] {
-  return (r) => {
-    const a = r() * Math.PI * 2;
-    const d = Math.sqrt(r()) * rad;
-    return [cx + Math.cos(a) * d, cy, cz + Math.sin(a) * d];
-  };
+/** A line part whose share of the point budget follows its length. */
+function seg(a: V3, b: V3, density: number): Part {
+  return { w: Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]) * density, p: line(a, b) };
+}
+
+const lerp3 = (a: V3, b: V3, t: number): V3 => [
+  a[0] + (b[0] - a[0]) * t,
+  a[1] + (b[1] - a[1]) * t,
+  a[2] + (b[2] - a[2]) * t,
+];
+
+/** Document card in its own plane: outline, header bar, indented rows, optional `{` hint. */
+function docCard(w: number, h: number, rows: number[], brace: boolean): Part[] {
+  const parts: Part[] = [
+    { w: 2 * (w + h) * 15, p: rectOutline(0, 0, 0, w, h) },
+    { w: (w - 0.1) * 26, p: rectFill(0, h / 2 - 0.1, 0, w - 0.1, 0.06) },
+  ];
+  rows.forEach((len, k) => {
+    const y = h / 2 - 0.27 - k * 0.14;
+    const x0 = -w / 2 + 0.1 + (k === 1 ? 0.1 : 0);
+    parts.push(seg([x0, y, 0], [x0 + len * (w - 0.2), y, 0], 15));
+  });
+  if (brace) {
+    const x = -w / 2 + 0.1;
+    const y = -h / 2 + 0.2;
+    const pts: V3[] = [
+      [x + 0.05, y + 0.1, 0],
+      [x + 0.01, y + 0.07, 0],
+      [x + 0.01, y + 0.02, 0],
+      [x - 0.02, y, 0],
+      [x + 0.01, y - 0.02, 0],
+      [x + 0.01, y - 0.07, 0],
+      [x + 0.05, y - 0.1, 0],
+    ];
+    for (let i = 0; i < pts.length - 1; i++) parts.push(seg(pts[i], pts[i + 1], 22));
+  }
+  return parts;
+}
+
+/**
+ * Schema crystal: a tilted 4x4x4 lattice (SQL, rigid schema) whose right half frays into short
+ * detached segments, which become loose document cards (NoSQL). A thin cache ring sits at the top.
+ */
+export function data(n: number, seed = 4): Float32Array {
+  const D = 4;
+  const size = 1.85;
+  const step = size / (D - 1);
+  const at = (i: number, j: number, k: number): V3 => [
+    (i - (D - 1) / 2) * step,
+    (j - (D - 1) / 2) * step,
+    (k - (D - 1) / 2) * step,
+  ];
+  const tilt = (p: Part["p"]) => placed(p, -0.25, 0.95, 0.04, [-0.68, -0.1, 0], 0.7);
+  const keep = mulberry32(seed * 7);
+  const parts: Part[] = [];
+  const add = (q: Part) => parts.push({ w: q.w, p: tilt(q.p) });
+  for (let i = 0; i < D; i++) {
+    for (let j = 0; j < D; j++) {
+      for (let k = 0; k < D; k++) {
+        const a = at(i, j, k);
+        // columns 0-1 are the rigid schema, 2 is fraying, 3 is mostly gone
+        if (i <= 1 || keep() < (i === 2 ? 0.75 : 0.45)) {
+          add({ w: i <= 1 ? 12 : 8, p: sphereShell(a[0] + (i - 1) * 0.04, a[1], a[2], 0.055) });
+        }
+        for (const [di, dj, dk] of [
+          [1, 0, 0],
+          [0, 1, 0],
+          [0, 0, 1],
+        ]) {
+          if (i + di >= D || j + dj >= D || k + dk >= D) continue;
+          const b = at(i + di, j + dj, k + dk);
+          if (i + di <= 1) add(seg(a, b, 15));
+          else if (di === 1 && i === 1) add(seg(a, lerp3(a, b, 0.7), 12));
+          else if (di === 1) {
+            // column 2 to 3: a short stub that has let go of both ends
+            if (keep() < 0.6) add(seg(lerp3(a, b, 0.15), lerp3(a, b, 0.5), 16));
+          } else {
+            // edges inside columns 2 and 3 break into drifting fragments
+            const len = i === 2 ? 0.6 : 0.38;
+            if (keep() < (i === 2 ? 0.85 : 0.65)) {
+              const t0 = keep() * (1 - len);
+              const drift = (i - 1) * 0.07;
+              const fa = lerp3(a, b, t0);
+              const fb = lerp3(a, b, t0 + len);
+              add(seg([fa[0] + drift, fa[1], fa[2]], [fb[0] + drift, fb[1], fb[2]], 16));
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // loose document cards, two columns drifting off to the right
+  const cards: [number, number, number, number, number, number, number[], boolean][] = [
+    [1.0, 0.85, 0.05, 0.15, 0.05, 0.03, [0.9, 0.6, 0.75], true],
+    [1.0, -0.05, -0.05, -0.2, 0.0, 0.05, [0.7, 0.9], false],
+    [1.0, -0.95, 0.05, 0.12, -0.05, -0.04, [0.8, 0.55, 0.85], true],
+    [1.8, 0.55, -0.05, -0.25, 0.05, -0.06, [0.6, 0.85, 0.5], false],
+    [1.8, -0.33, 0.05, 0.22, 0.0, 0.06, [0.85, 0.65], true],
+    [1.8, -1.2, -0.05, -0.12, -0.05, 0.03, [0.7, 0.8, 0.55], false],
+  ];
+  for (const [x, y, z, ry, rx, rz, rows, brace] of cards) {
+    for (const q of docCard(0.62, 0.68, rows, brace)) {
+      parts.push({ w: q.w, p: placed(q.p, rx, ry, rz, [x, y, z]) });
+    }
+  }
+
+  // thin cache ring with three tiny dots, top right
+  const ringAt: V3 = [1.75, 1.12, 0.05];
+  parts.push({ w: 70, p: placed(ringXY(0, 0, 0, 0.22), 0.35, -0.3, 0, ringAt) });
+  for (const [dx, dy] of [
+    [-0.4, 0.08],
+    [0.4, -0.1],
+    [0.04, 0.38],
+  ]) {
+    parts.push({ w: 6, p: sphereShell(ringAt[0] + dx, ringAt[1] + dy, ringAt[2], 0.04) });
+  }
+  return build(n, seed, parts);
 }
 
 /** 4x3 grid of node plates (flat in XZ) with pod cubes on most plates. */

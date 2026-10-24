@@ -161,3 +161,11 @@ Owner feedback after trying 3s: "make min 1 second and step 2".
 
 - **`STEP_S` 3s → 2s, `MIN_S` 1.5s → 1s** in `useChapterSnap.ts`. A full chapter plays in 2s (a swipe reaches it in about 1.7s); a slow-wheel finish of a part chapter scales with distance, never under 1s. Lost: the 3s pace from D14.
 - **Pace is an env var.** Owner: "make it as env variable". `NEXT_PUBLIC_CHAPTER_STEP_S` and `NEXT_PUBLIC_CHAPTER_MIN_S` (documented in `.env.example`) override the 2s / 1s defaults. They are `NEXT_PUBLIC_`, so Next inlines them into the client bundle at build time: changing one needs a rebuild or a dev-server restart. Non-numeric or non-positive values fall back to the defaults, and `MIN_S` is capped at `STEP_S`. Verified: a build with `NEXT_PUBLIC_CHAPTER_STEP_S=2.75` put `"2.75"` into 2 client chunks; a build without it put it in none.
+
+## D16 — Data chapter becomes the Schema Crystal (2026-10-24)
+
+Owner asked for a cooler data object, brainstormed across agents, compared sample renders of four candidates (Index Tree, Schema Crystal, Ingest Core, Schema Diagram) and chose the Schema Crystal.
+
+- **Shape.** `data(n)` in `shapes.ts`: a tilted 4x4x4 cube lattice (edges plus node spheres) that is rigid on the left. Its right-hand edges break into short fragments and fewer nodes, which give way to six readable document cards. A single thin cache ring with three dots sits top right. Lattice depth is squashed to 0.7 after the tilt to stay inside the shared z bound. Pose in `timeline.ts` is unchanged.
+- **Fixed from the sample.** No diffuse dust in the break-up zone, cards about twice the sample size, and no concentric "target" cache ring.
+- **Lost.** The three stacked database discs with a concentric cache ring, which read as a stack of pancakes. Unused `ringXZ` and `diskXZ` helpers removed.

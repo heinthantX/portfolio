@@ -1,6 +1,6 @@
 # Signal hero
 
-Rationale and history: `docs/design/DECISIONS.md` (D7 concept, D8 motion rules, D9 wave chapter and per-point morph, D10 networks, chapter snap and reveals).
+Rationale and history: `docs/design/DECISIONS.md` (D7 concept, D8 motion rules, D9 wave chapter and per-point morph, D10 networks, chapter snap and reveals, D11 speed-aware snap and the R3F clock patch).
 
 ## Architecture
 - One GPU particle system (about 16k points) in `src/features/signal-scene/`.
@@ -14,13 +14,14 @@ Rationale and history: `docs/design/DECISIONS.md` (D7 concept, D8 motion rules, 
     - Links fade in only once both ends have landed (`uMode` +1 arriving, -1 leaving).
   - `SignalCanvas.tsx`: R3F canvas, `breathe()` idle pulse, cursor in world space (radius 0.95). Networks start mid-activity, not dead.
   - `timeline.ts`: `CHAPTER_IDS` is the source: intro, wave, interface, api, data, infra, shipped. `CHAPTERS`, `LAYER_OFFSET` (2) and `WAVE_CHAPTER` (1) derive from it. `chapterPose(i, view)` gives each chapter's resting pose; `Drive` is `{s, from, to}`. `FORMATION_SIDE` = `[0,0,1,1,1,1,0]`. Morph window `W` = 0.077. Text windows 0.004–0.043.
-  - `useChapterSnap.ts` (tests in `useChapterSnap.test.ts`): `useChapterSnap(sectionRef, lenis, enabled)` returns `goTo(chapter)`. Pure helpers `nextStop` and `settleStop` are tested.
+  - `useChapterSnap.ts` (tests in `useChapterSnap.test.ts`): `useChapterSnap(sectionRef, lenis, enabled)` returns `goTo(chapter)`. Pure helpers `nextStop` and `settleStop` are tested. Each wheel gesture is classed as slow, swipe or free from its raw delta (Core Flows 10).
   - `src/components/site/wheel.ts`: `interceptWheel(fn)` registers the hook. `capWheelDelta` calls it, then `preventDefault` and returns false to swallow the event.
   - `SignalHero.tsx`: DOM layer. Sticky stage, chapter copy, layer cards, wave manifesto, stack outline.
 - Wave pose: x 0, Y_H -0.37 × view height, rotX 0.35, scale min(3.2, 1.12 × w/4.4). Mobile: `MOBILE_Y_H` -0.3, `MOBILE_FIT` 1.35, rotX 0.5.
 - Hero section height is `450vh` (about 4.5 screens of scroll).
 - Scroll progress (0..1) is read in rAF/`useFrame` only. Never in React state.
 - Stack copy comes from `src/content/profile.ts`. `stackLayers[].points` (capability bullets) is validated in `profile.schema.ts` with default `[]`.
+- Dependency patch: `patches/@react-three__fiber@9.8.1.patch` (pnpm `patchedDependencies` in `pnpm-workspace.yaml`) swaps the deprecated `THREE.Clock` that R3F 9.8.x constructs. Re-check or drop it when upgrading `@react-three/fiber` (D11).
 - Ambient sub-page backgrounds are a separate feature: `docs/specs/ambient-scene.md`.
 
 ## Core Flows
@@ -39,15 +40,20 @@ Rationale and history: `docs/design/DECISIONS.md` (D7 concept, D8 motion rules, 
 7. **Idle:** `breathe()` scales the formation by 1 ± 1.2% on `sin(t*0.9)`. The 404 scene uses the same pulse.
 8. **Cursor:** acts in world space within radius 0.95, on the formation only. It never changes scroll or chapter state.
 9. **Navigation:** the chapter rail (01–05, right edge) and the stack outline (desktop, four layers, `goTo(j + LAYER_OFFSET)`) both call `goTo`. They never call `lenis.scrollTo` directly.
-10. **Wheel snap (hero only):**
-    - One gesture moves exactly one chapter: a gap over 160ms, or a fresh push over 2× the decaying delta. The move uses `lenis.scrollTo` over 1.05s with easeInOutCubic.
-    - A fling (over 900px in the first 220ms) hands the wheel back to Lenis, which scrolls freely.
-    - After any scroll stops (touch, keys, scrollbar, fling), the snap settles after 140ms. A nudge over 4% of vh completes one step. A smaller nudge springs back. A fling settles on the nearest chapter.
+10. **Wheel snap (hero only):** speed is the raw WheelEvent delta (deltaMode-adjusted) over a 100ms window. It is read before `capWheelDelta` caps each event at 120px (D11).
+    - **Slow, under 1800 px/s:** the page follows the hand. Inside the hero, Lenis lerp is 0.16 (base 0.09) and delta gain 1.15. When the gesture is quiet for 160ms, it finishes the chapter in the direction of travel at the same pace: `playSeconds` with `STEP_S` 1.05s per chapter, minimum 0.3s, easeOut. A move under 4% of vh springs back.
+    - **Swipe, 1800 px/s or more:** plays exactly one chapter at a fixed pace, never faster for harder swipes. `easeSwipe` = 1-(1-t)^2 moves from the first frame. The rest of the gesture is swallowed. A new swipe during a playing chapter queues one more; a reverse swipe turns straight back.
+    - **Free scroll:** only for a hard fling (2500+ raw px within the first 250ms) or three swipes within 900ms. A wheel held at swipe speed counts as another swipe every 400ms (`SUSTAIN_MS`), so a long mouse spin goes free. On going free, Lenis is credited the delta the gesture already sent (from + held). After a fling it settles forward to the next chapter in its direction, never back.
+    - **Trackpad push:** a new push is a delta that rises to 20 or more and more than 3x the trough reached after the peak. The trough resets on ramp-up, so a swipe's own ramp is not a second push.
+    - **Wheel during a glide:** stops the finishing glide in place (`scrollTo` at `animatedScroll`, immediate), then follows. No dip back.
+    - **Touch, keys, scrollbar:** `settleStop` runs once scrolling is quiet. Past the nudge, it finishes in the direction of travel.
     - Snap tracks a `busyUntil` timestamp, not `onComplete`, because Lenis drops `onComplete` when a scroll is interrupted (`docs/memory/fixes.md`).
 
 ## Edge Cases
 - Reduced motion or no WebGL: static posters, and chapter snap is disabled. The manifesto renders statically, without the layer grid.
 - Outside the hero section, the wheel snap does nothing.
+- A wheel event during a glide or a playing chapter never moves the page twice: the glide stops in place, and the rest of a swipe is swallowed.
+- On handback to Lenis, the delta already sent is credited, so a fling keeps its distance.
 - The stack outline is hidden below the desktop breakpoint. Cards and bullets still render on mobile.
 - Empty `stackLayers[].points` renders the card without bullets. The layout does not break.
 - Scroll-linked state goes through the frame loop only. Scrolling never re-renders React.

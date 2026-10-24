@@ -4,7 +4,7 @@ import { Command as CommandPrimitive } from "cmdk";
 import { Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
-import { useEffect, useMemo, useState } from "react";
+import { type KeyboardEvent, type ReactNode, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Kbd, SampleBadge } from "@/components/site/primitives";
 import { Button } from "@/components/ui/button";
@@ -17,21 +17,53 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { profile } from "@/content/profile";
-import type { CommandMenuItem } from "./command-menu-data";
+import type { CommandMenuCategory, CommandMenuItem } from "./command-menu-data";
 
 interface CommandMenuProps {
   items: CommandMenuItem[];
 }
 
+/** Terminal-style tabs: `Tab` / `Shift+Tab` cycles them, like switching shells. */
+const TABS = ["all", "Pages", "Projects", "Notes", "Actions"] as const;
+type Tab = (typeof TABS)[number];
+const tabPath = (tab: Tab) => (tab === "all" ? "~" : `~/${tab.toLowerCase()}`);
+
+/** Typed commands with a fake terminal reply. Exact match, case-insensitive. */
+const COMMANDS = [
+  { name: "help", about: "list these commands" },
+  { name: "whoami", about: "who built this" },
+  { name: "neofetch", about: "system info, portfolio edition" },
+  { name: "ls projects", about: "every project slug" },
+  { name: "git log", about: "latest notes as commits" },
+  { name: "kubectl get skills", about: "the stack, as pods" },
+  { name: "sudo hire-me", about: "escalate to the contact page" },
+] as const;
+type CommandName = (typeof COMMANDS)[number]["name"];
+
+const headingClass =
+  "**:[[cmdk-group-heading]]:font-mono **:[[cmdk-group-heading]]:text-[0.6875rem] **:[[cmdk-group-heading]]:tracking-[0.12em] **:[[cmdk-group-heading]]:uppercase **:[[cmdk-group-heading]]:text-muted-foreground";
+const itemClass =
+  "flex cursor-pointer items-center justify-between font-mono text-xs text-text hover:bg-surface-2 data-selected:bg-surface-2 data-selected:text-signal";
+const metaClass =
+  "shrink-0 text-[0.6875rem] text-muted-foreground group-data-selected/command-item:text-text";
+
+/** A stable short "commit hash" for a note, so git log reads the same on every open. */
+function shortHash(id: string) {
+  let h = 2166136261;
+  for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619);
+  return (h >>> 0).toString(16).padStart(8, "0").slice(0, 7);
+}
+
 export function CommandMenu({ items }: CommandMenuProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [tab, setTab] = useState<Tab>("all");
   const router = useRouter();
   const { resolvedTheme, setTheme } = useTheme();
 
   // Keyboard shortcut listener: ⌘K / Ctrl+K
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
+    const handleKeyDown = (e: globalThis.KeyboardEvent) => {
       if ((e.key === "k" || e.key === "K") && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         setOpen((prev) => !prev);
@@ -45,16 +77,21 @@ export function CommandMenu({ items }: CommandMenuProps) {
     setOpen(nextOpen);
     if (!nextOpen) {
       setSearch("");
+      setTab("all");
     }
   };
 
-  const handleSelect = (item: CommandMenuItem) => {
+  const go = (href: string) => {
     handleOpenChange(false);
+    router.push(href);
+  };
 
+  const handleSelect = (item: CommandMenuItem) => {
     if (item.href) {
-      router.push(item.href);
+      go(item.href);
       return;
     }
+    handleOpenChange(false);
 
     if (item.actionId === "toggle-theme") {
       const nextTheme = resolvedTheme === "dark" ? "light" : "dark";
@@ -81,27 +118,155 @@ export function CommandMenu({ items }: CommandMenuProps) {
     }
   };
 
-  // Grouped items
-  const pages = useMemo(() => items.filter((i) => i.group === "Pages"), [items]);
-  const projects = useMemo(() => items.filter((i) => i.group === "Projects"), [items]);
-  const notes = useMemo(() => items.filter((i) => i.group === "Notes"), [items]);
-  const actions = useMemo(() => items.filter((i) => i.group === "Actions"), [items]);
+  const groups = useMemo(() => {
+    const by = (g: CommandMenuCategory) => items.filter((i) => i.group === g);
+    return {
+      Pages: by("Pages"),
+      Projects: by("Projects"),
+      Notes: by("Notes"),
+      Actions: by("Actions"),
+    };
+  }, [items]);
+  const shown = (g: CommandMenuCategory) => (tab === "all" || tab === g) && groups[g].length > 0;
 
-  // Project slugs for the 'ls projects' easter-egg
-  const projectSlugs = useMemo(
-    () =>
-      projects
-        .map((p) => p.href?.replace("/work/", ""))
-        .filter((slug): slug is string => Boolean(slug)),
-    [projects],
-  );
+  const trimmed = search.trim().toLowerCase().replace(/\s+/g, " ");
+  const command = COMMANDS.find((c) => c.name === trimmed)?.name;
 
-  // Easter eggs exact matching
-  const trimmed = search.trim().toLowerCase();
-  const isWhoami = trimmed === "whoami";
-  const isLsProjects = trimmed === "ls projects";
-  const isKubectl = trimmed === "kubectl get skills";
-  const isEasterEgg = isWhoami || isLsProjects || isKubectl;
+  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "Tab") {
+      e.preventDefault();
+      const k = TABS.indexOf(tab) + (e.shiftKey ? -1 : 1);
+      setTab(TABS[(k + TABS.length) % TABS.length]);
+    } else if (e.key === "Enter" && command === "sudo hire-me") {
+      e.preventDefault();
+      go("/contact");
+    }
+  };
+
+  const output: Record<CommandName, () => ReactNode> = {
+    help: () => (
+      <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1">
+        {COMMANDS.map((c) => (
+          <div key={c.name} className="contents">
+            <dt>
+              <button
+                type="button"
+                onClick={() => setSearch(c.name)}
+                className="text-signal hover:underline"
+              >
+                {c.name}
+              </button>
+            </dt>
+            <dd className="text-muted-foreground">{c.about}</dd>
+          </div>
+        ))}
+      </dl>
+    ),
+    whoami: () => (
+      <p className="text-signal-strong">
+        {profile.name} — {profile.title}
+      </p>
+    ),
+    neofetch: () => (
+      <div className="flex gap-6">
+        <pre aria-hidden="true" className="hidden leading-tight text-signal sm:block">
+          {" ┬ ┬ ┌┬┐\n ├─┤  │ \n ┴ ┴  ┴ "}
+        </pre>
+        <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
+          {(
+            [
+              ["user", `visitor@${profile.name.split(" ")[0].toLowerCase()}`],
+              ["role", profile.title],
+              ["tz", profile.location],
+              ["stack", profile.stackLayers.map((l) => l.id).join(" → ")],
+              ["projects", String(groups.Projects.length)],
+              ["notes", String(groups.Notes.length)],
+              ["status", profile.availability.label],
+            ] as const
+          )
+            .filter(([, v]) => v !== "0")
+            .map(([k, v]) => (
+              <div key={k} className="contents">
+                <dt className="text-signal">{k}</dt>
+                <dd className="text-text">{v}</dd>
+              </div>
+            ))}
+        </dl>
+      </div>
+    ),
+    "ls projects": () => (
+      <div className="grid grid-cols-1 gap-x-6 gap-y-1 sm:grid-cols-2">
+        {groups.Projects.map((p) => (
+          <button
+            key={p.id}
+            type="button"
+            onClick={() => p.href && go(p.href)}
+            className="text-left text-text hover:text-signal"
+          >
+            {p.href?.replace("/work/", "")}
+          </button>
+        ))}
+      </div>
+    ),
+    "git log": () => (
+      <ul className="space-y-1">
+        {groups.Notes.slice(0, 6).map((n, i) => (
+          <li key={n.id} className="flex gap-3">
+            <span className="text-signal">{shortHash(n.id)}</span>
+            {i === 0 && <span className="text-ok">(HEAD → main)</span>}
+            <button
+              type="button"
+              onClick={() => n.href && go(n.href)}
+              className="truncate text-left text-text hover:text-signal"
+            >
+              {n.title}
+            </button>
+          </li>
+        ))}
+        {groups.Notes.length === 0 && <li className="text-muted-foreground">no commits yet</li>}
+      </ul>
+    ),
+    "kubectl get skills": () => (
+      <div className="overflow-x-auto">
+        <table className="w-full text-left font-mono text-xs">
+          <thead>
+            <tr className="border-b border-line/40 text-muted-foreground">
+              <th className="pb-1.5 font-normal tracking-wider">NAME</th>
+              <th className="pb-1.5 font-normal tracking-wider">READY</th>
+              <th className="pb-1.5 font-normal tracking-wider">STATUS</th>
+            </tr>
+          </thead>
+          <tbody className="text-text">
+            {profile.stackLayers.map((layer) => (
+              <tr key={layer.id} className="border-b border-line/20 last:border-0">
+                <td className="py-1 text-text">{layer.id}</td>
+                <td className="py-1 text-muted-foreground">
+                  {layer.tech.length}/{layer.tech.length}
+                </td>
+                <td className="py-1 text-ok">Running</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    ),
+    "sudo hire-me": () => (
+      <div className="space-y-1">
+        <p className="text-muted-foreground">[sudo] password for visitor: ••••••••</p>
+        <p className="text-ok">Access granted.</p>
+        <p className="text-text">
+          Press <Kbd>↵</Kbd> to open{" "}
+          <button
+            type="button"
+            onClick={() => go("/contact")}
+            className="text-signal hover:underline"
+          >
+            /contact
+          </button>
+        </p>
+      </div>
+    ),
+  };
 
   return (
     <>
@@ -126,14 +291,45 @@ export function CommandMenu({ items }: CommandMenuProps) {
         description="Search pages, projects, notes, and actions or type terminal commands"
         className="border border-line bg-surface p-0 shadow-2xl rounded-md! sm:max-w-xl!"
       >
-        <Command className="flex flex-col bg-transparent text-text outline-none" loop>
-          {/* Terminal-style input with '>' prefix */}
-          <div className="flex items-center border-b border-line px-3.5 py-2.5">
-            <span
-              className="mr-2.5 font-mono text-sm font-semibold text-signal select-none"
-              aria-hidden="true"
+        <Command
+          className="flex flex-col bg-transparent text-text outline-none"
+          loop
+          onKeyDown={onKeyDown}
+        >
+          {/* Terminal window bar: one tab per section */}
+          <div className="flex items-end gap-3 border-b border-line bg-surface-2/40 pt-2 pl-3.5">
+            <div className="flex shrink-0 gap-1.5 pb-2.5" aria-hidden="true">
+              <span className="size-2.5 rounded-full bg-line-strong" />
+              <span className="size-2.5 rounded-full bg-line-strong" />
+              <span className="size-2.5 rounded-full bg-signal/70" />
+            </div>
+            <div
+              role="tablist"
+              aria-label="Sections"
+              className="-mb-px flex min-w-0 overflow-x-auto [scrollbar-width:none]"
             >
-              &gt;
+              {TABS.map((t, i) => (
+                <button
+                  key={t}
+                  type="button"
+                  role="tab"
+                  tabIndex={-1}
+                  aria-selected={tab === t}
+                  onClick={() => setTab(t)}
+                  className="flex shrink-0 items-center gap-1.5 rounded-t-md border border-b-0 border-transparent px-3 py-1.5 font-mono text-[0.6875rem] text-muted-foreground transition-colors hover:text-text aria-selected:border-line aria-selected:bg-surface aria-selected:text-text"
+                >
+                  <span className="text-line-strong">{i + 1}</span>
+                  {tabPath(t)}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Prompt: the current tab is the working directory */}
+          <div className="flex items-center border-b border-line px-3.5 py-2.5">
+            <span className="mr-2.5 shrink-0 font-mono text-sm select-none" aria-hidden="true">
+              <span className="text-muted-foreground">{tabPath(tab)}</span>{" "}
+              <span className="font-semibold text-signal">&gt;</span>
             </span>
             <CommandPrimitive.Input
               value={search}
@@ -146,55 +342,16 @@ export function CommandMenu({ items }: CommandMenuProps) {
           </div>
 
           {/* Fake terminal response or command list */}
-          {isEasterEgg ? (
-            <div className="p-4 font-mono text-xs bg-surface-2/30">
+          {command ? (
+            <div className="bg-surface-2/30 p-4 font-mono text-xs">
               <div className="mb-3 flex items-center gap-2 text-muted-foreground">
                 <span className="text-signal" aria-hidden="true">
                   &gt;
                 </span>
-                <span className="text-text">{search.trim()}</span>
+                <span className="text-text">{trimmed}</span>
               </div>
-              <div className="py-1">
-                {isWhoami && (
-                  <p className="text-signal-strong font-mono">
-                    {profile.name} — {profile.title}
-                  </p>
-                )}
-                {isLsProjects && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1">
-                    {projectSlugs.map((slug) => (
-                      <span key={slug} className="text-text font-mono">
-                        {slug}
-                      </span>
-                    ))}
-                  </div>
-                )}
-                {isKubectl && (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left font-mono text-xs">
-                      <thead>
-                        <tr className="border-b border-line/40 text-muted-foreground">
-                          <th className="pb-1.5 font-normal tracking-wider">NAME</th>
-                          <th className="pb-1.5 font-normal tracking-wider">READY</th>
-                          <th className="pb-1.5 font-normal tracking-wider">STATUS</th>
-                        </tr>
-                      </thead>
-                      <tbody className="text-text">
-                        {profile.stackLayers.map((layer) => (
-                          <tr key={layer.id} className="border-b border-line/20 last:border-0">
-                            <td className="py-1 text-text">{layer.id}</td>
-                            <td className="py-1 text-muted-foreground">
-                              {layer.tech.length}/{layer.tech.length}
-                            </td>
-                            <td className="py-1 text-ok">Running</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-              <div className="mt-4 pt-3 border-t border-line/30 flex items-center justify-between text-[0.6875rem] text-muted-foreground">
+              <div className="py-1">{output[command]()}</div>
+              <div className="mt-4 flex items-center justify-between border-t border-line/30 pt-3 text-[0.6875rem] text-muted-foreground">
                 <span>terminal output</span>
                 <span>
                   Press <Kbd>ESC</Kbd> or backspace to return
@@ -204,106 +361,50 @@ export function CommandMenu({ items }: CommandMenuProps) {
           ) : (
             <CommandList className="max-h-80 overflow-y-auto p-1.5">
               <CommandEmpty className="py-8 text-center font-mono text-xs text-muted-foreground">
-                No matching results. Try <span className="text-signal">whoami</span>,{" "}
-                <span className="text-signal">ls projects</span>, or{" "}
-                <span className="text-signal">kubectl get skills</span>.
+                No matching results. Type <span className="text-signal">help</span> for commands
+                {tab !== "all" && (
+                  <>
+                    , or press <Kbd>Tab</Kbd> for other sections
+                  </>
+                )}
+                .
               </CommandEmpty>
 
-              {pages.length > 0 && (
-                <CommandGroup
-                  heading="Pages"
-                  className="**:[[cmdk-group-heading]]:font-mono **:[[cmdk-group-heading]]:text-[0.6875rem] **:[[cmdk-group-heading]]:tracking-[0.12em] **:[[cmdk-group-heading]]:uppercase **:[[cmdk-group-heading]]:text-muted-foreground"
-                >
-                  {pages.map((item) => (
-                    <CommandItem
-                      key={item.id}
-                      value={`${item.title} ${item.href || ""}`}
-                      keywords={["pages"]}
-                      onSelect={() => handleSelect(item)}
-                      className="flex cursor-pointer items-center justify-between font-mono text-xs text-text hover:bg-surface-2 data-selected:bg-surface-2 data-selected:text-signal"
-                    >
-                      <span className="truncate">{item.title}</span>
-                      {item.href && (
-                        <span className="shrink-0 text-[0.6875rem] text-muted-foreground group-data-selected/command-item:text-text">
-                          {item.href}
-                        </span>
-                      )}
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
+              {(["Pages", "Projects", "Notes"] as const).map(
+                (g) =>
+                  shown(g) && (
+                    <CommandGroup key={g} heading={g} className={headingClass}>
+                      {groups[g].map((item) => (
+                        <CommandItem
+                          key={item.id}
+                          value={`${item.title} ${item.href || ""}`}
+                          keywords={[g.toLowerCase()]}
+                          onSelect={() => handleSelect(item)}
+                          className={itemClass}
+                        >
+                          <div className="flex items-center gap-2 truncate">
+                            <span className="truncate">{item.title}</span>
+                            {item.mock !== undefined && <SampleBadge mock={item.mock} />}
+                          </div>
+                          {item.href && <span className={metaClass}>{item.href}</span>}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  ),
               )}
 
-              {projects.length > 0 && (
-                <CommandGroup
-                  heading="Projects"
-                  className="**:[[cmdk-group-heading]]:font-mono **:[[cmdk-group-heading]]:text-[0.6875rem] **:[[cmdk-group-heading]]:tracking-[0.12em] **:[[cmdk-group-heading]]:uppercase **:[[cmdk-group-heading]]:text-muted-foreground"
-                >
-                  {projects.map((item) => (
-                    <CommandItem
-                      key={item.id}
-                      value={`${item.title} ${item.href || ""}`}
-                      keywords={["projects"]}
-                      onSelect={() => handleSelect(item)}
-                      className="flex cursor-pointer items-center justify-between font-mono text-xs text-text hover:bg-surface-2 data-selected:bg-surface-2 data-selected:text-signal"
-                    >
-                      <div className="flex items-center gap-2 truncate">
-                        <span className="truncate">{item.title}</span>
-                        {item.mock !== undefined && <SampleBadge mock={item.mock} />}
-                      </div>
-                      {item.href && (
-                        <span className="shrink-0 text-[0.6875rem] text-muted-foreground group-data-selected/command-item:text-text">
-                          {item.href}
-                        </span>
-                      )}
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              )}
-
-              {notes.length > 0 && (
-                <CommandGroup
-                  heading="Notes"
-                  className="**:[[cmdk-group-heading]]:font-mono **:[[cmdk-group-heading]]:text-[0.6875rem] **:[[cmdk-group-heading]]:tracking-[0.12em] **:[[cmdk-group-heading]]:uppercase **:[[cmdk-group-heading]]:text-muted-foreground"
-                >
-                  {notes.map((item) => (
-                    <CommandItem
-                      key={item.id}
-                      value={`${item.title} ${item.href || ""}`}
-                      keywords={["notes"]}
-                      onSelect={() => handleSelect(item)}
-                      className="flex cursor-pointer items-center justify-between font-mono text-xs text-text hover:bg-surface-2 data-selected:bg-surface-2 data-selected:text-signal"
-                    >
-                      <div className="flex items-center gap-2 truncate">
-                        <span className="truncate">{item.title}</span>
-                        {item.mock !== undefined && <SampleBadge mock={item.mock} />}
-                      </div>
-                      {item.href && (
-                        <span className="shrink-0 text-[0.6875rem] text-muted-foreground group-data-selected/command-item:text-text">
-                          {item.href}
-                        </span>
-                      )}
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              )}
-
-              {actions.length > 0 && (
-                <CommandGroup
-                  heading="Actions"
-                  className="**:[[cmdk-group-heading]]:font-mono **:[[cmdk-group-heading]]:text-[0.6875rem] **:[[cmdk-group-heading]]:tracking-[0.12em] **:[[cmdk-group-heading]]:uppercase **:[[cmdk-group-heading]]:text-muted-foreground"
-                >
-                  {actions.map((item) => (
+              {shown("Actions") && (
+                <CommandGroup heading="Actions" className={headingClass}>
+                  {groups.Actions.map((item) => (
                     <CommandItem
                       key={item.id}
                       value={`${item.title} ${item.email || ""}`}
                       onSelect={() => handleSelect(item)}
-                      className="flex cursor-pointer items-center justify-between font-mono text-xs text-text hover:bg-surface-2 data-selected:bg-surface-2 data-selected:text-signal"
+                      className={itemClass}
                     >
                       <span className="truncate">{item.title}</span>
                       {item.actionId === "copy-email" && item.email && (
-                        <span className="shrink-0 text-[0.6875rem] text-muted-foreground group-data-selected/command-item:text-text">
-                          {item.email}
-                        </span>
+                        <span className={metaClass}>{item.email}</span>
                       )}
                     </CommandItem>
                   ))}
@@ -321,12 +422,27 @@ export function CommandMenu({ items }: CommandMenuProps) {
               <span>
                 Select <Kbd>↵</Kbd>
               </span>
+              <span className="hidden sm:inline">
+                Tabs <Kbd>Tab</Kbd>
+              </span>
             </div>
-            <div className="hidden sm:flex items-center gap-1.5">
+            <div className="hidden items-center gap-1.5 sm:flex">
               <span>Try</span>
-              <span className="text-signal">whoami</span>
+              <button
+                type="button"
+                onClick={() => setSearch("help")}
+                className="text-signal hover:underline"
+              >
+                help
+              </button>
               <span>or</span>
-              <span className="text-signal">kubectl get skills</span>
+              <button
+                type="button"
+                onClick={() => setSearch("neofetch")}
+                className="text-signal hover:underline"
+              >
+                neofetch
+              </button>
             </div>
           </div>
         </Command>

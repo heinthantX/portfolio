@@ -13,3 +13,7 @@
 | E2E on prod server | Kill the port before rebuilding while `next start` runs. Otherwise stale chunks load and the canvas never mounts. | docs/memory/conventions.md | 2026-10-24 |
 | Wheel interception | Lenis `virtualScroll` returning false skips Lenis but not native scroll. The interceptor must call `event.preventDefault()`. | docs/memory/fixes.md | 2026-10-24 |
 | Snap completion | Lenis drops a `scrollTo` `onComplete` when the scroll is interrupted. Track a `busyUntil` timestamp instead. | docs/memory/fixes.md | 2026-10-24 |
+| Wheel: trackpad push | A new push is a delta of 20+ and more than 3x the trough after the peak. Never compare to the previous delta: a swipe's ramp-up reads as a push. | docs/memory/fixes.md | 2026-10-24 |
+| Wheel: free handback | Lenis keeps `targetScroll` near the animated position during `scrollTo`. Credit the swallowed delta explicitly when handing back. | docs/memory/fixes.md | 2026-10-24 |
+| Snap easing | Snap steps use ease-out. easeInOut barely moves in its first 200ms and reads as lag on a swipe. | docs/memory/fixes.md | 2026-10-24 |
+| R3F Clock patch | `@react-three/fiber` 9.8.x constructs a deprecated `THREE.Clock`. Keep the pnpm patch; re-check or drop it on upgrade. | docs/memory/fixes.md | 2026-10-24 |

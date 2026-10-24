@@ -471,7 +471,7 @@ export function SignalHero({ children, finale, poster }: SignalHeroProps) {
 
         <nav
           aria-label="Hero chapters"
-          className="absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 gap-1 md:top-1/2 md:right-4 md:bottom-auto md:left-auto md:translate-x-0 md:-translate-y-1/2 md:flex-col"
+          className="group/rail absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 gap-1 md:top-1/2 md:right-4 md:bottom-auto md:left-auto md:translate-x-0 md:-translate-y-1/2 md:flex-col md:items-end"
         >
           {RAIL_LABELS.map((label, i) => (
             <button
@@ -484,9 +484,19 @@ export function SignalHero({ children, finale, poster }: SignalHeroProps) {
               data-active={i === 0 ? "true" : "false"}
               aria-current={i === 0 ? "step" : undefined}
               onClick={() => go(i)}
-              className="group flex size-6 items-center justify-center md:justify-end"
+              className="group flex size-6 items-center justify-center gap-3 md:h-6 md:w-auto md:justify-end"
             >
-              <span className="block h-px w-3 bg-line-strong transition-all group-data-[active=true]:w-6 group-data-[active=true]:bg-signal md:group-hover:w-5" />
+              {/* chapter tab: the current one is always named; hovering the rail names them all */}
+              <span
+                aria-hidden="true"
+                className="hidden rounded-sm px-1.5 py-0.5 font-mono text-[0.6875rem] tracking-[0.12em] text-muted-foreground uppercase opacity-0 transition-[opacity,color,background-color] duration-300 group-hover:text-text group-focus-visible:opacity-100 group-hover/rail:bg-bg/70 group-hover/rail:opacity-100 group-data-[active=true]:text-signal group-data-[active=true]:opacity-100 md:inline"
+              >
+                <span className="mr-1.5 tabular-nums opacity-60">
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                {label}
+              </span>
+              <span className="block h-px w-3 shrink-0 bg-line-strong transition-all group-data-[active=true]:w-6 group-data-[active=true]:bg-signal md:group-hover:w-5" />
             </button>
           ))}
         </nav>

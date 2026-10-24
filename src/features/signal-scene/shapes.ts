@@ -85,19 +85,6 @@ const sphereShell =
     return [cx + Math.cos(a) * s * rad, cy + Math.sin(a) * s * rad, cz + z * rad];
   };
 
-function cubeEdges(cx: number, cy: number, cz: number, s: number): Part["p"] {
-  const h = s / 2;
-  return (r) => {
-    const axis = Math.floor(r() * 3);
-    const u = (r() * 2 - 1) * h;
-    const a = r() < 0.5 ? -h : h;
-    const b = r() < 0.5 ? -h : h;
-    if (axis === 0) return [cx + u, cy + a, cz + b];
-    if (axis === 1) return [cx + a, cy + u, cz + b];
-    return [cx + a, cy + b, cz + u];
-  };
-}
-
 // ---------------------------------------------------------------------------
 
 /**
@@ -340,44 +327,254 @@ export function data(n: number, seed = 4): Float32Array {
   return build(n, seed, parts);
 }
 
-/** 4x3 grid of node plates (flat in XZ) with pod cubes on most plates. */
+const TAU = Math.PI * 2;
+
+/** Elliptical arc in the XY plane; its share of the budget follows its length. */
+function arcPart(cx: number, cy: number, rx: number, ry: number, a0: number, a1: number): Part {
+  return {
+    w: Math.PI * (rx + ry) * (Math.abs(a1 - a0) / TAU) * 15,
+    p: (r) => {
+      const a = a0 + r() * (a1 - a0);
+      return [cx + Math.cos(a) * rx, cy + Math.sin(a) * ry, 0];
+    },
+  };
+}
+
+/** Connected line segments through `pts`. */
+const path = (pts: V3[], density = 15): Part[] =>
+  pts.slice(1).map((q, i) => seg(pts[i], q, density));
+
+/** Sparse dots at fixed spots. */
+const dots = (pts: V3[], w: number): Part => ({
+  w,
+  p: (r) => {
+    const q = pts[Math.floor(r() * pts.length)];
+    return [q[0] + (r() - 0.5) * 0.012, q[1] + (r() - 0.5) * 0.012, q[2]];
+  },
+});
+
+const v = (x: number, y: number): V3 => [x, y, 0];
+
+/** Container box: outline plus a centre ridge. */
+const crate = (cx: number, cy: number, w: number, h: number): Part[] => [
+  { w: 2 * (w + h) * 15, p: rectOutline(cx, cy, 0, w, h) },
+  seg(v(cx, cy - h / 2), v(cx, cy + h / 2), 9),
+];
+
+/** Barrel: top ellipse, two sides, rounded base and two hoops. */
+function barrel(cx: number, by: number, w: number, h: number): Part[] {
+  const ry = w * 0.2;
+  return [
+    arcPart(cx, by + h, w / 2, ry, 0, TAU),
+    seg(v(cx - w / 2, by), v(cx - w / 2, by + h), 15),
+    seg(v(cx + w / 2, by), v(cx + w / 2, by + h), 15),
+    arcPart(cx, by, w / 2, ry, Math.PI, TAU),
+    arcPart(cx, by + h * 0.3, w / 2, ry, Math.PI, TAU),
+    arcPart(cx, by + h * 0.65, w / 2, ry, Math.PI, TAU),
+  ];
+}
+
+/** Container ship, bow to the right: hull, stern cabin and tiers of crates (counts per tier). */
+function ship(cx: number, by: number, s: number, tiers: number[]): Part[] {
+  const P = (x: number, y: number) => v(cx + x * s, by + y * s);
+  const parts = path([P(-0.45, 0.14), P(-0.36, 0), P(0.28, 0), P(0.58, 0.15), P(-0.45, 0.14)]);
+  parts.push(...crate(cx - 0.36 * s, by + 0.25 * s, 0.17 * s, 0.22 * s));
+  tiers.forEach((count, t) => {
+    for (let i = 0; i < count; i++) {
+      parts.push(
+        ...crate(cx + (-0.1 + i * 0.2) * s, by + (0.205 + t * 0.13) * s, 0.2 * s, 0.13 * s),
+      );
+    }
+  });
+  return parts;
+}
+
+/** Union outline of the circles' upper halves, closed by a flat base from x0 to x1. */
+function cloud(circles: V3[], base: number, x0: number, x1: number): Part[] {
+  const total = circles.reduce((a, c) => a + c[2], 0);
+  return [
+    {
+      w: 170,
+      p: (r) => {
+        for (;;) {
+          let t = r() * total;
+          let k = 0;
+          while (k < circles.length - 1 && t > circles[k][2]) t -= circles[k++][2];
+          const [cx, cy, rad] = circles[k];
+          const a = r() * TAU;
+          const x = cx + Math.cos(a) * rad;
+          const y = cy + Math.sin(a) * rad;
+          if (y < base || (y < cy && x > x0 && x < x1)) continue;
+          if (circles.some(([ox, oy, or], j) => j !== k && Math.hypot(x - ox, y - oy) < or - 0.012))
+            continue;
+          return [x, y, 0];
+        }
+      },
+    },
+    seg(v(x0, base), v(x1, base), 15),
+  ];
+}
+
+/**
+ * Harbor cloud: a cartoon cloud (the VPC) with a dish on top (CDN) over a harbor. A lighthouse
+ * (gateway) beams to three container ships (pods, one a sidecar), a crane loads a container
+ * (deploy), barrels hold the data, a buoy marks the cache and a lookout flags a chart (monitoring).
+ */
 export function infra(n: number, seed = 5): Float32Array {
-  const pitchX = 1.1;
-  const pitchZ = 0.72;
-  const pw = 0.85;
-  const pd = 0.52;
-  const hash = mulberry32(seed * 977);
   const parts: Part[] = [];
-  for (let i = 0; i < 4; i++) {
-    for (let j = 0; j < 3; j++) {
-      const x = (i - 1.5) * pitchX;
-      const z = (j - 1) * pitchZ;
+  const layer = (z: number, ps: Part[], dy = 0) => {
+    for (const q of ps) {
       parts.push({
-        w: 4,
+        w: q.w,
         p: (r) => {
-          const per = 2 * (pw + pd);
-          let d = r() * per;
-          if (d < pw) return [x - pw / 2 + d, 0, z - pd / 2];
-          d -= pw;
-          if (d < pd) return [x + pw / 2, 0, z - pd / 2 + d];
-          d -= pd;
-          if (d < pw) return [x + pw / 2 - d, 0, z + pd / 2];
-          d -= pw;
-          return [x - pw / 2, 0, z + pd / 2 - d];
+          const [x, y, zz] = q.p(r);
+          return [x, y + dy, zz + z];
         },
       });
-      parts.push({
-        w: 1,
-        p: (r) => [x + (r() - 0.5) * pw, 0, z + (r() - 0.5) * pd],
-      });
-      if (hash() < 0.78) parts.push({ w: 3, p: cubeEdges(x, 0.2, z, 0.26) });
-      if (hash() < 0.25) parts.push({ w: 2, p: cubeEdges(x + 0.2, 0.15, z + 0.12, 0.16) });
     }
-  }
-  for (let j = 0; j < 3; j++) {
-    const z = (j - 1) * pitchZ;
-    parts.push({ w: 1.5, p: line([-1.65, 0, z], [1.65, 0, z]) });
-  }
+  };
+
+  // cloud with two inner curls
+  layer(
+    -0.15,
+    [
+      ...cloud(
+        [
+          [-1.55, 0.68, 0.23],
+          [-1.15, 0.84, 0.3],
+          [-0.5, 0.9, 0.34],
+          [0.15, 0.88, 0.31],
+          [0.75, 0.84, 0.3],
+          [1.3, 0.78, 0.28],
+          [1.6, 0.67, 0.22],
+        ],
+        0.45,
+        -1.55,
+        1.6,
+      ),
+      arcPart(-0.5, 0.9, 0.2, 0.2, 2.3, 3.5),
+      arcPart(0.75, 0.84, 0.17, 0.17, 0.4, 1.4),
+    ],
+    -0.08,
+  );
+
+  // dish on the cloud, facing up and right, with signal arcs
+  const feed = v(0.29, 1.46);
+  layer(
+    -0.1,
+    [
+      seg(v(0.15, 1.2), v(0.16, 1.26), 15),
+      arcPart(0.16, 1.33, 0.15, 0.15, 2.68, 5.18),
+      seg(v(0.026, 1.398), v(0.231, 1.198), 15),
+      seg(v(0.054, 1.224), feed, 12),
+      { w: 12, p: ringXY(feed[0], feed[1], 0, 0.025) },
+      arcPart(feed[0], feed[1], 0.12, 0.12, 0.15, 1.25),
+      arcPart(feed[0], feed[1], 0.2, 0.2, 0.25, 1.1),
+    ],
+    -0.08,
+  );
+
+  // lighthouse
+  const lx = -0.75;
+  const lamp = v(lx, 0.0);
+  layer(0.1, [
+    ...path([v(lx - 0.2, -1.3), v(lx - 0.12, -0.2), v(lx + 0.12, -0.2), v(lx + 0.2, -1.3)]),
+    seg(v(lx - 0.17, -0.85), v(lx + 0.17, -0.85), 15),
+    seg(v(lx - 0.145, -0.55), v(lx + 0.145, -0.55), 15),
+    { w: 30, p: rectOutline(lx, -0.17, 0, 0.34, 0.05) },
+    { w: 40, p: rectOutline(lx, -0.04, 0, 0.18, 0.2) },
+    { w: 26, p: rectFill(lx, -0.04, 0, 0.14, 0.16) },
+    ...path([v(lx - 0.13, 0.06), v(lx, 0.22), v(lx + 0.13, 0.06), v(lx - 0.13, 0.06)]),
+    { w: 8, p: ringXY(lx, 0.25, 0, 0.025) },
+  ]);
+
+  // ships, rows from top to bottom
+  const ships: [number, number, number, number[]][] = [
+    [0.62, -0.2, 1.15, [3, 2]],
+    [0.8, -0.85, 1.15, [3, 1]],
+    [0.55, -1.25, 0.65, [2]],
+  ];
+  layer(
+    0.05,
+    ships.flatMap(([cx, by, s, tiers]) => ship(cx, by, s, tiers)),
+  );
+
+  // beams from the lamp to each stern, with gold packets
+  const beams = ships.map(([cx, by, s]) => v(cx - 0.45 * s - 0.04, by + 0.08 * s));
+  layer(0.08, [
+    ...beams.map((b) => seg(lamp, b, 14)),
+    dots(
+      beams.flatMap((b) => [0.3, 0.55, 0.8].map((t) => lerp3(lamp, b, t))),
+      10,
+    ),
+  ]);
+
+  // wavy dotted waterlines
+  layer(
+    0,
+    ships.map(([, by], i) => {
+      const y = by - 0.09;
+      const pts: V3[] = [];
+      for (let x = -0.1 + i * 0.05; x < 1.6; x += 0.1)
+        pts.push(v(x, y + 0.025 * Math.sin(x * 8 + i * 2)));
+      return dots(pts, pts.length * 0.7);
+    }),
+  );
+
+  // quay, crane, barrels
+  layer(0, [
+    { w: 90, p: rectOutline(-1.25, -1.35, 0, 1.9, 0.1) },
+    ...path([v(-2.02, -1.3), v(-2.02, 0)]),
+    ...path([v(-1.88, -1.3), v(-1.88, 0)]),
+    ...path(
+      [
+        v(-2.02, -1.3),
+        v(-1.88, -1.05),
+        v(-2.02, -0.8),
+        v(-1.88, -0.55),
+        v(-2.02, -0.3),
+        v(-1.88, 0),
+      ],
+      12,
+    ),
+    seg(v(-2.14, 0), v(-1.1, 0), 15),
+    ...path([v(-2.14, 0), v(-1.95, 0.2), v(-1.1, 0)]),
+    { w: 12, p: rectFill(-2.07, -0.07, 0, 0.14, 0.09) },
+    { w: 8, p: ringXY(-1.15, 0, 0, 0.025) },
+    seg(v(-1.15, -0.02), v(-1.15, -0.32), 12),
+    ...crate(-1.15, -0.4, 0.26, 0.16),
+    ...barrel(-1.62, -1.3, 0.28, 0.42),
+    ...barrel(-1.32, -1.3, 0.28, 0.42),
+    ...barrel(-1.47, -0.88, 0.28, 0.42),
+  ]);
+
+  // buoy
+  layer(0.05, [
+    ...path([v(-0.24, -1.28), v(-0.19, -1.06), v(-0.01, -1.06), v(0.04, -1.28), v(-0.24, -1.28)]),
+    seg(v(-0.22, -1.17), v(0.02, -1.17), 12),
+    seg(v(-0.1, -1.06), v(-0.1, -0.88), 15),
+    { w: 14, p: sphereShell(-0.1, -0.85, 0, 0.04) },
+  ]);
+
+  // lookout with a chart flag
+  layer(0, [
+    { w: 40, p: rectOutline(1.97, -1.35, 0, 0.5, 0.1) },
+    ...path([v(1.84, -1.3), v(1.9, -0.35)]),
+    ...path([v(2.06, -1.3), v(2.0, -0.35)]),
+    seg(v(1.84, -1.3), v(2.0, -0.82), 12),
+    seg(v(2.06, -1.3), v(1.9, -0.82), 12),
+    seg(v(1.87, -0.82), v(2.03, -0.82), 12),
+    { w: 40, p: rectOutline(1.95, -0.26, 0, 0.26, 0.16) },
+    ...path([v(1.8, -0.18), v(1.95, -0.05), v(2.1, -0.18)]),
+    seg(v(1.95, -0.05), v(1.95, 0.32), 15),
+    { w: 70, p: rectOutline(1.7, 0.16, 0, 0.5, 0.3) },
+    ...path(
+      [v(1.5, 0.07), v(1.58, 0.19), v(1.66, 0.09), v(1.74, 0.25), v(1.82, 0.16), v(1.9, 0.27)],
+      20,
+    ),
+    { w: 8, p: sphereShell(1.9, 0.27, 0, 0.025) },
+  ]);
+
   return build(n, seed, parts);
 }
 

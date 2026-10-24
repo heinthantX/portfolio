@@ -55,16 +55,18 @@ export function textState(p: number, i: number) {
  * whole formation sliding.
  */
 export const FORMATION_SIDE = [0, 0, 1, 1, 1, 1, 0] as const;
+/** Share of view width the formation sits right of centre; infra sits a little inboard to clear the rail labels. */
+const SIDE_X = [0, 0, 0.235, 0.235, 0.235, 0.19, 0];
 const ROT_Y = [0, 0, -0.35, -0.35, -0.35, -0.35, 0];
-const ROT_X = [0, 0.35, 0.05, -0.05, 0.42, 0.78, 0.22];
+const ROT_X = [0, 0.35, 0.05, -0.05, 0.42, 0.3, 0.22];
 /** World-unit y offset, plus a share of the view height (the wave sits in the bottom third). */
 const Y = [0.75, 0, 0, 0, 0, 0, 0.45];
 const Y_H = [0, -0.37, 0, 0, 0, 0, 0];
 const SCALE = [1.5, 3.2, 1, 1, 1.05, 1, 1.7];
-const FIT = [0.92, 1.12, 0.38, 0.38, 0.38, 0.38, 0.6];
+const FIT = [0.92, 1.12, 0.38, 0.38, 0.38, 0.32, 0.6];
 const MOBILE_Y_H = [0.2, -0.3, 0.2, 0.2, 0.2, 0.2, 0.2];
 const MOBILE_FIT = [0.92, 1.35, 0.92, 0.92, 0.92, 0.92, 0.92];
-const MOBILE_ROT_X = [0, 0.5, 0.05, -0.05, 0.42, 0.78, 0.22];
+const MOBILE_ROT_X = [0, 0.5, 0.05, -0.05, 0.42, 0.3, 0.22];
 
 /** Camera: vertical field of view (degrees) and distance from the origin. */
 export const FOV = 38;
@@ -110,7 +112,7 @@ function basePose(i: number, view: { w: number; h: number; mobile: boolean }): P
     return { x: 0, y: MOBILE_Y_H[c] * view.h, rotX: MOBILE_ROT_X[c], rotY: ROT_Y[c] * 0.5, scale };
   }
   return {
-    x: FORMATION_SIDE[c] * 0.235 * view.w,
+    x: FORMATION_SIDE[c] * SIDE_X[c] * view.w,
     y: Y[c] + Y_H[c] * view.h,
     rotX: ROT_X[c],
     rotY: ROT_Y[c],

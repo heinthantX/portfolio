@@ -177,3 +177,18 @@ Owner screenshot showed an empty band under the wave chapter.
 - **Root cause.** The wave pose put the near row (z = 1) at a fixed fraction of view height. Desktop overshoots the bottom edge; on tall, narrow views (mobile pose scale about 0.68) the near row stopped about 80% of the way down.
 - **Fix.** `fillWaveBottom` in `timeline.ts` (wave chapter only) grows the pose scale until the near row reaches the frustum bottom plus a 6% bleed (`WAVE_BLEED`), and moves `y` so the far row (horizon) keeps its screen line. Views that already overshoot are untouched, so 1440x900 and 1280x720 do not change. Point count, row density, network and `matchByX` drop are unchanged. `FOV`/`CAM_Z` now live in `timeline.ts`; `SignalPoints.tsx` imports them.
 - **Test.** `timeline.test.ts` checks the near row reaches the bottom at 1440x900, 1280x720, 820x1180, 390x844 and 360x740.
+
+## D18 — Infra chapter becomes the Harbor Cloud (2026-10-24)
+
+Owner: "cloud diagram, don't need to be labelled, make it cartoon style like ships or things like that". It follows from the Kubernetes/Docker nautical naming. Earlier rejected rounds: the ingress fan, viaduct, port, hive, helm wheel, gateway/LB/pods, and the labelled stack.
+
+- **Shape.** `infra(n)` in `shapes.ts` is a flat cartoon diagram drawn in points:
+  - a scalloped cloud (VPC) with a dish and signal arcs (CDN);
+  - a striped lighthouse (gateway/LB) whose beams fan to three container ships (pods). The third ship is smaller and stands for the sidecar;
+  - a quay crane with a hanging crate (deploy);
+  - three barrels (DB) and a buoy (cache);
+  - dotted waterlines;
+  - a lookout tower with a zig-zag chart flag (monitoring).
+  - New helpers: `arcPart`, `path`, `dots`, `crate`, `barrel`, `ship`, `cloud`. The `cubeEdges` helper, used only by the old shape, is gone.
+- **Pose.** `rotX` changed from 0.78 to 0.3 on desktop and mobile, so the diagram faces the viewer. `FIT` changed from 0.38 to 0.32. A new `SIDE_X` sets infra 0.19 of the view width right of centre (the other chapters stay at 0.235), so the lookout tower no longer sits under the active rail label at 1440x900.
+- **Laptops.** The wave-fill test (D17) now also covers 1512x862, 1470x832, 1366x768, 1280x680, 1920x969 and 2560x1080. Production screenshots at those sizes, in dark mode at dpr 2, show the field reaching the bottom edge.

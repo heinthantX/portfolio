@@ -51,3 +51,4 @@ next-env.d.ts
 
 # vitest json reporter output
 .vitest/
+.claude/worktrees/

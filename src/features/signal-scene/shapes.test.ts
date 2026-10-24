@@ -51,6 +51,27 @@ describe("shapes", () => {
     expect(right).toBeGreaterThan(N * 0.2);
   });
 
+  it("infra: a flat diagram, cloud above the harbor, spread across the frame", () => {
+    const a = infra(N);
+    expect(infra(N, 9)).not.toEqual(a);
+    let lo = 0;
+    let hi = 0;
+    let up = 0;
+    let down = 0;
+    let depth = 0;
+    for (let i = 0; i < N; i++) {
+      lo = Math.min(lo, a[i * 3]);
+      hi = Math.max(hi, a[i * 3]);
+      if (a[i * 3 + 1] > 0.3) up++;
+      else if (a[i * 3 + 1] < -0.1) down++;
+      depth = Math.max(depth, Math.abs(a[i * 3 + 2]));
+    }
+    expect(hi - lo).toBeGreaterThan(3.8);
+    expect(up).toBeGreaterThan(N * 0.12);
+    expect(down).toBeGreaterThan(N * 0.4);
+    expect(depth).toBeLessThan(0.3);
+  });
+
   it("wave: a full-width field, finite, deterministic", () => {
     const a = wave(N);
     expect(a).toHaveLength(N * 3);

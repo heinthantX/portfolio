@@ -13,7 +13,7 @@
     "e2e": "playwright test",
     "lhci": "lhci autorun",
     "content": "velite build",
-    "prepare": "lefthook install",
+    "prepare": "lefthook install || true",
     "resume:pdf": "node scripts/resume-pdf.mjs",
     "hero:poster": "node scripts/hero-poster.mjs"
   },

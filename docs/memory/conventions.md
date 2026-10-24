@@ -24,7 +24,7 @@ Split text with `ScrollWords` (`src/components/site/scroll-words.tsx`), not per-
 See `docs/specs/scroll-words.md`.
 
 ## Chapter jumps go through goTo
-Every chapter jump (rail, stack outline, layer grid, wheel) calls `goTo` from `useChapterSnap` (`src/features/signal-scene/useChapterSnap.ts`). Never call `lenis.scrollTo` directly for a chapter: a direct call fights the snap and skips the chapter pace (`STEP_S` 3s, `MIN_S` 1.5s since D14). See `docs/specs/signal-hero.md` and `docs/design/DECISIONS.md` D10 and D14.
+Every chapter jump (rail, stack outline, layer grid, wheel) calls `goTo` from `useChapterSnap` (`src/features/signal-scene/useChapterSnap.ts`). Never call `lenis.scrollTo` directly for a chapter: a direct call fights the snap and skips the chapter pace (`STEP_S` 2s, `MIN_S` 1s since D15; set them with `NEXT_PUBLIC_CHAPTER_STEP_S` / `NEXT_PUBLIC_CHAPTER_MIN_S`, never by hardcoding). See `docs/specs/signal-hero.md` and `docs/design/DECISIONS.md` D10 and D15.
 
 ## Show skill breadth in copy, not in highlights
 Do not highlight individual skill tags (no signal-coloured tag for MongoDB or NoSQL). The owner rejected that. Show breadth in the copy instead, e.g. "SQL and NoSQL: Postgres and MySQL for relational data, MongoDB for documents". Write MySQL, not MariaDB (MariaDB is a fork). See `docs/design/DECISIONS.md` D10.

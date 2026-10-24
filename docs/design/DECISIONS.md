@@ -150,7 +150,14 @@ Owner feedback after trying 1.4s: "make it 2s".
 
 Owner feedback: "make the animation min 3s", then "min second only 1.5 and step second 3", "make the tab completions work on pages not just cmds", and ↑/↓ were "not working on cmds suggestions" (the `help` output).
 
-- **3s per chapter, 1.5s minimum.** `STEP_S` 2s → 3s and `MIN_S` 0.5s → 1.5s in `useChapterSnap.ts`. A full chapter (swipe or rail step) plays in 3s and reaches it in about 2.5s; a slow-wheel finish of a part chapter scales with distance, never under 1.5s. Supersedes D13.
+- **3s per chapter, 1.5s minimum.** `STEP_S` 2s → 3s and `MIN_S` 0.5s → 1.5s in `useChapterSnap.ts`. A full chapter (swipe or rail step) plays in 3s and reaches it in about 2.5s; a slow-wheel finish of a part chapter scales with distance, never under 1.5s. Supersedes D13. _Pace superseded by D15: 2s, minimum 1s._
 - **Completion covers item titles and bare paths**, not just commands and `/`-paths. Lost: "wo" completing to nothing.
 - **↑/↓ and Enter walk command output rows** (`data-out` buttons in the output renderers). Lost: arrows doing nothing while output shows.
 - **Verified.** e2e command-menu 12/12 over 3 repeats, including the new completion and arrow tests; hero e2e on one worker.
+
+## D15 — Chapter pace 2s, minimum 1s (2026-10-24)
+
+Owner feedback after trying 3s: "make min 1 second and step 2".
+
+- **`STEP_S` 3s → 2s, `MIN_S` 1.5s → 1s** in `useChapterSnap.ts`. A full chapter plays in 2s (a swipe reaches it in about 1.7s); a slow-wheel finish of a part chapter scales with distance, never under 1s. Lost: the 3s pace from D14.
+- **Pace is an env var.** Owner: "make it as env variable". `NEXT_PUBLIC_CHAPTER_STEP_S` and `NEXT_PUBLIC_CHAPTER_MIN_S` (documented in `.env.example`) override the 2s / 1s defaults. They are `NEXT_PUBLIC_`, so Next inlines them into the client bundle at build time: changing one needs a rebuild or a dev-server restart. Non-numeric or non-positive values fall back to the defaults, and `MIN_S` is capped at `STEP_S`. Verified: a build with `NEXT_PUBLIC_CHAPTER_STEP_S=2.75` put `"2.75"` into 2 client chunks; a build without it put it in none.

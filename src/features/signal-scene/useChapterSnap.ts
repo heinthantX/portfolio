@@ -20,9 +20,17 @@ const SUSTAIN_MS = 400;
 const GAP_MS = 160;
 /** Quiet time after any other scroll (touch, keys, scrollbar, a fling) before settling. */
 const SETTLE_MS = 140;
-/** One full chapter plays in STEP_S; shorter remainders keep the same pace, never under MIN_S. */
-const STEP_S = 3;
-const MIN_S = 1.5;
+/** A positive number of seconds from an env var, else `fallback`. */
+const seconds = (raw: string | undefined, fallback: number) => {
+  const n = Number(raw);
+  return raw && Number.isFinite(n) && n > 0 ? n : fallback;
+};
+/**
+ * One full chapter plays in STEP_S; shorter remainders keep the same pace, never under MIN_S.
+ * Tunable via NEXT_PUBLIC_CHAPTER_STEP_S / NEXT_PUBLIC_CHAPTER_MIN_S (inlined at build time).
+ */
+const STEP_S = seconds(process.env.NEXT_PUBLIC_CHAPTER_STEP_S, 2);
+const MIN_S = Math.min(seconds(process.env.NEXT_PUBLIC_CHAPTER_MIN_S, 1), STEP_S);
 /** Inside the hero the scroll tracks the wheel tighter and a little further, so it never feels laggy. */
 const HERO_LERP = 0.16;
 const HERO_GAIN = 1.15;

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { nextStop, playSeconds, settleStop, wheelMode } from "./useChapterSnap";
 
 const stops = [0, 600, 1000, 1400, 1800];
@@ -61,9 +61,32 @@ describe("wheelMode", () => {
 
 describe("playSeconds", () => {
   it("plays a full chapter at one pace and remainders at the same pace", () => {
-    expect(playSeconds(400, 400)).toBeCloseTo(3);
-    expect(playSeconds(-300, 400)).toBeCloseTo(2.25);
-    expect(playSeconds(1200, 400)).toBeCloseTo(3);
-    expect(playSeconds(10, 400)).toBeCloseTo(1.5);
+    expect(playSeconds(400, 400)).toBeCloseTo(2);
+    expect(playSeconds(-300, 400)).toBeCloseTo(1.5);
+    expect(playSeconds(1200, 400)).toBeCloseTo(2);
+    expect(playSeconds(10, 400)).toBeCloseTo(1);
+  });
+
+  describe("pace from env", () => {
+    afterEach(() => {
+      vi.unstubAllEnvs();
+      vi.resetModules();
+    });
+    const load = async (step: string, min: string) => {
+      vi.stubEnv("NEXT_PUBLIC_CHAPTER_STEP_S", step);
+      vi.stubEnv("NEXT_PUBLIC_CHAPTER_MIN_S", min);
+      vi.resetModules();
+      return (await import("./useChapterSnap")).playSeconds;
+    };
+    it("reads the step and minimum seconds", async () => {
+      const play = await load("3", "1.5");
+      expect(play(400, 400)).toBeCloseTo(3);
+      expect(play(10, 400)).toBeCloseTo(1.5);
+    });
+    it("falls back to 2s / 1s on bad values and never lets the minimum pass the step", async () => {
+      expect((await load("abc", "-1"))(400, 400)).toBeCloseTo(2);
+      expect((await load("abc", "-1"))(10, 400)).toBeCloseTo(1);
+      expect((await load("1", "5"))(10, 400)).toBeCloseTo(1);
+    });
   });
 });

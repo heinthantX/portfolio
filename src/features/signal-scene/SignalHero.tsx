@@ -47,6 +47,13 @@ const LAYERS = [
   },
 ] as const;
 
+/**
+ * Where a chapter's text slides in from: -1 left, 1 right, 0 from below (centred blocks). The
+ * layer cards alternate sides, so the story reads left, right, left, right.
+ */
+const slideFrom = (i: number) =>
+  i < LAYER_OFFSET || i === CHAPTERS - 1 ? 0 : (i - LAYER_OFFSET) % 2 === 0 ? -1 : 1;
+
 const RAIL_LABELS = ["Intro", "Approach", "Interface", "API", "Data", "Infrastructure", "Shipped"];
 
 const MANIFESTO =
@@ -293,15 +300,19 @@ export function SignalHero({ children, finale, poster }: SignalHeroProps) {
       last = now;
       progressRef.current = easeToward(progressRef.current, targetRef.current, dt);
       const p = progressRef.current;
+      const slide = Math.min(96, window.innerWidth * 0.07);
       for (let i = 0; i < CHAPTERS; i++) {
         const el = blockRefs.current[i];
         if (!el) continue;
         const { opacity, enter, leave, reveal } = textState(p, i);
-        // vertical only: rises in from below, leaves upward, following the scroll direction
-        const y = 24 * enter - 24 * leave;
+        // layer cards slide in from (and back out to) a side; centred ones rise from below and
+        // leave upward. Squared, so they arrive fast and settle softly.
+        const side = slideFrom(i);
+        const x = side * slide * (enter * enter + leave * leave);
+        const y = side ? 0 : 48 * enter * enter - 32 * leave * leave;
         el.style.opacity = String(opacity);
-        el.style.transform = `translate3d(0, ${y}px, 0)`;
-        appliedRef.current[i] = { x: 0, y };
+        el.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+        appliedRef.current[i] = { x, y };
         el.inert = opacity < 0.5;
         el.style.visibility = opacity < 0.01 ? "hidden" : "visible";
         // words sharpen from CSS off one number; only write it when it moves

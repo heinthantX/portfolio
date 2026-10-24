@@ -4,7 +4,7 @@ import { Command as CommandPrimitive } from "cmdk";
 import { Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
-import { type KeyboardEvent, type ReactNode, useEffect, useMemo, useState } from "react";
+import { type KeyboardEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Kbd, SampleBadge } from "@/components/site/primitives";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/command";
 import { profile } from "@/content/profile";
 import type { CommandMenuCategory, CommandMenuItem } from "./command-menu-data";
+import { complete } from "./complete";
 
 interface CommandMenuProps {
   items: CommandMenuItem[];
@@ -132,8 +133,35 @@ export function CommandMenu({ items }: CommandMenuProps) {
   const trimmed = search.trim().toLowerCase().replace(/\s+/g, " ");
   const command = COMMANDS.find((c) => c.name === trimmed)?.name;
 
+  // Tab completes typed text like a shell: commands and paths. The first Tab fills the shared
+  // prefix, further Tabs cycle the matches. With nothing typed (or Shift), Tab switches tabs.
+  const candidates = useMemo(
+    () => [
+      ...new Set([
+        ...COMMANDS.map((c) => c.name),
+        ...items.flatMap((i) => (i.href ? [i.href] : [])),
+      ]),
+    ],
+    [items],
+  );
+  const stemRef = useRef<string | null>(null);
+  const ghost = stemRef.current
+    ? ""
+    : (complete(search, candidates).matches[0]?.slice(search.length) ?? "");
+
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-    if (e.key === "Tab") {
+    // Tab belongs to the prompt here: keep the dialog's focus trap from moving focus off the input
+    if (e.key === "Tab") e.stopPropagation();
+    if (e.key === "Tab" && !e.shiftKey && search) {
+      e.preventDefault();
+      const stem = stemRef.current ?? search;
+      const { matches, common } = complete(stem, candidates);
+      if (stemRef.current === null && common.length > search.length) setSearch(common);
+      else if (matches.length > 0) {
+        stemRef.current = stem;
+        setSearch(matches[(matches.indexOf(search) + 1) % matches.length]);
+      }
+    } else if (e.key === "Tab") {
       e.preventDefault();
       const k = TABS.indexOf(tab) + (e.shiftKey ? -1 : 1);
       setTab(TABS[(k + TABS.length) % TABS.length]);
@@ -331,13 +359,26 @@ export function CommandMenu({ items }: CommandMenuProps) {
               <span className="text-muted-foreground">{tabPath(tab)}</span>{" "}
               <span className="font-semibold text-signal">&gt;</span>
             </span>
-            <CommandPrimitive.Input
-              value={search}
-              onValueChange={setSearch}
-              placeholder="Type a command or search..."
-              className="flex h-7 w-full bg-transparent font-mono text-sm text-text placeholder:text-muted-foreground outline-none disabled:cursor-not-allowed disabled:opacity-50"
-              autoFocus
-            />
+            <div className="relative flex min-w-0 flex-1">
+              {/* completion hint: the typed text (invisible) followed by the rest of the first match */}
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 flex items-center overflow-hidden font-mono text-sm whitespace-pre"
+              >
+                <span className="invisible">{search}</span>
+                <span className="text-muted-foreground/60">{ghost}</span>
+              </div>
+              <CommandPrimitive.Input
+                value={search}
+                onValueChange={(v) => {
+                  stemRef.current = null;
+                  setSearch(v);
+                }}
+                placeholder="Type a command or search..."
+                className="relative flex h-7 w-full bg-transparent font-mono text-sm text-text placeholder:text-muted-foreground outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                autoFocus
+              />
+            </div>
             <Kbd>ESC</Kbd>
           </div>
 
@@ -423,7 +464,7 @@ export function CommandMenu({ items }: CommandMenuProps) {
                 Select <Kbd>↵</Kbd>
               </span>
               <span className="hidden sm:inline">
-                Tabs <Kbd>Tab</Kbd>
+                Complete / tabs <Kbd>Tab</Kbd>
               </span>
             </div>
             <div className="hidden items-center gap-1.5 sm:flex">

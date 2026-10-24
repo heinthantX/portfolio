@@ -61,9 +61,9 @@ describe("wheelMode", () => {
 
 describe("playSeconds", () => {
   it("plays a full chapter at one pace and remainders at the same pace", () => {
-    expect(playSeconds(400, 400)).toBeCloseTo(1.05);
-    expect(playSeconds(-200, 400)).toBeCloseTo(0.525);
-    expect(playSeconds(1200, 400)).toBeCloseTo(1.05);
-    expect(playSeconds(10, 400)).toBeCloseTo(0.3);
+    expect(playSeconds(400, 400)).toBeCloseTo(1.4);
+    expect(playSeconds(-200, 400)).toBeCloseTo(0.7);
+    expect(playSeconds(1200, 400)).toBeCloseTo(1.4);
+    expect(playSeconds(10, 400)).toBeCloseTo(0.4);
   });
 });

@@ -8,7 +8,7 @@ A terminal-styled command palette. It is a site feature, not a page, and it live
 - Tab buttons use `tabIndex={-1}`. With empty input, Tab and Shift+Tab switch tabs, so the buttons must not also take focus in the tab order. With text in the input, Tab completes instead (Core Flows 3).
 - The prompt shows the current tab path before `>` (for example `~/projects >`).
 - Commands come from the `COMMANDS` list. Enter runs only an exact, case-insensitive match. There is no fuzzy search.
-- Completion: `complete(input, candidates)` returns `{ matches, common }`. Matching is a case-insensitive prefix match. Candidates are the `COMMANDS` names plus every item href.
+- Completion: `complete(input, candidates)` returns `{ matches, common }`. Matching is a case-insensitive prefix match. Candidates are the `COMMANDS` names, every item title (so `wo` → `Work`) and every item href with and without the leading slash (`work/th` → `work/this-portfolio`), deduped case-insensitively with the first spelling winning (titles before paths).
 - Input placeholder: "Type a command or search...". It is fixed. The e2e tests locate the input by it, so do not change it.
 - Closing the menu resets the active tab to `~`.
 
@@ -29,7 +29,8 @@ A terminal-styled command palette. It is a site feature, not a page, and it live
    - Tab calls `stopPropagation` as well as `preventDefault`, so the Radix dialog focus trap never moves focus off the input (`docs/memory/fixes.md`).
    - Completion never runs a command. Enter still needs an exact match.
    - Verified example chain: `who` → `whoami`; `/w` → `/work` → `/work/this-portfolio`; `sud` → `sudo hire-me`. Then Enter on `/contact` opens the page.
-4. **Footer:** suggests `help` and `neofetch`. The key hint reads "Complete / tabs Tab".
+4. **Walk command output (↑/↓, Enter):** while a command's output shows, ↑/↓ move a highlight over its clickable rows (`data-out`: help commands, `ls projects` slugs, `git log` commits, the `sudo hire-me` /contact link), looping at the ends. Enter clicks the highlighted row: a help row runs that command, the others navigate. The highlight is stored with the command it was set in, so it resets when the command changes. With no row highlighted, Enter on `sudo hire-me` still opens /contact.
+5. **Footer:** suggests `help` and `neofetch`. The key hint reads "Complete / tabs Tab".
 5. **Close and reopen:** the tab resets to `~`.
 
 ## Edge Cases

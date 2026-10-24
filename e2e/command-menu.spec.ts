@@ -29,4 +29,26 @@ test.describe("Command Menu", () => {
 
     await expect(page).toHaveURL(/\/work\/this-portfolio/, { timeout: 15000 });
   });
+  test("Tab completes page titles, not just commands", async ({ page }) => {
+    await page.keyboard.press("ControlOrMeta+KeyK");
+    const input = page.getByPlaceholder("Type a command or search...");
+    await input.fill("wo");
+    await page.keyboard.press("Tab");
+    await expect(input).toHaveValue("Work");
+  });
+
+  test("arrow keys walk the help output and Enter runs the command", async ({ page }) => {
+    await page.keyboard.press("ControlOrMeta+KeyK");
+    const dialog = page.getByRole("dialog");
+    const input = page.getByPlaceholder("Type a command or search...");
+    await input.fill("help");
+    await page.keyboard.press("ArrowDown");
+    await page.keyboard.press("ArrowDown");
+    await expect(dialog.locator("[data-out][data-selected]")).toHaveText("whoami");
+    await page.keyboard.press("ArrowUp");
+    await expect(dialog.locator("[data-out][data-selected]")).toHaveText("help");
+    await page.keyboard.press("ArrowDown");
+    await page.keyboard.press("Enter");
+    await expect(input).toHaveValue("whoami");
+  });
 });

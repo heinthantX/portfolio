@@ -133,21 +133,33 @@ export function CommandMenu({ items }: CommandMenuProps) {
   const trimmed = search.trim().toLowerCase().replace(/\s+/g, " ");
   const command = COMMANDS.find((c) => c.name === trimmed)?.name;
 
-  // Tab completes typed text like a shell: commands and paths. The first Tab fills the shared
-  // prefix, further Tabs cycle the matches. With nothing typed (or Shift), Tab switches tabs.
-  const candidates = useMemo(
-    () => [
-      ...new Set([
-        ...COMMANDS.map((c) => c.name),
-        ...items.flatMap((i) => (i.href ? [i.href] : [])),
-      ]),
-    ],
-    [items],
-  );
+  // Tab completes typed text like a shell: commands, item titles and paths (with or without the
+  // leading slash). The first Tab fills the shared prefix, further Tabs cycle the matches. With
+  // nothing typed (or Shift), Tab switches tabs.
+  const candidates = useMemo(() => {
+    const all = [
+      ...COMMANDS.map((c) => c.name),
+      ...items.map((i) => i.title),
+      ...items.flatMap((i) => (i.href ? [i.href, i.href.slice(1)] : [])),
+    ];
+    // case-insensitive dedupe (first spelling wins), so "Work" and "work" are one completion
+    const seen = new Map<string, string>();
+    for (const c of all) if (c && !seen.has(c.toLowerCase())) seen.set(c.toLowerCase(), c);
+    return [...seen.values()];
+  }, [items]);
   const stemRef = useRef<string | null>(null);
   const ghost = stemRef.current
     ? ""
     : (complete(search, candidates).matches[0]?.slice(search.length) ?? "");
+
+  // Clickable rows in a command's output (help commands, project slugs, commits) take ↑/↓ and
+  // Enter like the list does. The highlight belongs to the command it was set in.
+  const outRef = useRef<HTMLDivElement>(null);
+  const [out, setOut] = useState<{ cmd: string; i: number }>({ cmd: "", i: -1 });
+  const outIdx = out.cmd === command ? out.i : -1;
+  const outRows = () => [...(outRef.current?.querySelectorAll<HTMLElement>("[data-out]") ?? [])];
+  const row = (i: number) => ({ "data-out": "", "data-selected": i === outIdx ? "" : undefined });
+  const rowClass = "-mx-1 rounded-sm px-1 data-selected:bg-surface-2 data-selected:text-signal";
 
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     // Tab belongs to the prompt here: keep the dialog's focus trap from moving focus off the input
@@ -165,22 +177,36 @@ export function CommandMenu({ items }: CommandMenuProps) {
       e.preventDefault();
       const k = TABS.indexOf(tab) + (e.shiftKey ? -1 : 1);
       setTab(TABS[(k + TABS.length) % TABS.length]);
-    } else if (e.key === "Enter" && command === "sudo hire-me") {
+    } else if (command && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
       e.preventDefault();
-      go("/contact");
+      const n = outRows().length;
+      if (n === 0) return;
+      const step = e.key === "ArrowDown" ? 1 : -1;
+      const i = outIdx === -1 ? (step === 1 ? 0 : n - 1) : (outIdx + step + n) % n;
+      setOut({ cmd: command, i });
+    } else if (e.key === "Enter" && command) {
+      const row = outRows()[outIdx];
+      if (row) {
+        e.preventDefault();
+        row.click();
+      } else if (command === "sudo hire-me") {
+        e.preventDefault();
+        go("/contact");
+      }
     }
   };
 
   const output: Record<CommandName, () => ReactNode> = {
     help: () => (
       <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1">
-        {COMMANDS.map((c) => (
+        {COMMANDS.map((c, i) => (
           <div key={c.name} className="contents">
             <dt>
               <button
                 type="button"
+                {...row(i)}
                 onClick={() => setSearch(c.name)}
-                className="text-signal hover:underline"
+                className={`text-signal hover:underline ${rowClass}`}
               >
                 {c.name}
               </button>
@@ -224,12 +250,13 @@ export function CommandMenu({ items }: CommandMenuProps) {
     ),
     "ls projects": () => (
       <div className="grid grid-cols-1 gap-x-6 gap-y-1 sm:grid-cols-2">
-        {groups.Projects.map((p) => (
+        {groups.Projects.map((p, i) => (
           <button
             key={p.id}
             type="button"
+            {...row(i)}
             onClick={() => p.href && go(p.href)}
-            className="text-left text-text hover:text-signal"
+            className={`text-left text-text hover:text-signal ${rowClass}`}
           >
             {p.href?.replace("/work/", "")}
           </button>
@@ -244,8 +271,9 @@ export function CommandMenu({ items }: CommandMenuProps) {
             {i === 0 && <span className="text-ok">(HEAD → main)</span>}
             <button
               type="button"
+              {...row(i)}
               onClick={() => n.href && go(n.href)}
-              className="truncate text-left text-text hover:text-signal"
+              className={`truncate text-left text-text hover:text-signal ${rowClass}`}
             >
               {n.title}
             </button>
@@ -286,8 +314,9 @@ export function CommandMenu({ items }: CommandMenuProps) {
           Press <Kbd>↵</Kbd> to open{" "}
           <button
             type="button"
+            {...row(0)}
             onClick={() => go("/contact")}
-            className="text-signal hover:underline"
+            className={`text-signal hover:underline ${rowClass}`}
           >
             /contact
           </button>
@@ -391,7 +420,9 @@ export function CommandMenu({ items }: CommandMenuProps) {
                 </span>
                 <span className="text-text">{trimmed}</span>
               </div>
-              <div className="py-1">{output[command]()}</div>
+              <div ref={outRef} className="py-1">
+                {output[command]()}
+              </div>
               <div className="mt-4 flex items-center justify-between border-t border-line/30 pt-3 text-[0.6875rem] text-muted-foreground">
                 <span>terminal output</span>
                 <span>

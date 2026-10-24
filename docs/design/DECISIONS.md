@@ -144,4 +144,13 @@ Owner feedback: "make the texts sliding from left and right or bottom; current w
 
 Owner feedback after trying 1.4s: "make it 2s".
 
-- **`STEP_S` 1.4s → 2s, `MIN_S` 0.4s → 0.5s** in `useChapterSnap.ts`. A swipe now reaches the next chapter in about 1.7s; a slow-wheel finish of a part chapter scales with distance (`playSeconds`). Easings and the follow/step/free thresholds are unchanged. Lost: the 1.4s pace from D12.
+- **`STEP_S` 1.4s → 2s, `MIN_S` 0.4s → 0.5s** in `useChapterSnap.ts`. A swipe now reaches the next chapter in about 1.7s; a slow-wheel finish of a part chapter scales with distance (`playSeconds`). Easings and the follow/step/free thresholds are unchanged. Lost: the 1.4s pace from D12. _Superseded by D14: 3s for every move._
+
+## D14 — 3s chapter moves; completion on titles; arrows in command output (2026-10-24)
+
+Owner feedback: "make the animation min 3s", then "min second only 1.5 and step second 3", "make the tab completions work on pages not just cmds", and ↑/↓ were "not working on cmds suggestions" (the `help` output).
+
+- **3s per chapter, 1.5s minimum.** `STEP_S` 2s → 3s and `MIN_S` 0.5s → 1.5s in `useChapterSnap.ts`. A full chapter (swipe or rail step) plays in 3s and reaches it in about 2.5s; a slow-wheel finish of a part chapter scales with distance, never under 1.5s. Supersedes D13.
+- **Completion covers item titles and bare paths**, not just commands and `/`-paths. Lost: "wo" completing to nothing.
+- **↑/↓ and Enter walk command output rows** (`data-out` buttons in the output renderers). Lost: arrows doing nothing while output shows.
+- **Verified.** e2e command-menu 12/12 over 3 repeats, including the new completion and arrow tests; hero e2e on one worker.

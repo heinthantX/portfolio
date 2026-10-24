@@ -13,5 +13,7 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./vitest.setup.ts"],
     include: ["src/**/*.test.{ts,tsx}"],
+    // waveDriver sims run ~10s on 2-core CI runners
+    testTimeout: 30_000,
   },
 });

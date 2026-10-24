@@ -14,7 +14,7 @@ export function ContactCTA({ index = "08", total = 8 }: ContactCTAProps) {
   return (
     <Sheet index={index} slug="contact" total={total} title="Contact" id="contact">
       <div className="max-w-[54rem]">
-        <div className="mb-6" data-reveal>
+        <div className="mb-6" data-block>
           <StatusDot ok={profile.availability.open} label={profile.availability.label} />
         </div>
 
@@ -27,12 +27,12 @@ export function ContactCTA({ index = "08", total = 8 }: ContactCTAProps) {
 
         <p
           className="mt-4 max-w-[56ch] text-base leading-relaxed text-muted-foreground sm:text-lg"
-          data-reveal
+          data-block
         >
           {profile.tagline}
         </p>
 
-        <div className="mt-8 flex flex-wrap items-center gap-4 sm:gap-6" data-reveal>
+        <div className="mt-8 flex flex-wrap items-center gap-4 sm:gap-6" data-block>
           <Button asChild>
             <Link href="/contact" data-magnetic className="gap-2">
               <span>Get in touch</span>

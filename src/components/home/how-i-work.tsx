@@ -16,7 +16,7 @@ export function HowIWork({ index = "05", total = 8 }: HowIWorkProps) {
           return (
             <article
               key={item.title}
-              data-reveal
+              data-block
               className="flex flex-col border-t border-line pt-6 sm:pt-8"
             >
               <span

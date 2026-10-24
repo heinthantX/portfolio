@@ -226,6 +226,32 @@ html.lenis body {
         calc(14% + var(--i) / var(--n) * 30%);
     }
   }
+  /* paragraphs fade up one by one (text-reveal.tsx arms them, so no-JS pages render normally) */
+  .paras-armed
+    [data-paras]
+    :is(
+      [data-block],
+      [data-reveal="headline"],
+      p,
+      li,
+      h2,
+      h3,
+      h4,
+      blockquote,
+      pre,
+      figure,
+      table,
+      img,
+      hr
+    ):not([data-words], [data-words] *, [data-block] *, [data-reveal="headline"] *) {
+    opacity: 0;
+    animation: none;
+  }
+  /* page intros: words slide up once on load, the whole line done in about a second */
+  [data-words="load"] [data-w] {
+    animation: word-in 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+    animation-delay: calc(0.5s + var(--i) * min(45ms, 1s / var(--n)));
+  }
   /* Sticky hero: an ancestor writes --reveal (0..1) from the scroll loop; ~5 words are mid-reveal
      at once, each flipping up from below its line. Lines ([data-line]) arrive a beat apart via --d. */
   [data-words="driven"] [data-w] {

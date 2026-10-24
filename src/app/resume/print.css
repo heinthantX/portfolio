@@ -7,6 +7,11 @@
   [data-draw] {
     animation: none !important;
   }
+  .paras-armed [data-paras] * {
+    opacity: 1 !important;
+    translate: none !important;
+    filter: none !important;
+  }
 
   .no-print,
   .dot-grid {

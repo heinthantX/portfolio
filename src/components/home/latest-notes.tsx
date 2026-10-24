@@ -20,7 +20,7 @@ export function LatestNotes({ index = "07", total = 8 }: LatestNotesProps) {
     <Sheet index={index} slug="notes" total={total} title="Latest notes" id="notes">
       <ul className="divide-y divide-line border-y border-line">
         {latestNotes.map((note) => (
-          <li key={note.slug} data-reveal>
+          <li key={note.slug} data-block>
             <Link
               href={`/notes/${note.slug}`}
               className="group flex flex-col justify-between gap-3 py-6 transition-colors sm:flex-row sm:items-baseline"
@@ -56,7 +56,7 @@ export function LatestNotes({ index = "07", total = 8 }: LatestNotesProps) {
       </ul>
 
       {/* Link to /notes at the end */}
-      <div className="mt-12 flex justify-center sm:mt-16" data-reveal>
+      <div className="mt-12 flex justify-center sm:mt-16" data-block>
         <Button variant="secondary" asChild>
           <Link href="/notes" className="gap-2">
             <span>All engineering notes</span>

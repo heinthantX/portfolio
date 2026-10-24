@@ -5,6 +5,7 @@ import { PageTransition } from "@/components/site/page-transition";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
 import { SmoothScroll } from "@/components/site/smooth-scroll";
+import { ARM_SCRIPT, TextReveal } from "@/components/site/text-reveal";
 import { ThemeProvider } from "@/components/site/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { profile } from "@/content/profile";
@@ -39,6 +40,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable}`}
     >
+      <head>
+        {/* biome-ignore lint/security/noDangerouslySetInnerHtml: static inline script, must run before paint */}
+        <script dangerouslySetInnerHTML={{ __html: ARM_SCRIPT }} />
+      </head>
       <body>
         <script
           type="application/ld+json"
@@ -67,6 +72,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           </SmoothScroll>
           <Toaster />
           <Cursor />
+          <TextReveal />
         </ThemeProvider>
       </body>
     </html>

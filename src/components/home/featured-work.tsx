@@ -25,7 +25,7 @@ export function FeaturedWork({ index = "04", total = 8 }: FeaturedWorkProps) {
           return (
             <article
               key={item.slug}
-              data-reveal
+              data-block
               className="group py-12 first:pt-6 last:pb-6 sm:py-16"
             >
               <div className="grid grid-cols-1 items-center gap-8 lg:grid-cols-12 lg:gap-12">
@@ -95,7 +95,7 @@ export function FeaturedWork({ index = "04", total = 8 }: FeaturedWorkProps) {
       </div>
 
       {/* Link to /work at the end */}
-      <div className="mt-12 flex justify-center sm:mt-16" data-reveal>
+      <div className="mt-12 flex justify-center sm:mt-16" data-block>
         <Button variant="secondary" asChild>
           <Link href="/work" className="gap-2">
             <span>View all projects</span>

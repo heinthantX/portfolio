@@ -31,5 +31,19 @@ Fix: the command menu's Tab handler calls `stopPropagation` as well as `preventD
 ## shadcn `data-selected:` needs "true" (2026-10-24)
 shadcn's tailwind.css defines `@custom-variant data-selected { &:where([data-selected="true"]) }`. Command-output rows set `data-selected=""`, so the selection moved but was never drawn. The e2e test checked only the attribute and passed. Set `"true"`, and assert a visible style in tests.
 
+## Text reveal armed after hydration made painted text vanish (2026-10-24)
+Root cause: the reveal class was added after hydration, so text that had already painted was hidden and then shown again. The result read as a flicker with no animation.
+Fix: `ARM_SCRIPT` in the `<head>` of `src/app/layout.tsx` adds `html.paras-armed` before first paint. See `docs/memory/architecture.md` and `docs/specs/text-reveal.md`.
+
+## Load-time reveals played behind the view-transition snapshot (2026-10-24)
+Root cause: the page-switch view transition snapshot covers the page for about 0.7s, so load-time animations ran hidden behind it and were never seen.
+Fix: above-the-fold reveals wait 450-500ms before starting. See `docs/memory/architecture.md` and `docs/specs/text-reveal.md`.
+
+## StrictMode double effect left reveals hidden forever (2026-10-24)
+Root cause: under React StrictMode the first effect run marked elements pending. Its cleanup disconnected the IntersectionObserver, and the second run skipped those elements because they were already marked. They stayed hidden.
+Fix: the second run re-observes anything not yet in the "in" state. See `docs/specs/text-reveal.md` (Edge Cases).
+
 ## R3F frameloop switch resets the clock: stale hero shape after tab return (2026-10-24)
 react-three-fiber 9.8.1 resets `clock` to 0 whenever `frameloop` changes. The home canvas pauses (`frameloop="never"`) while the tab is hidden or a modal is open, so on resume `delta`/elapsed ran backwards; `easeToward` with a negative dt drove the stream hand-off (`uFlow`) hugely negative or NaN and the shipped globe stuck over the lower sections. Fix: `SignalPoints` keeps its own monotonic clock (frame steps clamped 0..0.1s), `easeToward` ignores negative dt, the stream's dt is floored at 0. Never trust R3F's clock across frameloop changes.
+
+- **Hydration mismatch from reveal markers (2026-10-24):** text-reveal.tsx set `data-para` on nodes the MutationObserver saw before React hydrated them, so React reported an attribute mismatch (Eyebrow on /contact). Fix: no DOM writes; reveal with `el.animate()` and track state in a WeakSet.

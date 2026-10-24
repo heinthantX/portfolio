@@ -62,9 +62,9 @@ async function NoteDetail({ params }: { params: Promise<{ slug: string }> }) {
     <>
       <ReadingProgress />
 
-      <Container className="pt-32 pb-24">
+      <Container className="pt-32 pb-24" data-paras>
         {/* Header section (without cover / meta row) */}
-        <div data-reveal className="mb-10 pb-8 border-b border-line">
+        <div className="mb-10 pb-8 border-b border-line">
           <div className="flex flex-wrap items-center gap-2 mb-4">
             <Link
               href="/notes"

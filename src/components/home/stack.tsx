@@ -14,7 +14,7 @@ export function Stack({ index = "06", total = 8 }: StackProps) {
         {profile.stackLayers.map((layer) => (
           <li
             key={layer.id}
-            data-reveal
+            data-block
             className="grid grid-cols-1 items-baseline gap-4 py-6 sm:py-8 md:grid-cols-12 md:gap-8"
           >
             <div className="md:col-span-4 lg:col-span-3">

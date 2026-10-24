@@ -94,15 +94,9 @@ export function StatusDot({ ok = true, label }: { ok?: boolean; label: string })
 }
 
 /** Max-width page container with the spec's 16 / 24 / 40 px gutters. */
-export function Container({
-  children,
-  className,
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
+export function Container({ children, className, ...rest }: React.ComponentProps<"div">) {
   return (
-    <div className={cn("mx-auto w-full max-w-[1280px] px-4 sm:px-6 lg:px-10", className)}>
+    <div {...rest} className={cn("mx-auto w-full max-w-[1280px] px-4 sm:px-6 lg:px-10", className)}>
       {children}
     </div>
   );

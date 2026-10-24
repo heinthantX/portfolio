@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Container, Eyebrow } from "@/components/site/primitives";
+import { ScrollWords } from "@/components/site/scroll-words";
 import { profile } from "@/content/profile";
 
 export const metadata: Metadata = {
@@ -9,11 +10,13 @@ export const metadata: Metadata = {
 
 export function UsesPage() {
   return (
-    <div className="pt-32 pb-24">
+    <div className="pt-32 pb-24" data-paras>
       <Container>
-        <div className="max-w-[68ch]" data-reveal>
+        <div className="max-w-[68ch]">
           <Eyebrow>04 / uses</Eyebrow>
-          <h1 className="mt-3 text-[length:var(--text-h2)]">Workspace, tools &amp; setup</h1>
+          <h1 className="mt-3 text-[length:var(--text-h2)]">
+            <ScrollWords as="span" mode="load" text="Workspace, tools & setup" />
+          </h1>
           <p className="mt-4 text-base leading-relaxed text-muted-foreground">
             A living catalog of hardware, software, runtimes, and engineering workflows that support
             day-to-day development. Delivery follows a dual-model AI-assisted workflow where
@@ -25,7 +28,7 @@ export function UsesPage() {
 
         <div className="mt-16 space-y-12">
           {profile.uses.map((group) => (
-            <section key={group.group} className="space-y-4" data-reveal>
+            <section key={group.group} className="space-y-4">
               <h2 className="font-mono text-xs tracking-[0.12em] text-muted-foreground uppercase">
                 {group.group}
               </h2>
@@ -33,6 +36,7 @@ export function UsesPage() {
                 {group.items.map((item) => (
                   <div
                     key={item.name}
+                    data-block
                     className="grid grid-cols-1 gap-2 py-4 sm:grid-cols-12 sm:gap-6 sm:py-5"
                   >
                     <span className="font-mono text-sm font-medium text-text sm:col-span-4 lg:col-span-3">

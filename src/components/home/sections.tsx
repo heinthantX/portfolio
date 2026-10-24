@@ -28,11 +28,11 @@ export function HomeSections() {
   const totalSheets = visibleSections.length + 1;
 
   return (
-    <>
+    <div data-paras>
       {visibleSections.map(({ id, Component }, idx) => {
         const sheetNumber = String(idx + 2).padStart(2, "0");
         return <Component key={id} index={sheetNumber} total={totalSheets} />;
       })}
-    </>
+    </div>
   );
 }

@@ -103,7 +103,7 @@ export function WhatIDo({ index = "02", total = 8 }: WhatIDoProps) {
               <li
                 key={cap.id}
                 className="group relative py-6 transition-colors sm:py-8"
-                data-reveal
+                data-block="slide"
               >
                 {/* Full-width focusable button row with visible focus style and aria-expanded */}
                 <button

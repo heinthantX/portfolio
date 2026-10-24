@@ -11,13 +11,10 @@ export const metadata: Metadata = {
 
 export function ResumePage() {
   return (
-    <div className="pt-32 pb-24">
+    <div className="pt-32 pb-24" data-paras>
       <Container>
         <div className="mx-auto max-w-[760px] space-y-10">
-          <div
-            className="no-print flex items-center justify-between border-b border-line pb-6"
-            data-reveal
-          >
+          <div className="no-print flex items-center justify-between border-b border-line pb-6">
             <p className="font-mono text-xs tracking-[0.12em] text-muted-foreground uppercase">
               03 / résumé
             </p>
@@ -31,7 +28,7 @@ export function ResumePage() {
             </a>
           </div>
 
-          <header className="resume-entry space-y-4" data-reveal>
+          <header className="resume-entry space-y-4">
             <div>
               <h1 className="text-[length:var(--text-h2)] font-semibold tracking-tight text-text">
                 {profile.name}
@@ -76,10 +73,7 @@ export function ResumePage() {
             </div>
           </header>
 
-          <section
-            className="resume-entry space-y-3 border-t border-line pt-6 print-accent-rule"
-            data-reveal
-          >
+          <section className="resume-entry space-y-3 border-t border-line pt-6 print-accent-rule">
             <h2 className="font-mono text-xs tracking-[0.12em] text-muted-foreground uppercase">
               Summary
             </h2>
@@ -90,7 +84,7 @@ export function ResumePage() {
             </div>
           </section>
 
-          <section className="space-y-6 border-t border-line pt-6 print-accent-rule" data-reveal>
+          <section className="space-y-6 border-t border-line pt-6 print-accent-rule">
             <h2 className="font-mono text-xs tracking-[0.12em] text-muted-foreground uppercase">
               Experience
             </h2>
@@ -122,10 +116,7 @@ export function ResumePage() {
             </div>
           </section>
 
-          <section
-            className="resume-entry space-y-4 border-t border-line pt-6 print-accent-rule"
-            data-reveal
-          >
+          <section className="resume-entry space-y-4 border-t border-line pt-6 print-accent-rule">
             <h2 className="font-mono text-xs tracking-[0.12em] text-muted-foreground uppercase">
               Capabilities
             </h2>
@@ -145,10 +136,7 @@ export function ResumePage() {
             </div>
           </section>
 
-          <section
-            className="resume-entry space-y-3 border-t border-line pt-6 print-accent-rule"
-            data-reveal
-          >
+          <section className="resume-entry space-y-3 border-t border-line pt-6 print-accent-rule">
             <h2 className="font-mono text-xs tracking-[0.12em] text-muted-foreground uppercase">
               Stack Layers
             </h2>

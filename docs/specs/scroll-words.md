@@ -17,7 +17,8 @@ Word-split text with scroll-linked reveals. Source: `src/components/site/scroll-
 ## Core Flows
 1. **Home (view mode):** the pull quote (accents: every, layer), both bio paragraphs, and the contact h3 (accents: holds, up). Section wrappers do not carry their own `data-reveal`, so each word fades once.
 2. **Hero manifesto (driven mode):** the hero frame loop sets `--reveal` from `textState().reveal`. `REVEAL_SPAN` is 0.07 for the wave and 0.06 for layer chapters, so words finish before the chapter's rest point. The loop writes `--reveal` only when it changes by more than 0.002.
-3. **Section headings:** `SectionHeading` uses `data-reveal="headline"`. This is a block reveal, not a word split: blur 16px, rise 0.9em, scale 0.92, letter-spacing 0.06em.
+3. **Section headings:** `SectionHeading` uses `data-reveal="headline"`. This is a block reveal, not a word split: blur 16px, rise 0.9em, scale 0.92, letter-spacing 0.06em. Inside a `data-paras` region (home sections, subpages) it is revealed by text-reveal.tsx on intersection instead of the CSS view timeline (see text-reveal.md).
+4. **Load mode:** subpage titles (work, notes, uses, contact) use `mode="load"`: words slide up once on page load, starting at 0.5s so they play after the page-switch view transition.
 
 ## Edge Cases
 - Accents are matched after stripping punctuation from both sides. Without that, "holds." never matches "holds".

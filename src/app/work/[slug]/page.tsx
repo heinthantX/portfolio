@@ -63,9 +63,9 @@ async function WorkDetail({ params }: { params: Promise<{ slug: string }> }) {
     <>
       <ReadingProgress />
 
-      <Container className="pt-32 pb-24">
+      <Container className="pt-32 pb-24" data-paras>
         {/* Header section */}
-        <div data-reveal className="mb-6">
+        <div className="mb-6">
           <div className="flex flex-wrap items-center gap-2 mb-4">
             <Link
               href="/work"
@@ -89,10 +89,7 @@ async function WorkDetail({ params }: { params: Promise<{ slug: string }> }) {
         </div>
 
         {/* Full-width cover */}
-        <div
-          data-reveal
-          className="relative aspect-[16/7] w-full overflow-hidden rounded-md border border-line bg-surface my-8"
-        >
+        <div className="relative aspect-[16/7] w-full overflow-hidden rounded-md border border-line bg-surface my-8">
           <Image
             src={item.cover}
             alt={item.title}
@@ -104,7 +101,7 @@ async function WorkDetail({ params }: { params: Promise<{ slug: string }> }) {
         </div>
 
         {/* Meta row in mono (Role / Timeline / Stack / Links) */}
-        <div data-reveal className="my-8 border-y border-line py-6 font-mono text-xs">
+        <div className="my-8 border-y border-line py-6 font-mono text-xs">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             <div>
               <p className="uppercase tracking-[0.12em] text-muted-foreground mb-1">Role</p>

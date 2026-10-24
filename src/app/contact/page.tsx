@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Container, Eyebrow, SampleBadge, StatusDot } from "@/components/site/primitives";
+import { ScrollWords } from "@/components/site/scroll-words";
 import { profile } from "@/content/profile";
 import { ContactForm } from "@/features/contact/contact-form";
 
@@ -13,18 +14,18 @@ export default function ContactPage() {
   const isLinkedinMock = profile.contact.linkedin.label.includes("[MOCK]");
 
   return (
-    <section className="pt-32 pb-24">
+    <section className="pt-32 pb-24" data-paras>
       <Container>
-        <div className="max-w-[68ch]" data-reveal>
+        <div className="max-w-[68ch]">
           <Eyebrow>07 / contact</Eyebrow>
           <h1 className="mt-4 text-[length:var(--text-h1)] text-balance">
-            Let’s ship something that holds up.
+            <ScrollWords as="span" mode="load" text="Let’s ship something that holds up." />
           </h1>
         </div>
 
         <div className="mt-12 grid grid-cols-1 gap-12 lg:grid-cols-12 lg:gap-16">
           {/* Left column: contact channels and availability */}
-          <div className="space-y-8 lg:col-span-5" data-reveal>
+          <div className="space-y-8 lg:col-span-5">
             <div className="space-y-6">
               <div>
                 <p className="font-mono text-xs tracking-[0.12em] text-muted-foreground uppercase">
@@ -86,7 +87,7 @@ export default function ContactPage() {
           </div>
 
           {/* Right column: the contact form */}
-          <div className="lg:col-span-7" data-reveal>
+          <div className="lg:col-span-7">
             <ContactForm />
           </div>
         </div>

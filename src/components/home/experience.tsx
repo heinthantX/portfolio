@@ -22,7 +22,7 @@ export function Experience({ index = "03", total = 8 }: ExperienceProps) {
             <li
               key={`${entry.role}-${entry.company}-${entry.years}`}
               className="relative flex flex-col md:flex-row md:items-start"
-              data-reveal
+              data-block="slide"
             >
               {/* Dot per entry on the pipeline line */}
               <span

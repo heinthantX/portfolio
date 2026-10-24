@@ -79,11 +79,7 @@ export function WorkFilter({ items }: WorkFilterProps) {
       ) : (
         <div className="divide-y divide-line border-y border-line">
           {filteredItems.map((item) => (
-            <article
-              key={item.slug}
-              data-reveal
-              className="group py-12 first:pt-8 last:pb-8 transition-colors"
-            >
+            <article key={item.slug} className="group py-12 first:pt-8 last:pb-8 transition-colors">
               <div className="grid grid-cols-1 md:grid-cols-12 gap-8 lg:gap-12 items-center">
                 {/* 16:10 cover image with 1px border-line frame turning amber on hover */}
                 <div className="md:col-span-5 lg:col-span-5">

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Container, SampleBadge, SectionHeading } from "@/components/site/primitives";
+import { ScrollWords } from "@/components/site/scroll-words";
 import { notes } from "@/lib/content";
 
 export const metadata: Metadata = {
@@ -11,13 +12,15 @@ export const metadata: Metadata = {
 
 export default function NotesPage() {
   return (
-    <Container className="pt-32 pb-24">
-      <div
-        className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6"
-        data-reveal
-      >
+    <Container className="pt-32 pb-24" data-paras>
+      <div className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <SectionHeading index="04" slug="notes" title="Technical Notes & Writing" as="h1" />
+          <SectionHeading
+            index="04"
+            slug="notes"
+            title={<ScrollWords as="span" mode="load" text="Technical Notes & Writing" />}
+            as="h1"
+          />
           <p className="mt-4 max-w-[68ch] text-muted-foreground leading-relaxed">
             Practical writings on distributed systems, offline-first edge architecture, performance
             ceilings, database migrations, and container infrastructure.
@@ -39,7 +42,6 @@ export default function NotesPage() {
           <Link
             key={note.slug}
             href={`/notes/${note.slug}`}
-            data-reveal
             data-cursor="Read"
             className="group flex flex-col sm:flex-row sm:items-baseline justify-between gap-3 py-6 transition-colors"
           >

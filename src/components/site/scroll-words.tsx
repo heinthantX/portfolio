@@ -1,12 +1,13 @@
 import { Fragment } from "react";
 
-type Tag = "p" | "h2" | "h3" | "blockquote";
+type Tag = "p" | "span" | "h2" | "h3" | "blockquote";
 
 const norm = (w: string) => w.replace(/[^\p{L}\p{N}]/gu, "").toLowerCase();
 
 /**
  * Text that sharpens word by word as you scroll (blurred + faint -> crisp).
  * `view`: driven by the element's own scroll position (CSS view timeline).
+ * `load`: slides in once on page load, word after word (above-the-fold page intros).
  * `driven`: driven by a `--reveal` 0..1 custom property an ancestor sets (the sticky hero).
  * Words are visible by default, so it reads fine without JS, without support, or with reduced
  * motion. Screen readers get the sentence once from the sr-only copy.
@@ -22,7 +23,7 @@ export function ScrollWords({
   as?: Tag;
   /** words (case-insensitive, punctuation ignored) drawn in the signal colour */
   accent?: string[];
-  mode?: "view" | "driven";
+  mode?: "view" | "load" | "driven";
   className?: string;
 }) {
   const words = text.split(" ");

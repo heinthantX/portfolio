@@ -7,8 +7,11 @@ import {
   infra,
   interfaceShape,
   matchByX,
+  neuralNet,
   shipped,
   wave,
+  waveCells,
+  waveNet,
 } from "./shapes";
 import { CHAPTERS, chapterProgress, easeToward, shapeIndex, textState } from "./timeline";
 
@@ -46,6 +49,40 @@ describe("shapes", () => {
     }
     expect(lo).toBeLessThan(-2);
     expect(hi).toBeGreaterThan(2);
+  });
+
+  it("waveCells recovers the grid from positions, in any order", () => {
+    const { col, row, cols } = waveCells(wave(N));
+    for (let i = 0; i < N; i += 37) {
+      expect(col[i]).toBe(i % cols);
+      expect(row[i]).toBe(Math.floor(i / cols));
+    }
+  });
+
+  it("waveNet: links run from the horizon toward the viewer", () => {
+    const f = wave(N);
+    const { pairs, phase, node } = waveNet(f);
+    expect(pairs.length).toBeGreaterThan(40);
+    expect(phase).toHaveLength(pairs.length / 2);
+    for (let k = 0; k < pairs.length; k += 2) {
+      expect(f[pairs[k + 1] * 3 + 2]).toBeGreaterThan(f[pairs[k] * 3 + 2]);
+      expect(node[pairs[k] * 3]).toBe(1);
+    }
+  });
+
+  it("neuralNet: deterministic, valid links, cascade depth within span", () => {
+    const shape = api(N);
+    const a = neuralNet(shape);
+    expect(neuralNet(shape)).toEqual(a);
+    expect(a.pairs.length).toBeGreaterThan(80);
+    for (let k = 0; k < a.pairs.length; k += 2) {
+      const [i, j] = [a.pairs[k], a.pairs[k + 1]];
+      expect(i).toBeLessThan(N);
+      expect(a.node[i * 3]).toBe(1);
+      // current runs outward: never toward a shallower neuron
+      expect(a.node[j * 3 + 1]).toBeGreaterThanOrEqual(a.node[i * 3 + 1]);
+      expect(a.node[j * 3 + 1]).toBeLessThanOrEqual(0.4 + 1e-6);
+    }
   });
 
   it("matchByX keeps the points and pairs them left to right", () => {

@@ -226,42 +226,50 @@ html.lenis body {
         calc(14% + var(--i) / var(--n) * 30%);
     }
   }
-  /* Sticky hero: an ancestor writes --reveal (0..1) from the scroll loop; ~4 words are mid-reveal
-     at once. Lines ([data-line]) arrive a beat apart via --d. */
+  /* Sticky hero: an ancestor writes --reveal (0..1) from the scroll loop; ~5 words are mid-reveal
+     at once, each flipping up from below its line. Lines ([data-line]) arrive a beat apart via --d. */
   [data-words="driven"] [data-w] {
-    --t: clamp(0, calc((var(--reveal, 1) * (var(--n) + 4) - var(--i)) / 4), 1);
-    opacity: calc(0.15 + 0.85 * var(--t));
-    translate: 0 calc((1 - var(--t)) * 0.25em);
+    --t: clamp(0, calc((var(--reveal, 1) * (var(--n) + 5) - var(--i)) / 5), 1);
+    opacity: calc(0.04 + 0.96 * var(--t));
+    transform: perspective(30em) translateY(calc((1 - var(--t)) * 0.9em))
+      rotateX(calc((1 - var(--t)) * -75deg)) scale(calc(0.9 + 0.1 * var(--t)));
+  }
+  /* signal words ignite as they land */
+  [data-words="driven"] [data-w].text-signal {
+    text-shadow: 0 0 calc(sin(var(--t) * 180deg) * 22px)
+      color-mix(in oklab, var(--accent) 75%, transparent);
   }
   [data-line] {
     --t: clamp(0, calc((var(--reveal, 1) - var(--d, 0)) * 4), 1);
-    opacity: calc(0.1 + 0.9 * var(--t));
-    translate: 0 calc((1 - var(--t)) * 0.4em);
+    opacity: calc(0.04 + 0.96 * var(--t));
+    transform: translateY(calc((1 - var(--t)) * 1.4em)) scale(calc(0.96 + 0.04 * var(--t)));
   }
   /* blur only where the GPU budget allows it (not on phones, where cards sit on a backdrop blur) */
   @media (min-width: 768px) {
     [data-words="driven"] [data-w],
     [data-line] {
-      filter: blur(calc((1 - var(--t)) * 6px));
+      filter: blur(calc((1 - var(--t)) * 14px));
     }
   }
 }
 [data-w] {
   display: inline-block;
+  transform-origin: 50% 100%;
 }
 @keyframes word-in {
   from {
-    opacity: 0.15;
-    filter: blur(6px);
-    translate: 0 0.25em;
+    opacity: 0.04;
+    filter: blur(14px);
+    transform: perspective(30em) translateY(0.9em) rotateX(-75deg) scale(0.9);
   }
 }
 @keyframes reveal-headline {
   from {
     opacity: 0;
-    filter: blur(8px);
-    translate: 0 0.4em;
-    scale: 0.98;
+    filter: blur(16px);
+    translate: 0 0.9em;
+    scale: 0.92;
+    letter-spacing: 0.06em;
   }
 }
 @keyframes reveal {

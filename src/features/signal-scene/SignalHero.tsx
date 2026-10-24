@@ -11,13 +11,13 @@ import { profile } from "@/content/profile";
 import {
   activeChapter,
   CHAPTERS,
-  chapterProgress,
   easeToward,
   FORMATION_SIDE,
   LAYER_OFFSET,
   textState,
   WAVE_CHAPTER,
 } from "./timeline";
+import { useChapterSnap } from "./useChapterSnap";
 import { useSignalGate } from "./useSignalGate";
 
 gsap.registerPlugin(ScrollTrigger);
@@ -38,7 +38,7 @@ const LAYERS = [
   {
     id: "data",
     title: "Data",
-    line: "Schemas, queries and caches designed to stay correct as the data grows.",
+    line: "SQL or NoSQL, picked per job: schemas, queries and caches that stay correct as the data grows.",
   },
   {
     id: "infra",
@@ -351,14 +351,7 @@ export function SignalHero({ children, finale, poster }: SignalHeroProps) {
     return () => cancelAnimationFrame(raf);
   }, [gate.fallback, gate.active]);
 
-  const go = (i: number) => {
-    const section = sectionRef.current;
-    if (!section) return;
-    const top = section.getBoundingClientRect().top + window.scrollY;
-    const y = top + (section.offsetHeight - window.innerHeight) * chapterProgress(i);
-    if (lenis) lenis.scrollTo(y, { duration: 1.4 });
-    else window.scrollTo({ top: y, behavior: "smooth" });
-  };
+  const go = useChapterSnap(sectionRef, lenis, !gate.fallback);
 
   if (gate.fallback) {
     return (

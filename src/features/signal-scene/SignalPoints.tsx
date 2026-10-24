@@ -4,6 +4,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { type RefObject, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { useThemeColors } from "@/lib/use-theme-colors";
+import { mulberry32, neuralNet, waveNet } from "./shapes";
 import type { Pose } from "./timeline";
 
 export interface Drive {
@@ -73,6 +74,17 @@ float snoise(vec3 v){
   return 42.0*dot(m*m,vec4(dot(p0,x0),dot(p1,x1),dot(p2,x2),dot(p3,x3)));
 }`;
 
+/** Live swell of the field: crests roll toward the camera, never sideways. */
+const FIELD = /* glsl */ `
+float swell(vec3 p){
+  return 0.10 * sin(p.z * 2.4 - uTime * 0.6)
+       + 0.07 * sin(p.x * 1.3) * sin(uTime * 0.45 + p.z)
+       + 0.06 * snoise(vec3(p.x * 0.7, p.z * 0.7, uTime * 0.1));
+}`;
+/** Depth (0 far..1 near) that a network path's current has reached, given the path's phase. */
+const PULSE = /* glsl */ `
+float pulseHead(float phase){ return fract(uTime * 0.28 + phase) * 1.4 - 0.2; }`;
+
 const VERT = /* glsl */ `
 uniform float uT, uTime, uSize, uStrength, uRadius, uDark, uAlpha, uIntro;
 uniform float uWaveA, uWaveB, uDissolve;
@@ -84,9 +96,14 @@ uniform float uMaskA;
 attribute vec3 aFrom;
 attribute vec3 aTo;
 attribute float aRand;
+// network role of the point in the from / to shape: neuron 0|1, depth, pulse phase
+attribute vec3 aNodeA;
+attribute vec3 aNodeB;
 varying vec3 vColor;
 varying float vA;
 ${NOISE}
+${FIELD}
+${PULSE}
 void main(){
   // per-point stagger so morphs ripple instead of moving in lockstep
   float st = clamp(uT * 1.7 - aRand * 0.7, 0.0, 1.0);
@@ -97,13 +114,17 @@ void main(){
   vec3 q = p * 0.65 + vec3(0.0, 0.0, uTime * 0.18);
   p += vec3(snoise(q), snoise(q + 31.4), snoise(q + 57.2)) * amp;
   p += sin(uTime * 1.3 + aRand * 40.0 + vec3(0.0, 2.1, 4.2)) * 0.006;
-  // the field swells in place: crests roll toward the camera, never sideways
+  // the field swells in place
   float wv = mix(uWaveA, uWaveB, e);
-  if (wv > 0.0) {
-    p.y += wv * (0.10 * sin(p.z * 2.4 - uTime * 0.6)
-               + 0.07 * sin(p.x * 1.3) * sin(uTime * 0.45 + p.z)
-               + 0.06 * snoise(vec3(p.x * 0.7, p.z * 0.7, uTime * 0.1)));
-  }
+  if (wv > 0.0) p.y += wv * swell(p);
+  // neurons glow at rest and flash as current reaches them; stray points crackle like static
+  vec3 nd3 = e < 0.5 ? aNodeA : aNodeB;
+  float node = nd3.x * smoothstep(0.6, 1.0, abs(2.0 * e - 1.0));
+  float hd = pulseHead(nd3.z) - nd3.y;
+  float flash = node * exp(-hd * hd * 500.0);
+  float crackle = (1.0 - sin(st * 3.14159265))
+    * step(mix(0.996, 0.992, wv), fract(aRand * 977.0 + floor(uTime * 3.0 + aRand * 5.0) * 0.618));
+  float lit = max(max(node * mix(0.35, 0.55, wv), flash), crackle);
   // intro: points gather inward from a loose cloud, each with its own lag (a swarm, not a fade)
   float it = clamp(uIntro * 1.4 - aRand * 0.4, 0.0, 1.0);
   float ie = 1.0 - pow(1.0 - it, 3.0);
@@ -126,7 +147,7 @@ void main(){
   gl_Position = projectionMatrix * mv;
   float depth = -mv.z;
   // the field keeps one fine dot size at any scale, so phones get the same texture
-  gl_PointSize = max(uSize * mix(sc, 0.95, wv) * (0.55 + aRand * 0.9) / depth, 1.4);
+  gl_PointSize = max(uSize * mix(sc, 0.95, wv) * (0.55 + aRand * 0.9) * (1.0 + node * 0.7 + flash * 1.4) / depth, 1.4);
   // thin out points that sit behind the active text block (soft edge)
   vec2 nd = gl_Position.xy / gl_Position.w;
   vec2 qm = abs(nd - uMask.xy) - uMask.zw;
@@ -134,10 +155,66 @@ void main(){
   float keep = mix(1.0, mix(0.04, 1.0, away), uMaskA);
   float sig = step(fract(aRand * 91.7), 0.3);
   float far = smoothstep(5.0, 9.2, depth);
-  vColor = mix(mix(uText, uSignal, sig), uMuted, far * 0.5);
+  vColor = mix(mix(mix(uText, uSignal, sig), uMuted, far * 0.5), uSignal, lit);
   float fade = mix(1.0, mix(1.0, 0.45, far), uDark);
   vA = uAlpha * (0.55 + 0.45 * fract(aRand * 53.1)) * fade * (1.0 + sig * 0.25 * uDark) * keep * ie
-     * (1.0 - mid * 0.85) * mix(1.0, smoothstep(2.25, 1.7, abs(p.x)), wv);
+     * (1.0 - mid * 0.85) * mix(1.0, smoothstep(3.15, 2.8, abs(p.x)), wv) * (1.0 + lit * 1.4);
+}`;
+
+/** A shape's network links: they ride the same shimmer, swell and pose as its points. Current
+ * runs along them by depth, and a link arcs like lightning while the current crosses it. */
+const LINE_VERT = /* glsl */ `
+uniform float uT, uTime, uStrength, uRadius, uIntro, uMode, uSc, uWave;
+uniform mat4 uMatW; // the shape's pose
+uniform vec3 uMouse;
+uniform vec4 uMask;
+uniform float uMaskA;
+attribute float aRand;   // the end point's own random, for the same shimmer
+attribute float aLinkR;  // the later-arriving end of the link, for the morph stagger
+attribute float aDepth;
+attribute float aPhase;
+attribute float aSub;    // 0..1 along the link
+attribute vec3 aJit;     // direction this vertex jumps in when the link arcs
+varying float vDepth, vPhase, vA;
+${NOISE}
+${FIELD}
+${PULSE}
+void main(){
+  vec3 p = position;
+  vec3 q = p * 0.65 + vec3(0.0, 0.0, uTime * 0.18);
+  p += vec3(snoise(q), snoise(q + 31.4), snoise(q + 57.2)) * 0.014;
+  p += sin(uTime * 1.3 + aRand * 40.0 + vec3(0.0, 2.1, 4.2)) * 0.006;
+  p.y += uWave * swell(p);
+  float hd = pulseHead(aPhase) - aDepth;
+  float arc = exp(-hd * hd * 400.0) * sin(aSub * 3.14159265);
+  p += aJit * snoise(vec3(aJit.xy * 7.0, floor(uTime * 16.0))) * arc * 0.08;
+  vec3 w = (uMatW * vec4(p, 1.0)).xyz;
+  vec3 d = w - uMouse; d.z *= 0.5;
+  w += normalize(d + 1e-4) * smoothstep(uRadius, 0.0, length(d)) * uStrength * 0.5 * uSc;
+  gl_Position = projectionMatrix * viewMatrix * vec4(w, 1.0);
+  // links show only once both ends have landed, and go first when the field breaks up
+  float st = clamp(uT * 1.7 - aLinkR * 0.7, 0.0, 1.0);
+  float vis = uMode > 0.0 ? smoothstep(0.85, 1.0, st) : 1.0 - smoothstep(0.0, 0.1, st);
+  vec2 nd = gl_Position.xy / gl_Position.w;
+  vec2 qm = abs(nd - uMask.xy) - uMask.zw;
+  float keep = mix(1.0, mix(0.04, 1.0, smoothstep(0.0, 0.22, length(max(qm, 0.0)))), uMaskA);
+  vA = vis * keep * smoothstep(0.7, 1.0, uIntro) * smoothstep(3.15, 2.8, abs(position.x));
+  vDepth = aDepth;
+  vPhase = aPhase;
+}`;
+
+const LINE_FRAG = /* glsl */ `
+uniform float uTime, uDark, uAlpha, uBase;
+uniform vec3 uText, uSignal;
+varying float vDepth, vPhase, vA;
+${PULSE}
+void main(){
+  float d = pulseHead(vPhase) - vDepth; // > 0: the current has already passed here
+  float glow = exp(-d * d * 900.0) + step(0.0, d) * exp(-d * 9.0) * 0.35;
+  float flicker = 0.8 + 0.2 * sin(uTime * 37.0 + vPhase * 91.0);
+  float a = vA * uAlpha * (uBase * mix(1.0, 0.7, uDark) + glow * flicker * 0.95);
+  if (a < 0.005) discard;
+  gl_FragColor = vec4(mix(uText, uSignal, min(1.0, 0.35 + glow)), a);
 }`;
 
 const FRAG = /* glsl */ `
@@ -152,6 +229,58 @@ void main(){
   if (a < 0.01) discard;
   gl_FragColor = vec4(vColor, a);
 }`;
+
+/** Links split into short pieces so they can arc; per-vertex depth, phase and jump direction. */
+const PIECES = 5;
+function linkGeometry(
+  shape: Float32Array,
+  pairs: Uint32Array,
+  phase: Float32Array,
+  node: Float32Array,
+  rnd: Float32Array,
+) {
+  const links = pairs.length / 2;
+  const verts = links * PIECES * 2;
+  const pos = new Float32Array(verts * 3);
+  const jit = new Float32Array(verts * 3);
+  const own = new Float32Array(verts);
+  const late = new Float32Array(verts);
+  const depth = new Float32Array(verts);
+  const ph = new Float32Array(verts);
+  const sub = new Float32Array(verts);
+  const r = mulberry32(99);
+  let v = 0;
+  for (let l = 0; l < links; l++) {
+    const a = pairs[l * 2];
+    const b = pairs[l * 2 + 1];
+    // one jump direction per joint, shared by the two pieces that meet there
+    const joints = Array.from({ length: PIECES + 1 }, () => [r() * 2 - 1, r() * 2 - 1, r() - 0.5]);
+    for (let k = 0; k < PIECES; k++) {
+      for (const j of [k, k + 1]) {
+        const f = j / PIECES;
+        for (let c = 0; c < 3; c++) {
+          pos[v * 3 + c] = shape[a * 3 + c] + (shape[b * 3 + c] - shape[a * 3 + c]) * f;
+          jit[v * 3 + c] = joints[j][c];
+        }
+        own[v] = f < 0.5 ? rnd[a] : rnd[b];
+        late[v] = Math.max(rnd[a], rnd[b]);
+        depth[v] = node[a * 3 + 1] + (node[b * 3 + 1] - node[a * 3 + 1]) * f;
+        ph[v] = phase[l];
+        sub[v] = f;
+        v++;
+      }
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+  g.setAttribute("aJit", new THREE.BufferAttribute(jit, 3));
+  g.setAttribute("aRand", new THREE.BufferAttribute(own, 1));
+  g.setAttribute("aLinkR", new THREE.BufferAttribute(late, 1));
+  g.setAttribute("aDepth", new THREE.BufferAttribute(depth, 1));
+  g.setAttribute("aPhase", new THREE.BufferAttribute(ph, 1));
+  g.setAttribute("aSub", new THREE.BufferAttribute(sub, 1));
+  return g;
+}
 
 interface Props {
   /** At least two shapes (Float32Array of n*3 each). */
@@ -176,6 +305,7 @@ export function SignalPoints({
   const { colors, mood } = useThemeColors();
   const dark = mood === "dark";
   const seg = useRef(-1);
+  const lineRefs = useRef<(THREE.LineSegments | null)[]>([]);
   const introStart = useRef(-1);
   const pointer = useRef({ x: 0, y: 0, inside: false });
   const raycaster = useMemo(() => new THREE.Raycaster(), []);
@@ -192,18 +322,24 @@ export function SignalPoints({
   );
   const gl = useThree((s) => s.gl);
 
+  const rnd = useMemo(() => {
+    const out = new Float32Array(count);
+    let a = 12345;
+    for (let i = 0; i < count; i++) {
+      a = (Math.imul(a, 1664525) + 1013904223) >>> 0;
+      out[i] = a / 4294967296;
+    }
+    return out;
+  }, [count]);
+
   const { geometry, material } = useMemo(() => {
     const g = new THREE.BufferGeometry();
     g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(count * 3), 3));
     g.setAttribute("aFrom", new THREE.BufferAttribute(new Float32Array(count * 3), 3));
     g.setAttribute("aTo", new THREE.BufferAttribute(new Float32Array(count * 3), 3));
-    const rnd = new Float32Array(count);
-    let a = 12345;
-    for (let i = 0; i < count; i++) {
-      a = (Math.imul(a, 1664525) + 1013904223) >>> 0;
-      rnd[i] = a / 4294967296;
-    }
     g.setAttribute("aRand", new THREE.BufferAttribute(rnd, 1));
+    g.setAttribute("aNodeA", new THREE.BufferAttribute(new Float32Array(count * 3), 3));
+    g.setAttribute("aNodeB", new THREE.BufferAttribute(new Float32Array(count * 3), 3));
     const v = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
     const m = new THREE.ShaderMaterial({
       vertexShader: VERT,
@@ -234,7 +370,47 @@ export function SignalPoints({
       },
     });
     return { geometry: g, material: m };
-  }, [count]);
+  }, [count, rnd]);
+
+  // One network per shape (the wave's flows toward the viewer, the rest fire like neurons). Each
+  // shares the points' uniform objects so the two stay in step.
+  const nets = useMemo(
+    () =>
+      shapes.map((full, k) => {
+        const shape = full.subarray(0, count * 3);
+        const { pairs, phase, node } =
+          k === waveShape ? waveNet(shape) : neuralNet(shape, 110, 2, 5 + k);
+        const g = linkGeometry(shape, pairs, phase, node, rnd);
+        const u = material.uniforms;
+        const m = new THREE.ShaderMaterial({
+          vertexShader: LINE_VERT,
+          fragmentShader: LINE_FRAG,
+          transparent: true,
+          depthWrite: false,
+          uniforms: {
+            uT: u.uT,
+            uTime: u.uTime,
+            uStrength: u.uStrength,
+            uRadius: u.uRadius,
+            uIntro: u.uIntro,
+            uMouse: u.uMouse,
+            uMask: u.uMask,
+            uMaskA: u.uMaskA,
+            uDark: u.uDark,
+            uAlpha: u.uAlpha,
+            uText: u.uText,
+            uSignal: u.uSignal,
+            uWave: { value: k === waveShape ? 1 : 0 },
+            uBase: { value: k === waveShape ? 0.16 : 0.09 },
+            uMode: { value: 0 },
+            uSc: { value: 1 },
+            uMatW: { value: new THREE.Matrix4() },
+          },
+        });
+        return { geometry: g, material: m, node };
+      }),
+    [shapes, waveShape, count, rnd, material],
+  );
 
   useEffect(
     () => () => {
@@ -244,16 +420,28 @@ export function SignalPoints({
     [geometry, material],
   );
 
+  useEffect(
+    () => () => {
+      for (const n of nets) {
+        n.geometry.dispose();
+        n.material.dispose();
+      }
+    },
+    [nets],
+  );
+
   // shapes changed (e.g. glyph arrived): force a buffer copy on the next frame
-  // biome-ignore lint/correctness/useExhaustiveDependencies: shapes is the trigger
+  // biome-ignore lint/correctness/useExhaustiveDependencies: shapes and nets are the trigger
   useEffect(() => {
     seg.current = -1;
-  }, [shapes]);
+  }, [shapes, nets]);
 
   useEffect(() => {
-    material.blending = dark ? THREE.AdditiveBlending : THREE.NormalBlending;
-    material.needsUpdate = true;
-  }, [dark, material]);
+    for (const m of [material, ...nets.map((n) => n.material)]) {
+      m.blending = dark ? THREE.AdditiveBlending : THREE.NormalBlending;
+      m.needsUpdate = true;
+    }
+  }, [dark, material, nets]);
 
   useEffect(() => {
     const move = (e: PointerEvent) => {
@@ -296,6 +484,14 @@ export function SignalPoints({
       to.array.set(shapes[sg + 1].subarray(0, count * 3));
       from.needsUpdate = true;
       to.needsUpdate = true;
+      for (const [name, k] of [
+        ["aNodeA", sg],
+        ["aNodeB", sg + 1],
+      ] as const) {
+        const a = geometry.getAttribute(name) as THREE.BufferAttribute;
+        a.array.set(nets[k].node);
+        a.needsUpdate = true;
+      }
     }
     u.uT.value = t;
     u.uTime.value = state.clock.elapsedTime;
@@ -314,6 +510,17 @@ export function SignalPoints({
     u.uWaveA.value = sg === waveShape ? 1 : 0;
     u.uWaveB.value = sg + 1 === waveShape ? 1 : 0;
     u.uDissolve.value = sg === waveShape ? 1 : 0;
+    // a shape's links live in its pose: arriving (it is `to`) or leaving (it is `from`)
+    nets.forEach((n, k) => {
+      const mode = k === sg ? -1 : k === sg + 1 ? 1 : 0;
+      const line = lineRefs.current[k];
+      if (line) line.visible = mode !== 0;
+      if (mode === 0) return;
+      const lu = n.material.uniforms;
+      lu.uMode.value = mode;
+      lu.uMatW.value.copy(mode < 0 ? u.uMatA.value : u.uMatB.value);
+      lu.uSc.value = mode < 0 ? from.scale : to.scale;
+    });
 
     // theme colours ease
     const c = cur.current;
@@ -359,7 +566,24 @@ export function SignalPoints({
     }
   });
 
-  return <points geometry={geometry} material={material} frustumCulled={false} />;
+  return (
+    <>
+      {nets.map((n, k) => (
+        <lineSegments
+          // biome-ignore lint/suspicious/noArrayIndexKey: one network per shape, in shape order
+          key={k}
+          ref={(o) => {
+            lineRefs.current[k] = o;
+          }}
+          geometry={n.geometry}
+          material={n.material}
+          frustumCulled={false}
+          visible={false}
+        />
+      ))}
+      <points geometry={geometry} material={material} frustumCulled={false} />
+    </>
+  );
 }
 
 export const CAMERA = { position: [0, 0, CAM_Z] as [number, number, number], fov: FOV };

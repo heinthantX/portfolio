@@ -341,27 +341,151 @@ export function shipped(n: number, seed = 6): Float32Array {
   return build(n, seed, parts);
 }
 
+/** Wave grid: columns per row, and half-widths of the far (v = 0) and near (v = 1) rows. */
+const WAVE_RATIO = 3.4;
+const WAVE_FAR = 3.1;
+const WAVE_NEAR = 2.1;
+const waveSize = (n: number) => {
+  const cols = Math.round(Math.sqrt(n * WAVE_RATIO));
+  return { cols, rows: Math.max(2, Math.ceil(n / cols)) };
+};
+// rows pack tighter toward the horizon; the far rows are widest so perspective still fills the view
+const waveZ = (v: number) => -1 + 2 * v ** 1.35;
+const waveV = (z: number) => Math.max(0, (z + 1) / 2) ** (1 / 1.35);
+const waveHalfW = (v: number) => WAVE_FAR + (WAVE_NEAR - WAVE_FAR) * v;
+
 /**
- * A dotted landscape: a grid on the XZ plane (z -1 far .. 1 near) with a gentle rolling height.
- * The pose tilts it so the far rows sit toward a horizon; the shader adds the live swell.
+ * A dotted landscape: a grid on the XZ plane (z -1 far .. 1 near) with a gentle rolling height,
+ * wide enough to run past both edges of the view. The pose tilts it so the far rows sit toward a
+ * horizon; the shader adds the live swell.
  */
 export function wave(n: number, seed = 7): Float32Array {
   const out = new Float32Array(n * 3);
   const r = mulberry32(seed);
-  const cols = Math.round(Math.sqrt(n * 2.6));
-  const rows = Math.max(2, Math.ceil(n / cols));
+  const { cols, rows } = waveSize(n);
   for (let i = 0; i < n; i++) {
     const u = (i % cols) / (cols - 1);
     const v = Math.floor(i / cols) / (rows - 1);
-    // rows pack tighter toward the horizon; far rows are wider so the field reads as receding
-    const z = -1 + 2 * v ** 1.35;
-    const x = (u * 2 - 1) * (2.2 - 0.6 * v) + (r() - 0.5) * 0.01;
+    const z = waveZ(v);
+    const x = (u * 2 - 1) * waveHalfW(v) + (r() - 0.5) * 0.01;
     const y = 0.09 * Math.sin(x * 1.3 + z * 0.8) + 0.06 * Math.sin(z * 3.1 - x * 0.5);
     out[i * 3] = x;
     out[i * 3 + 1] = y;
     out[i * 3 + 2] = z;
   }
   return out;
+}
+
+/** Grid column and row of each point of a `wave` field, recovered from its position (any order). */
+export function waveCells(field: Float32Array) {
+  const n = field.length / 3;
+  const { cols, rows } = waveSize(n);
+  const col = new Int32Array(n);
+  const row = new Int32Array(n);
+  for (let i = 0; i < n; i++) {
+    const rw = Math.round(waveV(field[i * 3 + 2]) * (rows - 1));
+    const u = (field[i * 3] / waveHalfW(rw / (rows - 1)) + 1) / 2;
+    row[i] = rw;
+    col[i] = Math.round(u * (cols - 1));
+  }
+  return { col, row, cols, rows };
+}
+
+/**
+ * The network over the wave: paths of links that wander from the horizon toward the viewer, so
+ * current always flows forward. `pairs` holds point indices (two per link); `node` holds, per
+ * point, [on a path 0|1, depth 0 far..1 near, the path's pulse phase]; `phase` is per link.
+ */
+export function waveNet(field: Float32Array, paths = 34, seed = 11) {
+  const n = field.length / 3;
+  const { col, row, cols, rows } = waveCells(field);
+  const at = new Int32Array(cols * rows).fill(-1);
+  for (let i = 0; i < n; i++) at[row[i] * cols + col[i]] = i;
+  const r = mulberry32(seed);
+  const pairs: number[] = [];
+  const phase: number[] = [];
+  const node = new Float32Array(n * 3);
+  const mark = (i: number, ph: number) => node.set([1, row[i] / (rows - 1), ph], i * 3);
+  for (let k = 0; k < paths; k++) {
+    let c = Math.floor((0.04 + r() * 0.92) * cols);
+    let rw = Math.floor(r() * rows * 0.45);
+    const ph = r();
+    let prev = at[rw * cols + c];
+    if (prev < 0) continue;
+    mark(prev, ph);
+    while (rw < rows - 1) {
+      rw = Math.min(rows - 1, rw + 3 + Math.floor(r() * Math.max(2, rows * 0.12)));
+      c = Math.min(cols - 1, Math.max(0, c + Math.round((r() - 0.5) * cols * 0.09)));
+      const next = at[rw * cols + c];
+      if (next < 0) continue;
+      pairs.push(prev, next);
+      phase.push(ph);
+      mark(next, ph);
+      prev = next;
+    }
+  }
+  return { pairs: Uint32Array.from(pairs), phase: Float32Array.from(phase), node };
+}
+
+/**
+ * A sparse "neural" graph over any shape: spread-out points (neurons), each wired to its nearest
+ * neighbours. A node's depth is its hop count from its cluster's first neuron, packed into
+ * 0..`span`, so a pulse fired there cascades through the cluster and then rests until the next
+ * one. Output matches waveNet.
+ */
+export function neuralNet(shape: Float32Array, neurons = 110, links = 2, seed = 5, span = 0.4) {
+  const n = shape.length / 3;
+  const r = mulberry32(seed);
+  const d2 = (i: number, j: number) =>
+    (shape[i * 3] - shape[j * 3]) ** 2 +
+    (shape[i * 3 + 1] - shape[j * 3 + 1]) ** 2 +
+    (shape[i * 3 + 2] - shape[j * 3 + 2]) ** 2;
+  const pick: number[] = [];
+  for (let t = 0; pick.length < neurons && t < neurons * 8; t++) {
+    const i = Math.floor(r() * n);
+    if (pick.every((j) => d2(i, j) > 0.03)) pick.push(i);
+  }
+  const adj = pick.map(() => new Set<number>());
+  pick.forEach((i, a) => {
+    pick
+      .map((j, b) => [b, d2(i, j)] as const)
+      .filter(([b, d]) => b !== a && d < 0.8)
+      .sort((x, y) => x[1] - y[1])
+      .slice(0, links)
+      .forEach(([b]) => {
+        adj[a].add(b);
+        adj[b].add(a);
+      });
+  });
+  const pairs: number[] = [];
+  const phase: number[] = [];
+  const node = new Float32Array(n * 3);
+  const hops = new Int32Array(pick.length).fill(-1);
+  for (let s0 = 0; s0 < pick.length; s0++) {
+    if (hops[s0] >= 0 || adj[s0].size === 0) continue;
+    const ph = r();
+    const cluster = [s0];
+    hops[s0] = 0;
+    for (let q = 0; q < cluster.length; q++) {
+      for (const b of adj[cluster[q]]) {
+        if (hops[b] >= 0) continue;
+        hops[b] = hops[cluster[q]] + 1;
+        cluster.push(b);
+      }
+    }
+    const far = Math.max(1, ...cluster.map((a) => hops[a]));
+    for (const a of cluster) {
+      node.set([1, (hops[a] / far) * span, ph], pick[a] * 3);
+      // each link once, from the nearer end, so current runs outward
+      for (const b of adj[a]) {
+        if (hops[b] > hops[a] || (hops[b] === hops[a] && b > a)) {
+          pairs.push(pick[a], pick[b]);
+          phase.push(ph);
+        }
+      }
+    }
+  }
+  return { pairs: Uint32Array.from(pairs), phase: Float32Array.from(phase), node };
 }
 
 /**

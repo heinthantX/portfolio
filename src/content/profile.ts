@@ -52,8 +52,8 @@ export const profile = profileSchema.parse({
     {
       id: "data",
       title: "Data",
-      stack: ["Postgres", "Drizzle", "Prisma", "Redis"],
-      pitch: "Schemas and migrations that are safe to evolve",
+      stack: ["Postgres", "MySQL", "MongoDB", "Redis", "Drizzle", "Prisma"],
+      pitch: "Relational and NoSQL data models that are safe to evolve",
       cover: "/media/cap-data.avif",
     },
     {
@@ -134,9 +134,10 @@ export const profile = profileSchema.parse({
     {
       id: "data",
       label: "DATA",
-      tech: ["Postgres", "Redis", "Drizzle", "Prisma"],
+      tech: ["Postgres", "MySQL", "MongoDB", "Redis", "Drizzle", "Prisma"],
       points: [
-        "Postgres schemas with constraints that keep bad data out",
+        "SQL and NoSQL: Postgres and MySQL for relational data, MongoDB for documents",
+        "Schemas and validation rules that keep bad data out, whichever store it lives in",
         "Zero-downtime migrations: expand, backfill, then contract",
         "Redis caching and queues with explicit invalidation rules",
       ],

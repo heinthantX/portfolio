@@ -4,6 +4,8 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { useThemeColors } from "@/lib/use-theme-colors";
+import { nearestLinks } from "./firing";
+import { Synapses } from "./Synapses";
 import type { AmbientVariant } from "./variant";
 
 /** Mutable state shared with the scenes; nothing here triggers React renders. */
@@ -55,6 +57,29 @@ function useCursor() {
 }
 
 /* ---------- sheets: floating drawing-sheet frames ---------- */
+interface Sheet {
+  w: number;
+  x: number;
+  y: number;
+  z: number;
+  rot: number;
+  ph: number;
+}
+
+/** Corner k (bit 0: right, bit 1: top) of a drifting sheet at time t, in scene units. */
+function sheetCorner(sh: Sheet, k: number, t: number) {
+  const y = sh.y + Math.sin(t * 0.05 + sh.ph) * 0.5;
+  const z = sh.z + Math.sin(t * 0.08 + sh.ph) * 0.9;
+  const rot = sh.rot + Math.sin(t * 0.04 + sh.ph) * 0.02;
+  const cx = (k & 1 ? 1 : -1) * Math.SQRT1_2 * sh.w;
+  const cy = (k & 2 ? 1 : -1) * 0.5 * sh.w;
+  return [
+    sh.x + cx * Math.cos(rot) - cy * Math.sin(rot),
+    y + cx * Math.sin(rot) + cy * Math.cos(rot),
+    z,
+  ];
+}
+
 function Sheets({ s }: { s: Shared }) {
   const n = s.low ? 3 : 5;
   const geo = useDisposable(() => {
@@ -101,16 +126,25 @@ function Sheets({ s }: { s: Shared }) {
   });
   const sheets = useMemo(() => {
     const r = rngFrom(7);
-    return Array.from({ length: n }, (_, i) => ({
-      w: 7 + r() * 5,
-      x: (r() - 0.5) * 12,
-      y: (r() - 0.5) * 7,
-      z: -2 - i * 1.6,
-      rot: (r() - 0.5) * 0.12,
-      ph: r() * 6.28,
-    }));
+    return Array.from(
+      { length: n },
+      (_, i): Sheet => ({
+        w: 7 + r() * 5,
+        x: (r() - 0.5) * 12,
+        y: (r() - 0.5) * 7,
+        z: -2 - i * 1.6,
+        rot: (r() - 0.5) * 0.12,
+        ph: r() * 6.28,
+      }),
+    );
   }, [n]);
   const refs = useRef<(THREE.LineSegments | null)[]>([]);
+  // every sheet corner is a neuron, wired to the nearest corners of the other sheets
+  const corners = useMemo(() => new Float32Array(n * 4 * 3), [n]);
+  const links = useMemo(() => {
+    const pts = sheets.flatMap((sh) => [0, 1, 2, 3].map((k) => sheetCorner(sh, k, 0)));
+    return nearestLinks(pts, 3).filter(([a, b]) => a >> 2 !== b >> 2);
+  }, [sheets]);
 
   useFrame(({ clock }) => {
     mat.opacity = s.alpha * 0.5;
@@ -124,6 +158,7 @@ function Sheets({ s }: { s: Shared }) {
         sh.z + Math.sin(t * 0.08 + sh.ph) * 0.9,
       );
       o.rotation.z = sh.rot + Math.sin(t * 0.04 + sh.ph) * 0.02;
+      for (let k = 0; k < 4; k++) corners.set(sheetCorner(sh, k, t), (i * 4 + k) * 3);
     });
   });
 
@@ -141,6 +176,7 @@ function Sheets({ s }: { s: Shared }) {
           scale={[sh.w, sh.w, 1]}
         />
       ))}
+      <Synapses s={s} positions={corners} edges={links} seed={7} nodeSize={0.14} opacity={0.8} />
     </>
   );
 }
@@ -170,6 +206,17 @@ function Field({ s }: { s: Shared }) {
     m.color = s.strong;
     return m;
   });
+  // a sparse set of dots are neurons riding the same surface
+  const { neurons, links } = useMemo(() => {
+    const r = rngFrom(31);
+    const picked = new Set<number>();
+    const want = s.low ? 14 : 30;
+    while (picked.size < want) picked.add(Math.floor(r() * cols * rows));
+    const neurons = [...picked];
+    const pts = neurons.map((k) => [base[k * 2] * 1.7, base[k * 2 + 1]]);
+    return { neurons, links: nearestLinks(pts, 2, 0.45) };
+  }, [s.low, cols, rows, base]);
+  const nodePos = useMemo(() => new Float32Array(neurons.length * 3), [neurons]);
 
   useFrame(({ clock, viewport }) => {
     const o = ref.current;
@@ -192,10 +239,19 @@ function Field({ s }: { s: Shared }) {
       pos.setXYZ(k, x, y, z);
     }
     pos.needsUpdate = true;
-    o.position.z = -1;
+    neurons.forEach((k, i) => {
+      nodePos[i * 3] = pos.getX(k);
+      nodePos[i * 3 + 1] = pos.getY(k);
+      nodePos[i * 3 + 2] = pos.getZ(k);
+    });
   });
 
-  return <points ref={ref} geometry={geo} material={mat} frustumCulled={false} />;
+  return (
+    <group position={[0, 0, -1]}>
+      <points ref={ref} geometry={geo} material={mat} frustumCulled={false} />
+      <Synapses s={s} positions={nodePos} edges={links} seed={31} nodeSize={0.1} />
+    </group>
+  );
 }
 
 /* ---------- graph: sparse service graph, edges light up near cursor ---------- */
@@ -232,73 +288,34 @@ function Graph({ s }: { s: Shared }) {
     return { nodes, edges };
   }, [s.low]);
 
-  const lineGeo = useDisposable(() => {
-    const g = new THREE.BufferGeometry();
-    g.setAttribute(
-      "position",
-      new THREE.Float32BufferAttribute(
-        edges.flatMap(([a, b]) => [...nodes[a], ...nodes[b]]),
-        3,
-      ),
-    );
-    g.setAttribute("color", new THREE.BufferAttribute(new Float32Array(edges.length * 6), 3));
-    return g;
-  });
-  const pointGeo = useDisposable(() => {
-    const g = new THREE.BufferGeometry();
-    g.setAttribute("position", new THREE.Float32BufferAttribute(nodes.flat(), 3));
-    g.setAttribute("color", new THREE.BufferAttribute(new Float32Array(nodes.length * 3), 3));
-    return g;
-  });
-  const lineMat = useDisposable(
-    () => new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false }),
-  );
-  const pointMat = useDisposable(
-    () =>
-      new THREE.PointsMaterial({
-        size: 0.11,
-        vertexColors: true,
-        transparent: true,
-        depthWrite: false,
-      }),
-  );
+  const positions = useMemo(() => Float32Array.from(nodes.flat()), [nodes]);
+  const prox = useMemo(() => new Float32Array(nodes.length), [nodes]);
   const group = useRef<THREE.Group>(null);
-  const tmp = useMemo(() => new THREE.Color(), []);
 
   useFrame(({ viewport }) => {
     const c = cursor(s, viewport.width * 0.9, viewport.height * 0.9);
     group.current?.scale.set(c.w, c.h, 1);
-    lineMat.opacity = s.alpha * 0.8;
-    pointMat.opacity = s.alpha * 1.2;
-    const prox = nodes.map(([x, y]) => {
-      if (!s.moved) return 0;
-      const d = Math.hypot(x * c.w - c.cx, y * c.h - c.cy);
-      return Math.max(0, 1 - d / 3.2);
+    nodes.forEach(([x, y], i) => {
+      prox[i] = s.moved ? Math.max(0, 1 - Math.hypot(x * c.w - c.cx, y * c.h - c.cy) / 3.2) : 0;
     });
-    const lc = lineGeo.attributes.color as THREE.BufferAttribute;
-    edges.forEach(([a, b], k) => {
-      tmp.copy(s.strong).lerp(s.accent, Math.max(prox[a], prox[b]) ** 1.2);
-      lc.setXYZ(k * 2, tmp.r, tmp.g, tmp.b);
-      lc.setXYZ(k * 2 + 1, tmp.r, tmp.g, tmp.b);
-    });
-    lc.needsUpdate = true;
-    const pc = pointGeo.attributes.color as THREE.BufferAttribute;
-    prox.forEach((p, i) => {
-      tmp.copy(s.strong).lerp(s.accent, p);
-      pc.setXYZ(i, tmp.r, tmp.g, tmp.b);
-    });
-    pc.needsUpdate = true;
   });
 
   return (
     <group ref={group}>
-      <lineSegments geometry={lineGeo} material={lineMat} frustumCulled={false} />
-      <points geometry={pointGeo} material={pointMat} frustumCulled={false} />
+      <Synapses
+        s={s}
+        positions={positions}
+        edges={edges}
+        seed={11}
+        options={{ rate: 0.13, travel: 0.5 }}
+        boost={(i) => prox[i] * 1.6}
+        nodeSize={0.13}
+      />
     </group>
   );
 }
 
-/* ---------- packets: orthogonal routes, amber packets flowing right ---------- */
+/* ---------- packets: orthogonal routes, amber packets rising; corners are neurons ---------- */
 function Packets({ s }: { s: Shared }) {
   const routes = useMemo(() => {
     const r = rngFrom(23);
@@ -309,14 +326,17 @@ function Packets({ s }: { s: Shared }) {
       const y2 = lane + (r() - 0.5) * 0.25;
       const x1 = -0.3 + r() * 0.2;
       const x2 = 0.1 + r() * 0.25;
-      const pts: [number, number][] = [
-        [-0.6, lane],
-        [x1, lane],
-        [x1, y1],
-        [x2, y1],
-        [x2, y2],
-        [0.6, y2],
-      ];
+      // laid out left to right, then turned upright: packets rise instead of moving sideways
+      const pts = (
+        [
+          [-0.6, lane],
+          [x1, lane],
+          [x1, y1],
+          [x2, y1],
+          [x2, y2],
+          [0.6, y2],
+        ] as const
+      ).map(([a, b]): [number, number] => [b, a]);
       const lens = pts.slice(1).map((p, k) => Math.hypot(p[0] - pts[k][0], p[1] - pts[k][1]));
       return {
         pts,
@@ -329,6 +349,12 @@ function Packets({ s }: { s: Shared }) {
   }, [s.low]);
   const per = 2;
   const group = useRef<THREE.Group>(null);
+  // the route bends, wired across to the neighbouring routes
+  const { corners, links } = useMemo(() => {
+    const pts = routes.flatMap((rt) => rt.pts.slice(1, -1));
+    const links = nearestLinks(pts, 2).filter(([a, b]) => Math.floor(a / 4) !== Math.floor(b / 4));
+    return { corners: Float32Array.from(pts.flatMap(([x, y]) => [x, y, 0])), links };
+  }, [routes]);
   const cursor = useCursor();
   const lineGeo = useDisposable(() => {
     const g = new THREE.BufferGeometry();
@@ -385,6 +411,7 @@ function Packets({ s }: { s: Shared }) {
     <group ref={group}>
       <lineSegments geometry={lineGeo} material={lineMat} frustumCulled={false} />
       <points geometry={pGeo} material={pMat} frustumCulled={false} />
+      <Synapses s={s} positions={corners} edges={links} seed={23} nodeSize={0.1} opacity={0.7} />
     </group>
   );
 }

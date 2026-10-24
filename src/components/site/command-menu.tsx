@@ -376,7 +376,7 @@ export function CommandMenu({ items }: CommandMenuProps) {
                 aria-label="Close command palette"
                 title="Close"
                 onClick={() => handleOpenChange(false)}
-                className="size-2.5 cursor-pointer rounded-full bg-signal/70 transition-[background-color,transform] hover:scale-125 hover:bg-signal"
+                className="relative size-2.5 cursor-pointer rounded-full bg-signal/70 transition-[background-color,transform] before:absolute before:-inset-2 before:content-[''] hover:scale-125 hover:bg-signal"
               />
             </div>
             <div

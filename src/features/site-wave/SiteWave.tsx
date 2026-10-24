@@ -8,7 +8,8 @@ import { useHero } from "./store";
 const WaveCanvas = dynamic(() => import("./WaveCanvas"), { ssr: false });
 
 /**
- * WebGL present and idle reached; point count and pixel ratio by device; tab visibility. Under
+ * WebGL present and idle reached; point count and pixel ratio by device; paused while the tab
+ * is hidden or a modal is open. Under
  * reduced motion the wave still loads, as one still frame.
  */
 function useSiteGate() {
@@ -16,6 +17,7 @@ function useSiteGate() {
   const [still, setStill] = useState(false);
   const [mobile, setMobile] = useState(false);
   const [hidden, setHidden] = useState(false);
+  const [modal, setModal] = useState(false);
 
   useEffect(() => {
     if (!hasWebGL()) return;
@@ -36,7 +38,16 @@ function useSiteGate() {
     return () => document.removeEventListener("visibilitychange", vis);
   }, []);
 
-  return { ready, still, mobile, count: mobile ? 6000 : 16000, hidden };
+  // A modal (command palette, dialogs) covers the page and locks scroll: hold the frame until it closes.
+  useEffect(() => {
+    const body = document.body;
+    const sync = () => setModal(body.hasAttribute("data-scroll-locked"));
+    const mo = new MutationObserver(sync);
+    mo.observe(body, { attributes: true, attributeFilter: ["data-scroll-locked"] });
+    return () => mo.disconnect();
+  }, []);
+
+  return { ready, still, mobile, count: mobile ? 6000 : 16000, paused: hidden || modal };
 }
 
 /**
@@ -58,7 +69,7 @@ export function SiteWave() {
         count={gate.count}
         still={gate.still}
         mobile={gate.mobile}
-        frameloop={gate.still ? "demand" : gate.hidden ? "never" : "always"}
+        frameloop={gate.still ? "demand" : gate.paused ? "never" : "always"}
       />
     </div>
   );

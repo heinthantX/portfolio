@@ -31,3 +31,6 @@ Do not highlight individual skill tags (no signal-coloured tag for MongoDB or No
 
 ## E2E against the prod server: kill the port first
 `next start` keeps serving the old build after a rebuild, so stale chunks load and the canvas never mounts in e2e. Kill the port before restarting the server, then run the tests.
+
+## Command menu placeholder is a test contract
+The command menu input keeps the placeholder "Type a command or search...". The e2e tests rely on it, so change the copy only together with the tests. See `docs/specs/command-menu.md`.

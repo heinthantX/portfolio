@@ -5,3 +5,4 @@
 | signal-hero | Particle hero: 7 chapters over 450vh, wave drop, per-shape neural networks, speed-aware chapter snap (slow follows, swipe is one chapter, hard fling goes free), vertical-only text | docs/specs/signal-hero.md | 2026-10-24 |
 | scroll-words | Word-split scroll reveals (CSS view timelines or a driven `--reveal`) with a 5-word flip-up window and accent glow, on home and the hero manifesto | docs/specs/scroll-words.md | 2026-10-24 |
 | ambient-scene | Sub-page R3F backgrounds per route (sheets, firing field, firing graph, packets) with a CPU synapse overlay and vertical-only motion | docs/specs/ambient-scene.md | 2026-10-24 |
+| command-menu | Terminal-styled command palette: tabs filter groups, exact case-insensitive commands (help, whoami, neofetch, ls projects, git log, kubectl get skills, sudo hire-me) | docs/specs/command-menu.md | 2026-10-24 |

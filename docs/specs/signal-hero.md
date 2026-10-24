@@ -16,7 +16,7 @@ Rationale and history: `docs/design/DECISIONS.md` (D7 concept, D8 motion rules, 
   - `timeline.ts`: `CHAPTER_IDS` is the source: intro, wave, interface, api, data, infra, shipped. `CHAPTERS`, `LAYER_OFFSET` (2) and `WAVE_CHAPTER` (1) derive from it. `chapterPose(i, view)` gives each chapter's resting pose; `Drive` is `{s, from, to}`. `FORMATION_SIDE` = `[0,0,1,1,1,1,0]`. Morph window `W` = 0.077. Text windows 0.004–0.043.
   - `useChapterSnap.ts` (tests in `useChapterSnap.test.ts`): `useChapterSnap(sectionRef, lenis, enabled)` returns `goTo(chapter)`. Pure helpers `nextStop` and `settleStop` are tested. Each wheel gesture is classed as slow, swipe or free from its raw delta (Core Flows 10).
   - `src/components/site/wheel.ts`: `interceptWheel(fn)` registers the hook. `capWheelDelta` calls it, then `preventDefault` and returns false to swallow the event.
-  - `SignalHero.tsx`: DOM layer. Sticky stage, chapter copy, layer cards, wave manifesto, stack outline.
+  - `SignalHero.tsx`: DOM layer. Sticky stage, chapter copy, layer cards, wave manifesto, stack outline, chapter rail (`RAIL_LABELS`, `group/rail`).
 - Wave pose: x 0, Y_H -0.37 × view height, rotX 0.35, scale min(3.2, 1.12 × w/4.4). Mobile: `MOBILE_Y_H` -0.3, `MOBILE_FIT` 1.35, rotX 0.5.
 - Hero section height is `450vh` (about 4.5 screens of scroll).
 - Scroll progress (0..1) is read in rAF/`useFrame` only. Never in React state.
@@ -39,7 +39,13 @@ Rationale and history: `docs/design/DECISIONS.md` (D7 concept, D8 motion rules, 
    - Desktop places the block at padding-top 16svh; mobile at 14svh.
 7. **Idle:** `breathe()` scales the formation by 1 ± 1.2% on `sin(t*0.9)`. The 404 scene uses the same pulse.
 8. **Cursor:** acts in world space within radius 0.95, on the formation only. It never changes scroll or chapter state.
-9. **Navigation:** the chapter rail (01–05, right edge) and the stack outline (desktop, four layers, `goTo(j + LAYER_OFFSET)`) both call `goTo`. They never call `lenis.scrollTo` directly.
+9. **Navigation:** the chapter rail and the stack outline (desktop, four layers, `goTo(j + LAYER_OFFSET)`) both call `goTo`. They never call `lenis.scrollTo` directly.
+   - **Chapter rail (desktop, right edge):** one tick per chapter, seven in total. Each tick has a mono, uppercase label from `RAIL_LABELS`: "01 INTRO" … "07 SHIPPED".
+     - The active chapter's label is always visible, in signal colour.
+     - Hovering the rail (`group/rail`) shows every label on a bg/70 chip.
+     - Keyboard focus on a tick shows that tick's label.
+     - Labels only fade. They never slide (no sideways motion).
+   - **Mobile:** the bottom tick rail, without labels.
 10. **Wheel snap (hero only):** speed is the raw WheelEvent delta (deltaMode-adjusted) over a 100ms window. It is read before `capWheelDelta` caps each event at 120px (D11).
     - **Slow, under 1800 px/s:** the page follows the hand. Inside the hero, Lenis lerp is 0.16 (base 0.09) and delta gain 1.15. When the gesture is quiet for 160ms, it finishes the chapter in the direction of travel at the same pace: `playSeconds` with `STEP_S` 1.05s per chapter, minimum 0.3s, easeOut. A move under 4% of vh springs back.
     - **Swipe, 1800 px/s or more:** plays exactly one chapter at a fixed pace, never faster for harder swipes. `easeSwipe` = 1-(1-t)^2 moves from the first frame. The rest of the gesture is swallowed. A new swipe during a playing chapter queues one more; a reverse swipe turns straight back.
@@ -65,6 +71,7 @@ Rationale and history: `docs/design/DECISIONS.md` (D7 concept, D8 motion rules, 
 
 ## Autonomous UX Polish
 - The stack outline and chapter rail double as navigation through the same snap. The active row uses the signal colour and `aria-current="step"`. Colour transition is 200 ms.
+- The rail's active label stays readable without hover, so the current chapter is named at all times. Hover and focus reveal the rest.
 - Networks start mid-activity rather than dead, so the scene reads as alive before the first scroll.
 - Rail clicks use the same snap as the wheel, so they never fight it.
 - The manifesto layer grid doubles as navigation: hover colour and a 200 ms arrow nudge.

@@ -30,6 +30,7 @@ Rationale and history: `docs/design/DECISIONS.md` (D7 concept, D8 motion rules, 
 2. **Intro → Wave:** the name's points drop into a perspective dotted field that runs past both screen edges across the bottom third. The drop is near-vertical.
 3. **Wave → Interface:** points stream mid-flight, then condense into the right column. Each point regathers on its own stagger, so the formation never slides.
    - **Chapter stream (D23):** every morph runs points along noise currents in ribbons with gold packets (3.5%), enveloped to 0 at rest. Strength `flowStrength`: 1 intro → wave, 0.42 elsewhere. Scroll speed (`streamEnergy` → `uEnergy`, `streamLag` → `uLag`) stirs and strings it out; holding mid-morph keeps it drifting; in-flight points take a stronger cursor push plus swirl (desktop).
+   - **Chapter travel (D24, trial):** between chapters the whole formation flies a curved Bézier route (`routeControl`) while it morphs; rest poses unchanged. Pinned version: `backup/hero-stream-pinned`.
 4. **Interface → API → Data → Infrastructure:** the formation holds the right column and the text stays on the left. `ROT_Y` is constant per layer.
    - Each layer card shows its title, tech tags and 3 capability bullets.
    - Text blocks enter once and leave back to their own side (windows 0.004–0.043). Intro, wave and finale rise 48px from below and leave 32px upward. Layer cards slide in from alternating sides, `min(96px, 7% of viewport width)`. Enter and leave offsets are squared, so blocks arrive fast and settle softly (D12).

@@ -5,7 +5,7 @@ import { type RefObject, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { useThemeColors } from "@/lib/use-theme-colors";
 import { mulberry32, neuralNet, waveNet } from "./shapes";
-import { BASE_LAG, CAM_Z, FOV, type Pose, streamEnergy, streamLag } from "./timeline";
+import { BASE_LAG, CAM_Z, FOV, type Pose, streamEnergy, streamLag, type Vec3 } from "./timeline";
 
 export interface Drive {
   /** continuous shape index (integer = resting on that shape) */
@@ -13,6 +13,8 @@ export interface Drive {
   /** resting poses of the shapes either side of `s` */
   from: Pose;
   to: Pose;
+  /** control point of the curved route the formation travels from `from` to `to` */
+  ctrl: Vec3;
 }
 /** Screen rect (NDC centre + full size) of the active text block, and its strength 0..1. */
 export interface TextMask {
@@ -117,12 +119,40 @@ float lanes(float lat, float along, float k){
   return (u - u0) / F;
 }`;
 
+/**
+ * Travel between chapters: the formation's frame (position, rotation, scale) moves from pose A to
+ * pose B along a quadratic Bezier through `uCtrl`, so the whole body flies a curve while it
+ * morphs. The group's progress is the boundary's own eased progress (still at both ends); each
+ * point rides the route at a blend of that and its own staggered morph, so later starters trail
+ * behind along the same curve and the swarm stays one body. At r = 0 / 1 it is exactly pose A / B.
+ */
+const ROUTE = /* glsl */ `
+uniform vec3 uPosA, uPosB, uCtrl; // route start, end and control point (world)
+uniform vec4 uRot; // rotX, rotY of pose A, then of pose B
+uniform vec2 uScaleAB;
+const float TRAIL = 0.5; // how far each point's own stagger pulls it off the group's progress
+float routeT(){ float t = clamp(uT, 0.0, 1.0); return t * t * t * (t * (t * 6.0 - 15.0) + 10.0); }
+float routeR(float e){ return mix(routeT(), e, TRAIL); }
+// size: gathers early when shrinking and spreads late when growing, so the body flies compact
+float routeScale(float r){
+  float k = uScaleAB.y < uScaleAB.x ? 1.0 - (1.0 - r) * (1.0 - r) : r * r;
+  return uScaleAB.x * pow(uScaleAB.y / uScaleAB.x, k);
+}
+// local -> world at route progress r (rotation order as three's XYZ Euler: Ry first, then Rx)
+vec3 route(vec3 p, float r){
+  vec2 rot = mix(uRot.xy, uRot.zw, r);
+  p *= routeScale(r);
+  float cy = cos(rot.y), sy = sin(rot.y), cx = cos(rot.x), sx = sin(rot.x);
+  p = vec3(p.x * cy + p.z * sy, p.y, -p.x * sy + p.z * cy);
+  p = vec3(p.x, p.y * cx - p.z * sx, p.y * sx + p.z * cx);
+  float u = 1.0 - r;
+  return u * u * uPosA + 2.0 * u * r * uCtrl + r * r * uPosB + p;
+}`;
+
 const VERT = /* glsl */ `
 uniform float uT, uTime, uSize, uStrength, uRadius, uDark, uAlpha, uIntro;
 uniform float uWaveA, uWaveB, uDissolve;
 uniform float uFlow, uEnergy, uLag; // stream strength, eased scroll energy, morph stagger
-uniform mat4 uMatA, uMatB; // endpoint poses (local -> world)
-uniform vec2 uScaleAB;
 uniform vec3 uMouse, uText, uSignal, uMuted;
 uniform vec4 uMask; // centre.xy, half-size.xy in NDC
 uniform float uMaskA;
@@ -138,6 +168,7 @@ ${NOISE}
 ${FIELD}
 ${PULSE}
 ${STREAM}
+${ROUTE}
 void main(){
   // per-point stagger so morphs ripple instead of moving in lockstep
   float st = clamp(uT * (1.0 + uLag) - aRand * uLag, 0.0, 1.0);
@@ -165,16 +196,17 @@ void main(){
     vec3 cloud = p * 1.8 + vec3(snoise(p + 11.0), snoise(p + 23.0), snoise(p + 37.0)) * 0.8;
     p = mix(cloud, p, ie);
   }
-  // each point blends between the two endpoint poses on its own stagger, so a change of place
-  // reads as the swarm regathering, never as the whole formation sliding
-  vec3 w = mix((uMatA * vec4(p, 1.0)).xyz, (uMatB * vec4(p, 1.0)).xyz, e);
-  float sc = mix(uScaleAB.x, uScaleAB.y, e);
+  // the formation travels its curved route as a body; this point rides it a little ahead of or
+  // behind the group by its own stagger, so the swarm strings out along the curve
+  float r = routeR(e);
+  vec3 w = route(p, r);
+  float sc = routeScale(r);
   // in flight: ride the stream (world space, so currents stay coherent across the screen)
   float env = flight(st) * step(0.0001, uFlow);
   float pk = step(fract(aRand * 613.7), 0.035); // packets: a few points carry the signal colour
   if (env > 0.0) {
-    vec3 a = (uMatA * vec4(aFrom, 1.0)).xyz;
-    vec3 b = (uMatB * vec4(aTo, 1.0)).xyz;
+    vec3 a = route(aFrom, 0.0);
+    vec3 b = route(aTo, 1.0);
     vec3 dir = normalize(b - a + vec3(0.0, -1e-4, 0.0));
     w += stream(aFrom, aTo, st, env);
     // streamwise stretch: later starters trail further back along the travel line, packets lead
@@ -216,15 +248,14 @@ void main(){
   vColor = mix(mix(mix(mix(uText, uSignal, sig), uMuted, far * 0.5), uSignal, lit), uSignal, glow);
   float fade = mix(1.0, mix(1.0, 0.45, far), uDark);
   vA = uAlpha * (0.55 + 0.45 * fract(aRand * 53.1)) * fade * (1.0 + sig * 0.25 * uDark) * keep * ie
-     * (1.0 - mid * 0.85) * mix(1.0, smoothstep(3.15, 2.8, abs(p.x)), wv) * (1.0 + lit * 1.4)
+     * (1.0 - mid * 0.5) * mix(1.0, smoothstep(3.15, 2.8, abs(p.x)), wv) * (1.0 + lit * 1.4)
      * (1.0 + glow * 0.6);
 }`;
 
-/** A shape's network links: they ride the same shimmer, swell and pose as its points. Current
+/** A shape's network links: they ride the same shimmer, swell and route as its points. Current
  * runs along them by depth, and a link arcs like lightning while the current crosses it. */
 const LINE_VERT = /* glsl */ `
-uniform float uT, uTime, uStrength, uRadius, uIntro, uMode, uSc, uWave, uLag;
-uniform mat4 uMatW; // the shape's pose
+uniform float uT, uTime, uStrength, uRadius, uIntro, uMode, uWave, uLag;
 uniform vec3 uMouse;
 uniform vec4 uMask;
 uniform float uMaskA;
@@ -238,6 +269,7 @@ varying float vDepth, vPhase, vA;
 ${NOISE}
 ${FIELD}
 ${PULSE}
+${ROUTE}
 void main(){
   vec3 p = position;
   vec3 q = p * 0.65 + vec3(0.0, 0.0, uTime * 0.18);
@@ -247,9 +279,12 @@ void main(){
   float hd = pulseHead(aPhase) - aDepth;
   float arc = exp(-hd * hd * 400.0) * sin(aSub * 3.14159265);
   p += aJit * snoise(vec3(aJit.xy * 7.0, floor(uTime * 16.0))) * arc * 0.08;
-  vec3 w = (uMatW * vec4(p, 1.0)).xyz;
+  // ride the route where this end's point is, so links stay attached while the formation travels
+  float so = clamp(uT * (1.0 + uLag) - aRand * uLag, 0.0, 1.0);
+  float r = routeR(so * so * (3.0 - 2.0 * so));
+  vec3 w = route(p, r);
   vec3 d = w - uMouse; d.z *= 0.5;
-  w += normalize(d + 1e-4) * smoothstep(uRadius, 0.0, length(d)) * uStrength * 0.5 * uSc;
+  w += normalize(d + 1e-4) * smoothstep(uRadius, 0.0, length(d)) * uStrength * 0.5 * routeScale(r);
   gl_Position = projectionMatrix * viewMatrix * vec4(w, 1.0);
   // links show only once both ends have landed, and go first when the field breaks up
   float st = clamp(uT * (1.0 + uLag) - aLinkR * uLag, 0.0, 1.0);
@@ -376,15 +411,6 @@ export function SignalPoints({
   const raycaster = useMemo(() => new THREE.Raycaster(), []);
   const plane = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 0, 1), 0), []);
   const tmp = useMemo(() => new THREE.Vector3(), []);
-  const xf = useMemo(
-    () => ({
-      p: new THREE.Vector3(),
-      q: new THREE.Quaternion(),
-      e: new THREE.Euler(),
-      s: new THREE.Vector3(),
-    }),
-    [],
-  );
   const gl = useThree((s) => s.gl);
 
   const rnd = useMemo(() => {
@@ -426,8 +452,10 @@ export function SignalPoints({
         uFlow: { value: 0 },
         uEnergy: { value: 0 },
         uLag: { value: BASE_LAG },
-        uMatA: { value: new THREE.Matrix4() },
-        uMatB: { value: new THREE.Matrix4() },
+        uPosA: { value: v(0, 0, 0) },
+        uPosB: { value: v(0, 0, 0) },
+        uCtrl: { value: v(0, 0, 0) },
+        uRot: { value: new THREE.Vector4(0, 0, 0, 0) },
         uScaleAB: { value: new THREE.Vector2(1, 1) },
         uMouse: { value: v(99, 99, 0) },
         uText: { value: v(1, 1, 1) },
@@ -462,6 +490,11 @@ export function SignalPoints({
             uRadius: u.uRadius,
             uIntro: u.uIntro,
             uLag: u.uLag,
+            uPosA: u.uPosA,
+            uPosB: u.uPosB,
+            uCtrl: u.uCtrl,
+            uRot: u.uRot,
+            uScaleAB: u.uScaleAB,
             uMouse: u.uMouse,
             uMask: u.uMask,
             uMaskA: u.uMaskA,
@@ -472,8 +505,6 @@ export function SignalPoints({
             uWave: { value: k === waveShape ? 1 : 0 },
             uBase: { value: k === waveShape ? 0.16 : 0.09 },
             uMode: { value: 0 },
-            uSc: { value: 1 },
-            uMatW: { value: new THREE.Matrix4() },
           },
         });
         return { geometry: g, material: m, node };
@@ -541,7 +572,7 @@ export function SignalPoints({
       h: 2 * CAM_Z * Math.tan((FOV * Math.PI) / 360),
       mobile: state.size.width < 768,
     };
-    const { s, from, to } = drive(state.clock.elapsedTime, view);
+    const { s, from, to, ctrl } = drive(state.clock.elapsedTime, view);
     const sMax = shapes.length - 1;
     const sg = Math.min(Math.floor(s), sMax - 1);
     const t = Math.min(1, Math.max(0, s - sg));
@@ -567,14 +598,11 @@ export function SignalPoints({
     if (introStart.current < 0) introStart.current = state.clock.elapsedTime;
     u.uIntro.value = Math.min(1, (state.clock.elapsedTime - introStart.current) / INTRO_S);
 
-    const compose = (m: THREE.Matrix4, pose: Pose) =>
-      m.compose(
-        xf.p.set(pose.x, pose.y, 0),
-        xf.q.setFromEuler(xf.e.set(pose.rotX, pose.rotY, 0)),
-        xf.s.setScalar(pose.scale),
-      );
-    compose(u.uMatA.value, from);
-    compose(u.uMatB.value, to);
+    // the route the formation travels between the two poses (see ROUTE)
+    u.uPosA.value.set(from.x, from.y, 0);
+    u.uPosB.value.set(to.x, to.y, 0);
+    u.uCtrl.value.set(ctrl.x, ctrl.y, ctrl.z);
+    u.uRot.value.set(from.rotX, from.rotY, to.rotX, to.rotY);
     u.uScaleAB.value.set(from.scale, to.scale);
     u.uWaveA.value = sg === waveShape ? 1 : 0;
     u.uWaveB.value = sg + 1 === waveShape ? 1 : 0;
@@ -587,7 +615,7 @@ export function SignalPoints({
     u.uFlow.value = fl;
     u.uEnergy.value = en.shown;
     u.uLag.value = streamLag(fl, en.shown);
-    // a shape's links live in its pose: arriving (it is `to`) or leaving (it is `from`)
+    // a shape's links show while it is arriving (it is `to`) or leaving (it is `from`)
     nets.forEach((n, k) => {
       const mode = k === sg ? -1 : k === sg + 1 ? 1 : 0;
       const line = lineRefs.current[k];
@@ -595,8 +623,6 @@ export function SignalPoints({
       if (mode === 0) return;
       const lu = n.material.uniforms;
       lu.uMode.value = mode;
-      lu.uMatW.value.copy(mode < 0 ? u.uMatA.value : u.uMatB.value);
-      lu.uSc.value = mode < 0 ? from.scale : to.scale;
     });
 
     // theme colours ease

@@ -50,9 +50,9 @@ export function textState(p: number, i: number) {
 
 /**
  * Per-chapter formation values. x is a side (1 right, -1 left, 0 centre) times 0.235 of the view
- * width; text takes the opposite side. Each point morphs between the two endpoint poses on its
- * own path (see SignalPoints), so a change of side reads as the swarm regathering, never as the
- * whole formation sliding.
+ * width; text takes the opposite side. Each shape rests still on its pose while its text is read;
+ * between chapters the whole formation travels to the next pose along a curved route (see
+ * `routeControl`) and morphs on the way, so it reads as one body flowing, not a swap in place.
  */
 export const FORMATION_SIDE = [0, 0, 1, 1, 1, 1, 0] as const;
 /** Share of view width the formation sits right of centre; infra sits a little inboard to clear the rail labels. */
@@ -117,6 +117,64 @@ function basePose(i: number, view: { w: number; h: number; mobile: boolean }): P
     rotX: ROT_X[c],
     rotY: ROT_Y[c],
     scale: Math.min(SCALE[c], (FIT[c] * view.w) / 4.4),
+  };
+}
+
+export interface Vec3 {
+  x: number;
+  y: number;
+  z: number;
+}
+
+/**
+ * The route the formation travels on boundary k (chapter k -> k+1): a quadratic Bezier from the
+ * `from` pose's position through a control point to the `to` pose's. Per boundary:
+ * - `bend`: sideways pull, as a share of the travel distance, to the left of the travel direction
+ *   (negative = right),
+ * - `dip`: vertical pull as a share of the view height (negative = down),
+ * - `z`: depth pull toward the camera in world units (negative = away), for a sense of flight.
+ * The curve passes half of each pull at mid-route. One-shot and scroll-driven: no sway over time.
+ */
+const ROUTE = [
+  { bend: 0.12, dip: -0.1, z: 0.9 }, // intro -> wave: the name sinks, swelling toward you as it spreads
+  { bend: 0.34, dip: 0, z: 0.5 }, // wave -> interface: rises first, then sweeps right into the column
+  { bend: 0, dip: -0.15, z: -0.5 }, // interface -> api: a short dip down the stack and back up
+  { bend: 0, dip: -0.15, z: -0.5 }, // api -> data
+  { bend: 0, dip: -0.13, z: -0.4 }, // data -> infra
+  { bend: -0.32, dip: 0.02, z: 0.5 }, // infra -> shipped: arcs up and over, back to centre
+];
+/** Phones: formations are centred and travel mostly vertically, so the pulls are smaller. */
+const MOBILE_ROUTE = 0.45;
+/** Fixed per-boundary variation (+-10%) so the arcs are not all one size. Seeded, not timed. */
+const routeJitter = (k: number) => {
+  const x = Math.sin(k * 127.1 + 311.7) * 43758.5453;
+  return 0.9 + 0.2 * (x - Math.floor(x));
+};
+
+/** Control point of boundary k's route between two resting poses, kept inside the view. */
+export function routeControl(
+  k: number,
+  from: Pose,
+  to: Pose,
+  view: { w: number; h: number; mobile: boolean },
+): Vec3 {
+  const r = ROUTE[Math.max(0, Math.min(ROUTE.length - 1, Math.floor(k)))];
+  const amt = routeJitter(Math.floor(k)) * (view.mobile ? MOBILE_ROUTE : 1);
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  // (-dy, dx) is the travel direction turned left; its length is the travel distance
+  const x = (from.x + to.x) / 2 - dy * r.bend * amt;
+  const y = (from.y + to.y) / 2 + dx * r.bend * amt + r.dip * amt * view.h;
+  const cx = 0.4 * view.w;
+  const cy = 0.5 * view.h;
+  // never swing across centre into the text column of a formation that lives on one side
+  const side = Math.sign(from.x + to.x);
+  const lo = side > 0 ? 0 : -cx;
+  const hi = side < 0 ? 0 : cx;
+  return {
+    x: Math.max(lo, Math.min(hi, x)),
+    y: Math.max(-cy, Math.min(cy, y)),
+    z: Math.max(-1, Math.min(1, r.z * amt)),
   };
 }
 

@@ -2,9 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   BASE_LAG,
   CAM_Z,
+  CHAPTERS,
   chapterPose,
   FOV,
   flowStrength,
+  type Pose,
+  routeControl,
   streamEnergy,
   streamLag,
   WAVE_CHAPTER,
@@ -71,5 +74,72 @@ describe("stream", () => {
     expect(streamLag(0.42, 1)).toBeGreaterThan(BASE_LAG);
     expect(streamLag(1, 1)).toBeGreaterThan(streamLag(0.42, 1));
     expect(streamLag(5, 5)).toBe(streamLag(1, 1));
+  });
+});
+
+describe("route between chapters", () => {
+  const bezier = (a: Pose, c: { x: number; y: number }, b: Pose, t: number) => ({
+    x: (1 - t) ** 2 * a.x + 2 * t * (1 - t) * c.x + t * t * b.x,
+    y: (1 - t) ** 2 * a.y + 2 * t * (1 - t) * c.y + t * t * b.y,
+  });
+  const leg = (k: number, view: { w: number; h: number; mobile: boolean }) => {
+    const from = chapterPose(k, view);
+    const to = chapterPose(k + 1, view);
+    return { from, to, c: routeControl(k, from, to, view) };
+  };
+  const desk = { w: (H * 1440) / 900, h: H, mobile: false };
+  const phone = { w: (H * 390) / 844, h: H, mobile: true };
+
+  it("curves on every boundary rather than sliding in a straight line", () => {
+    for (const view of [desk, phone])
+      for (let k = 0; k < CHAPTERS - 1; k++) {
+        const { from, to, c } = leg(k, view);
+        const mx = (from.x + to.x) / 2;
+        const my = (from.y + to.y) / 2;
+        expect(Math.hypot(c.x - mx, c.y - my, c.z)).toBeGreaterThan(0.1);
+      }
+  });
+
+  it("sinks the name into the wave and lifts the wave into the column", () => {
+    const fall = leg(0, desk);
+    expect(fall.c.y).toBeLessThan((fall.from.y + fall.to.y) / 2);
+    expect(fall.c.z).toBeGreaterThan(0);
+    const rise = leg(1, desk);
+    // rises before it sweeps right: the control point sits above and left of the midpoint
+    expect(rise.c.y).toBeGreaterThan((rise.from.y + rise.to.y) / 2);
+    expect(rise.c.x).toBeLessThan((rise.from.x + rise.to.x) / 2);
+    const home = leg(CHAPTERS - 2, desk);
+    expect(home.c.y).toBeGreaterThan((home.from.y + home.to.y) / 2);
+  });
+
+  it("dips between layers that share a side", () => {
+    for (let k = 2; k < 5; k++) {
+      const { from, to, c } = leg(k, desk);
+      expect(c.y).toBeLessThan(Math.min(from.y, to.y));
+    }
+  });
+
+  it.each(views)("stays inside the view and off the text column at $name", ({ w, mobile }) => {
+    const view = { w, h: H, mobile };
+    for (let k = 0; k < CHAPTERS - 1; k++) {
+      const { from, to, c } = leg(k, view);
+      expect(Math.abs(c.z)).toBeLessThanOrEqual(1);
+      for (let t = 0; t <= 1.0001; t += 0.05) {
+        const p = bezier(from, c, to, t);
+        expect(Math.abs(p.x)).toBeLessThanOrEqual(0.4 * w + 1e-9);
+        expect(Math.abs(p.y)).toBeLessThanOrEqual(0.5 * H + 1e-9);
+        // layer text sits left of centre: the travel never swings across it
+        if (!mobile && k >= 1) expect(p.x).toBeGreaterThanOrEqual(-1e-9);
+      }
+    }
+  });
+
+  it("bends less on phones, where travel is mostly vertical", () => {
+    for (let k = 0; k < CHAPTERS - 1; k++) {
+      const d = leg(k, desk);
+      const m = leg(k, phone);
+      expect(Math.abs(m.c.z)).toBeLessThan(Math.abs(d.c.z));
+      expect(Math.abs(m.c.x)).toBeLessThan(0.2 * phone.w);
+    }
   });
 });

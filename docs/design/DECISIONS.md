@@ -249,3 +249,13 @@ Owner wanted the particle flow between hero objects "more interactive live when 
 - **Gold packets.** 3.5% of points by seed turn `uSignal`, a little larger and brighter, mid-flight.
 - **Strength per boundary.** `flowStrength`: 1 for intro → wave, 0.42 elsewhere. The 404 glyph runs at full strength (`fullFlow`) and now scatters into rising strands.
 - **Replaced:** the old mid-flight snoise wobble and uniform lift (`uDissolve` lift).
+
+## D24: Shapes travel along curved routes between chapters (2026-10-24, trial)
+
+Owner asked whether the object itself should flow while scrolling instead of staying put and changing shape. Chosen: rest where they are while their text is read, travel between chapters. Kept revertable: the D23 pinned version is on `backup/hero-stream-pinned` (f214e06).
+
+- **Route.** Between chapters the formation's position follows a quadratic Bézier (`uPosA`, `uCtrl`, `uPosB`), rotation is interpolated along it (`uRot`), and scale blends on a log scale so the body flies compact. The group rides an eased boundary progress (zero speed at both ends); each point rides `mix(group, ownStagger, 0.5)`, so late starters trail along the same curve into the D23 stream. Points and links share one route chunk; the CPU pose matrices (`uMatA`/`uMatB`/`uMatW`) are gone.
+- **Bends (`routeControl`, `ROUTE` table in timeline.ts, ±10% seeded):** intro → wave sinks toward the camera; wave → interface rises, then sweeps right into the column; the layer chapters dip down and back up; infra → shipped arcs up and over to centre. The control point is clamped inside the view and never crosses centre for one-sided formations, so the travel stays off the text column. Phones use 0.45× the bend. The 404 page passes a zero route.
+- **Also:** wave mid-flight thinning eased from 0.85 to 0.5 so the travelling body stays visible.
+- **Supersedes** the D2-era rule "a change of side reads as the swarm regathering, never as the whole formation sliding".
+- **Revert:** `git checkout main && git reset --hard backup/hero-stream-pinned`.

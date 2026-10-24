@@ -135,7 +135,13 @@ Replaces D10's one-step-per-gesture rule. A slow drag should move the page with 
 Owner feedback: "make the texts sliding from left and right or bottom; current words animation is okay", and page changes were "a little fast". This relaxes D8's no-sideways rule for one-shot entrance slides only.
 
 - **Text blocks slide in.** `slideFrom(i)` in `SignalHero.tsx` gives each block its side. Intro, wave and finale rise from 48px below and leave 32px upward. Layer cards alternate by `(i - LAYER_OFFSET) % 2`: interface from the left, api from the right, data from the left, infra from the right. Each block leaves back to its own side. Slide distance is `min(96px, 7% of viewport width)`. Offsets are squared on the textState enter/leave values, so blocks arrive fast and settle softly. The word reveal (`[data-w]`) is unchanged. Lost: the vertical-only 24px rise from D8. Kept out: autonomous or continuous sideways motion.
-- **Slower chapter pace.** `STEP_S` 1.05s → 1.4s and `MIN_S` 0.3s → 0.4s. A swipe now reaches the next chapter in about 1.2s. Lost: the faster pace that read as "a little fast". Supersedes the pace numbers in D11.
+- **Slower chapter pace.** `STEP_S` 1.05s → 1.4s and `MIN_S` 0.3s → 0.4s. A swipe now reaches the next chapter in about 1.2s. Lost: the faster pace that read as "a little fast". Supersedes the pace numbers in D11. _Superseded by D13: `STEP_S` 2s, minimum 0.5s._
 - **Command-menu Tab completion.** `complete(input, candidates)` returns `{ matches, common }`, a case-insensitive prefix match over the `COMMANDS` names plus every item href. A non-empty input plus Tab fills the shared prefix first, then further Tabs cycle the matches. Empty input plus Tab, or Shift+Tab, switches tabs. A ghost hint shows the rest of the first match. Lost: "Tab only switches tabs". Tab calls `stopPropagation` as well as `preventDefault` (see `docs/memory/fixes.md`).
 - **Verified.** In Chrome, slides go +76px then -76px and centred blocks rise. Completion: `who` → `whoami`, `/w` → `/work` → `/work/this-portfolio`, `sud` → `sudo hire-me`, then Enter opens `/contact`. vitest 73/73. e2e command-menu, a11y and hero: 37 passed, 3 skipped.
 
+
+## D13 — Chapter pace 2s (2026-10-24)
+
+Owner feedback after trying 1.4s: "make it 2s".
+
+- **`STEP_S` 1.4s → 2s, `MIN_S` 0.4s → 0.5s** in `useChapterSnap.ts`. A swipe now reaches the next chapter in about 1.7s; a slow-wheel finish of a part chapter scales with distance (`playSeconds`). Easings and the follow/step/free thresholds are unchanged. Lost: the 1.4s pace from D12.

@@ -1,0 +1,39 @@
+diff --git a/dist/events-21d8cd92.cjs.dev.js b/dist/events-21d8cd92.cjs.dev.js
+index 9b43bdf7d5f4e4fa58d53e0a53954d3595569459..0e1a8725785f808e181513dfeb4a390b377275fd 100644
+--- a/dist/events-21d8cd92.cjs.dev.js
++++ b/dist/events-21d8cd92.cjs.dev.js
+@@ -1076,7 +1076,7 @@ const createStore = (invalidate, advance) => {
+       linear: false,
+       flat: false,
+       controls: null,
+-      clock: new THREE__namespace.Clock(),
++      clock: (() => { const now = () => performance.now(); return { autoStart: true, startTime: 0, oldTime: 0, elapsedTime: 0, running: false, start() { this.startTime = now(); this.oldTime = this.startTime; this.elapsedTime = 0; this.running = true; }, stop() { this.getElapsedTime(); this.running = false; this.autoStart = false; }, getElapsedTime() { this.getDelta(); return this.elapsedTime; }, getDelta() { let diff = 0; if (this.autoStart && !this.running) { this.start(); return 0; } if (this.running) { const t = now(); diff = (t - this.oldTime) / 1000; this.oldTime = t; this.elapsedTime += diff; } return diff; } }; })(),
+       pointer,
+       mouse: pointer,
+       frameloop: 'always',
+diff --git a/dist/events-9ce18a08.esm.js b/dist/events-9ce18a08.esm.js
+index ea6b4c903fe1a45092eca8440397ebcef2de7341..552a67810c9a8d3aca6c57564f48907633da04f1 100644
+--- a/dist/events-9ce18a08.esm.js
++++ b/dist/events-9ce18a08.esm.js
+@@ -1051,7 +1051,7 @@ const createStore = (invalidate, advance) => {
+       linear: false,
+       flat: false,
+       controls: null,
+-      clock: new THREE.Clock(),
++      clock: (() => { const now = () => performance.now(); return { autoStart: true, startTime: 0, oldTime: 0, elapsedTime: 0, running: false, start() { this.startTime = now(); this.oldTime = this.startTime; this.elapsedTime = 0; this.running = true; }, stop() { this.getElapsedTime(); this.running = false; this.autoStart = false; }, getElapsedTime() { this.getDelta(); return this.elapsedTime; }, getDelta() { let diff = 0; if (this.autoStart && !this.running) { this.start(); return 0; } if (this.running) { const t = now(); diff = (t - this.oldTime) / 1000; this.oldTime = t; this.elapsedTime += diff; } return diff; } }; })(),
+       pointer,
+       mouse: pointer,
+       frameloop: 'always',
+diff --git a/dist/events-a816cbab.cjs.prod.js b/dist/events-a816cbab.cjs.prod.js
+index c26a227f3264c978f78d2ab7a7231ce943fe911f..7a39e94ae3ce1999e5fe7ab183f72eda0ce711bd 100644
+--- a/dist/events-a816cbab.cjs.prod.js
++++ b/dist/events-a816cbab.cjs.prod.js
+@@ -1076,7 +1076,7 @@ const createStore = (invalidate, advance) => {
+       linear: false,
+       flat: false,
+       controls: null,
+-      clock: new THREE__namespace.Clock(),
++      clock: (() => { const now = () => performance.now(); return { autoStart: true, startTime: 0, oldTime: 0, elapsedTime: 0, running: false, start() { this.startTime = now(); this.oldTime = this.startTime; this.elapsedTime = 0; this.running = true; }, stop() { this.getElapsedTime(); this.running = false; this.autoStart = false; }, getElapsedTime() { this.getDelta(); return this.elapsedTime; }, getDelta() { let diff = 0; if (this.autoStart && !this.running) { this.start(); return 0; } if (this.running) { const t = now(); diff = (t - this.oldTime) / 1000; this.oldTime = t; this.elapsedTime += diff; } return diff; } }; })(),
+       pointer,
+       mouse: pointer,
+       frameloop: 'always',

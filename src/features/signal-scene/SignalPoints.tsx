@@ -5,7 +5,7 @@ import { type RefObject, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { useThemeColors } from "@/lib/use-theme-colors";
 import { mulberry32, neuralNet, waveNet } from "./shapes";
-import type { Pose } from "./timeline";
+import { CAM_Z, FOV, type Pose } from "./timeline";
 
 export interface Drive {
   /** continuous shape index (integer = resting on that shape) */
@@ -24,8 +24,6 @@ export interface TextMask {
 }
 export type DriveFn = (elapsed: number, view: { w: number; h: number; mobile: boolean }) => Drive;
 
-const FOV = 38;
-const CAM_Z = 7;
 /** Seconds for the points to gather on first frame. */
 const INTRO_S = 2.8;
 

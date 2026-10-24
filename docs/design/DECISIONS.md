@@ -169,3 +169,11 @@ Owner asked for a cooler data object, brainstormed across agents, compared sampl
 - **Shape.** `data(n)` in `shapes.ts`: a tilted 4x4x4 cube lattice (edges plus node spheres) that is rigid on the left. Its right-hand edges break into short fragments and fewer nodes, which give way to six readable document cards. A single thin cache ring with three dots sits top right. Lattice depth is squashed to 0.7 after the tilt to stay inside the shared z bound. Pose in `timeline.ts` is unchanged.
 - **Fixed from the sample.** No diffuse dust in the break-up zone, cards about twice the sample size, and no concentric "target" cache ring.
 - **Lost.** The three stacked database discs with a concentric cache ring, which read as a stack of pancakes. Unused `ringXZ` and `diskXZ` helpers removed.
+
+## D17 — Wave field reaches the bottom edge on every view (2026-10-24)
+
+Owner screenshot showed an empty band under the wave chapter.
+
+- **Root cause.** The wave pose put the near row (z = 1) at a fixed fraction of view height. Desktop overshoots the bottom edge; on tall, narrow views (mobile pose scale about 0.68) the near row stopped about 80% of the way down.
+- **Fix.** `fillWaveBottom` in `timeline.ts` (wave chapter only) grows the pose scale until the near row reaches the frustum bottom plus a 6% bleed (`WAVE_BLEED`), and moves `y` so the far row (horizon) keeps its screen line. Views that already overshoot are untouched, so 1440x900 and 1280x720 do not change. Point count, row density, network and `matchByX` drop are unchanged. `FOV`/`CAM_Z` now live in `timeline.ts`; `SignalPoints.tsx` imports them.
+- **Test.** `timeline.test.ts` checks the near row reaches the bottom at 1440x900, 1280x720, 820x1180, 390x844 and 360x740.

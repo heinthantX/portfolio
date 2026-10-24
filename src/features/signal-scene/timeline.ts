@@ -66,6 +66,12 @@ const MOBILE_Y_H = [0.2, -0.3, 0.2, 0.2, 0.2, 0.2, 0.2];
 const MOBILE_FIT = [0.92, 1.35, 0.92, 0.92, 0.92, 0.92, 0.92];
 const MOBILE_ROT_X = [0, 0.5, 0.05, -0.05, 0.42, 0.78, 0.22];
 
+/** Camera: vertical field of view (degrees) and distance from the origin. */
+export const FOV = 38;
+export const CAM_Z = 7;
+/** How far past the bottom edge of the view the wave's near row must reach (swell, browser chrome). */
+const WAVE_BLEED = 1.06;
+
 export interface Pose {
   x: number;
   y: number;
@@ -74,8 +80,30 @@ export interface Pose {
   scale: number;
 }
 
+/**
+ * The wave pose, grown just enough that its near row (z = 1) reaches the bottom of the view. The
+ * far row (z = -1) stays on the screen line it had, so the horizon does not move. On wide views
+ * the near row is already past the edge and the pose is untouched; on tall, narrow ones it falls
+ * short and the field would end partway down, so the scale (and the y that pins the horizon) grow.
+ * Rows lie on the XZ plane tilted by rotX, so a row at z sits at y - z*s*sin(r), depth CAM_Z - z*s*cos(r).
+ */
+function fillWaveBottom(pose: Pose): Pose {
+  const { y, rotX: r, scale: s } = pose;
+  const bottom = Math.tan((FOV * Math.PI) / 360) * WAVE_BLEED;
+  const far = -(y + s * Math.sin(r)) / (CAM_Z + s * Math.cos(r));
+  const near = -(y - s * Math.sin(r)) / (CAM_Z - s * Math.cos(r));
+  if (near >= bottom || bottom <= far) return pose;
+  const grown = (CAM_Z * (bottom - far)) / ((far + bottom) * Math.cos(r) + 2 * Math.sin(r));
+  return { ...pose, scale: grown, y: -far * (CAM_Z + grown * Math.cos(r)) - grown * Math.sin(r) };
+}
+
 /** Resting formation transform for chapter i in a view of world size w x h. */
 export function chapterPose(i: number, view: { w: number; h: number; mobile: boolean }): Pose {
+  const pose = basePose(i, view);
+  return i === WAVE_CHAPTER ? fillWaveBottom(pose) : pose;
+}
+
+function basePose(i: number, view: { w: number; h: number; mobile: boolean }): Pose {
   const c = Math.max(0, Math.min(CHAPTERS - 1, i));
   if (view.mobile) {
     const scale = Math.min(SCALE[c], (MOBILE_FIT[c] * view.w) / 4.4);

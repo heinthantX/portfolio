@@ -18,7 +18,7 @@ Rationale and history: `docs/design/DECISIONS.md` (D7 concept, D8 motion rules, 
   - `src/components/site/wheel.ts`: `interceptWheel(fn)` registers the hook. `capWheelDelta` calls it, then `preventDefault` and returns false to swallow the event.
   - `SignalHero.tsx`: DOM layer. Sticky stage, chapter copy, layer cards, wave manifesto, stack outline, chapter rail (`RAIL_LABELS`, `group/rail`).
     - Text entrance slides (D12): `slideFrom(i)` gives each block its side. Intro, wave and finale return 0 (vertical rise only). Layer cards use `(i - LAYER_OFFSET) % 2`: -1 (from the left) for interface and data, +1 (from the right) for api and infra. Distance is `min(96px, 7% of viewport width)`. Enter and leave offsets are squared on the textState values.
-- Wave pose: x 0, Y_H -0.37 × view height, rotX 0.35, scale min(3.2, 1.12 × w/4.4). Mobile: `MOBILE_Y_H` -0.3, `MOBILE_FIT` 1.35, rotX 0.5.
+- Wave pose: x 0, Y_H -0.37 × view height, rotX 0.35, scale min(3.2, 1.12 × w/4.4). Mobile: `MOBILE_Y_H` -0.3, `MOBILE_FIT` 1.35, rotX 0.5.  `fillWaveBottom` (D17) then grows the scale where the near row would stop short of the bottom edge, keeping the horizon line.
 - Hero section height is `450vh` (about 4.5 screens of scroll).
 - Scroll progress (0..1) is read in rAF/`useFrame` only. Never in React state.
 - Stack copy comes from `src/content/profile.ts`. `stackLayers[].points` (capability bullets) is validated in `profile.schema.ts` with default `[]`.

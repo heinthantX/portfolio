@@ -18,3 +18,9 @@ Home page only (D25). After the hero's last chapter (`shipped`), the same partic
 - Mobile: 6000 points, dpr ≤ 1.25; the canvas uses large-viewport height, so hero shapes sit slightly lower than before.
 - ~40% of points have no stream slot at hand-off start and fade near the globe.
 - Draws every frame while on `/`.
+
+## Header bends (2026-10-24)
+`measure.ts` reads each section's heading block (eyebrow + h2, measured to where the text ends). The spine starts curving out above it, passes on the side with room (desktop: right), hugs the edge and tucks back under the corner. Gap, curve length, hug, reach and tuck are noise-seeded per heading; the shift is continuous and keeps channel order (no crossing, no periodic sway). Phones: smaller gap, thinner band (45% squeeze vs 20%). Known: pool-regime swirls aren't deflected; the Contact tuck crosses the "Open to…" line.
+
+## Resume
+Tab return / modal close: the scene keeps its own monotonic clock, so it lands in the state for the current scroll (see `docs/memory/fixes.md`).

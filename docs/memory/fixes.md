@@ -30,3 +30,6 @@ Fix: the command menu's Tab handler calls `stopPropagation` as well as `preventD
 
 ## shadcn `data-selected:` needs "true" (2026-10-24)
 shadcn's tailwind.css defines `@custom-variant data-selected { &:where([data-selected="true"]) }`. Command-output rows set `data-selected=""`, so the selection moved but was never drawn. The e2e test checked only the attribute and passed. Set `"true"`, and assert a visible style in tests.
+
+## R3F frameloop switch resets the clock: stale hero shape after tab return (2026-10-24)
+react-three-fiber 9.8.1 resets `clock` to 0 whenever `frameloop` changes. The home canvas pauses (`frameloop="never"`) while the tab is hidden or a modal is open, so on resume `delta`/elapsed ran backwards; `easeToward` with a negative dt drove the stream hand-off (`uFlow`) hugely negative or NaN and the shipped globe stuck over the lower sections. Fix: `SignalPoints` keeps its own monotonic clock (frame steps clamped 0..0.1s), `easeToward` ignores negative dt, the stream's dt is floored at 0. Never trust R3F's clock across frameloop changes.

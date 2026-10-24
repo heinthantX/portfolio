@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { ViewTransition } from "react";
 import { Cursor } from "@/components/site/cursor";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
@@ -57,7 +58,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <SmoothScroll>
             <SiteHeader />
             <main id="main" tabIndex={-1} className="outline-none">
-              {children}
+              {/* Route changes slide the page sheet; header, footer and the canvas stay put. */}
+              <ViewTransition default="page">{children}</ViewTransition>
             </main>
             <SiteFooter />
           </SmoothScroll>

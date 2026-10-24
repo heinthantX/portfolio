@@ -329,6 +329,40 @@ html.lenis body {
   mix-blend-mode: normal;
 }
 
+/* Page switch: the old sheet drops back and fades, the new one slides up from below with a small tilt and overshoot. */
+::view-transition-group(.page) {
+  animation-duration: 0.62s;
+}
+::view-transition-old(.page) {
+  animation: page-out 0.32s cubic-bezier(0.4, 0, 1, 1) both;
+}
+::view-transition-new(.page) {
+  animation: page-in 0.62s cubic-bezier(0.2, 1.3, 0.35, 1) 0.08s both;
+  transform-origin: 50% 0;
+}
+@keyframes page-out {
+  to {
+    opacity: 0;
+    transform: translateY(-3vh) scale(0.96);
+    filter: blur(4px);
+  }
+}
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(14vh) rotate(1.2deg) scale(0.98);
+  }
+  40% {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(.page),
+  ::view-transition-new(.page) {
+    animation: none;
+  }
+}
+
 /* Interactive cursor: custom dot + ring replace the native pointer (inputs keep the text cursor). */
 html.has-cursor,
 html.has-cursor * {

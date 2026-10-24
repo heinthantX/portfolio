@@ -192,3 +192,14 @@ Owner: "cloud diagram, don't need to be labelled, make it cartoon style like shi
   - New helpers: `arcPart`, `path`, `dots`, `crate`, `barrel`, `ship`, `cloud`. The `cubeEdges` helper, used only by the old shape, is gone.
 - **Pose.** `rotX` changed from 0.78 to 0.3 on desktop and mobile, so the diagram faces the viewer. `FIT` changed from 0.38 to 0.32. A new `SIDE_X` sets infra 0.19 of the view width right of centre (the other chapters stay at 0.235), so the lookout tower no longer sits under the active rail label at 1440x900.
 - **Laptops.** The wave-fill test (D17) now also covers 1512x862, 1470x832, 1366x768, 1280x680, 1920x969 and 2560x1080. Production screenshots at those sizes, in dark mode at dpr 2, show the field reaching the bottom edge.
+
+## D19: Page switches slide the page sheet (2026-10-24)
+
+Owner asked for "a little fun sliding animation on page switching like going from home page to work".
+
+- **How it works.** `layout.tsx` wraps the route children in React's `<ViewTransition default="page">`. Next 16 runs client navigations in a transition, so React starts a view transition and gives the page snapshots the `page` class. The header, footer and fixed background are outside the boundary and stay put: the existing `root` rule has `animation: none`.
+- **Motion (`globals.css`).** It is vertical, to match D8.
+  - The old page drops back over 0.32s: up 3vh, scale 0.96, blur 4px, fade out.
+  - The new page slides up from 14vh below over 0.62s, with a 1.2deg tilt pivoting from its top edge and a small overshoot (`cubic-bezier(0.2, 1.3, 0.35, 1)`). It starts 80ms after the old page.
+  - Reduced motion turns both off.
+- **Theme toggle is unaffected.** React names the snapshots only during its own transitions, and the theme toggle's manual `startViewTransition` is not one of them.

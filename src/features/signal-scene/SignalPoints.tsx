@@ -507,6 +507,9 @@ export function SignalPoints({
   const seg = useRef(-1);
   const lineRefs = useRef<(THREE.LineSegments | null)[]>([]);
   const introStart = useRef(-1);
+  // Scene time. Not R3F's clock: it resets to 0 whenever the frameloop changes (every pause for a
+  // hidden tab or a modal), which sent time backwards and every eased value with it.
+  const clock = useRef(0);
   const energy = useRef({ shown: 0, lastS: Number.NaN });
   const pointer = useRef({ x: 0, y: 0, inside: false });
   const raycaster = useMemo(() => new THREE.Raycaster(), []);
@@ -690,7 +693,9 @@ export function SignalPoints({
       h: 2 * CAM_Z * Math.tan((FOV * Math.PI) / 360),
       mobile: state.size.width < 768,
     };
-    const { s, from, to, route, site } = drive(state.clock.elapsedTime, view);
+    clock.current += Math.min(Math.max(dt, 0), 0.1);
+    const now = clock.current;
+    const { s, from, to, route, site } = drive(now, view);
     const sMax = shapes.length - 1;
     const sg = Math.min(Math.floor(s), sMax - 1);
     const t = Math.min(1, Math.max(0, s - sg));
@@ -712,9 +717,9 @@ export function SignalPoints({
       }
     }
     u.uT.value = t;
-    u.uTime.value = state.clock.elapsedTime;
-    if (introStart.current < 0) introStart.current = state.clock.elapsedTime;
-    u.uIntro.value = Math.min(1, (state.clock.elapsedTime - introStart.current) / INTRO_S);
+    u.uTime.value = now;
+    if (introStart.current < 0) introStart.current = now;
+    u.uIntro.value = Math.min(1, (now - introStart.current) / INTRO_S);
     u.uSite.value = site?.amount ?? 0;
     if (site) {
       u.uSpine.value = site.spine;

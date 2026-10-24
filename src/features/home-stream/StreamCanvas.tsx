@@ -140,7 +140,7 @@ function Stream({ hero, count }: { hero: HeroLink | null; count: number }) {
       // leaving home: hold the last frame while it fades out
       if (!h && k.held) return k.held;
       const first = k.last < 0;
-      const dt = first ? 0 : Math.min(0.1, elapsed - k.last);
+      const dt = first ? 0 : Math.min(0.1, Math.max(0, elapsed - k.last));
       k.last = elapsed;
       const p = h?.progressRef.current ?? 1;
       const stage = h?.stageRef.current?.getBoundingClientRect();

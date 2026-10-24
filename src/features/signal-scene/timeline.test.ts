@@ -6,6 +6,7 @@ import {
   CHAPTERS,
   chapterPose,
   chapterProgress,
+  easeToward,
   FLOW_FROM,
   FOV,
   flowMix,
@@ -208,6 +209,26 @@ describe("flowMix: hand-off to the home stream", () => {
     for (let p = last; p <= 1; p += 0.005) {
       expect(flowMix(p)).toBeGreaterThanOrEqual(prev);
       prev = flowMix(p);
+    }
+  });
+});
+
+describe("easeToward", () => {
+  it("never overshoots, whatever the step", () => {
+    for (const dt of [0, 0.016, 0.1, 1, 60]) {
+      const v = easeToward(0.2, 1, dt, 6);
+      expect(v).toBeGreaterThanOrEqual(0.2);
+      expect(v).toBeLessThanOrEqual(1);
+    }
+  });
+  it("holds still on a backwards step (a clock reset on tab return) instead of blowing up", () => {
+    // the stream's hand-off settles one ulp short of 1; a long pause then a reset clock gave
+    // dt = -60, which threw it to a huge negative value (the hero shape back over the page)
+    const settled = 1 - 2 ** -53;
+    for (const dt of [-0.016, -60, -1e4]) {
+      const v = easeToward(settled, 1, dt, 6);
+      expect(Number.isFinite(v)).toBe(true);
+      expect(v).toBe(settled);
     }
   });
 });

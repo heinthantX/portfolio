@@ -280,9 +280,10 @@ export function travelRoute(
 /** Idle life: a slow ~7 s scale pulse instead of a side-to-side sway. */
 export const breathe = (t: number) => 1 + Math.sin(t * 0.9) * 0.012;
 
-/** Frame-rate independent ease of `shown` toward `target`; dt in seconds. */
+/** Frame-rate independent ease of `shown` toward `target`; dt in seconds. Never overshoots: a
+ * negative dt holds still instead of extrapolating away from the target. */
 export const easeToward = (shown: number, target: number, dt: number, rate = 5) =>
-  shown + (target - shown) * (1 - Math.exp(-dt * rate));
+  shown + (target - shown) * (1 - Math.exp(-Math.max(0, dt) * rate));
 
 /**
  * The stream points ride between two shapes (see SignalPoints). `flow` 0..1 is how strongly a

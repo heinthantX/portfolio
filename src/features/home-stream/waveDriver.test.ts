@@ -4,6 +4,7 @@ import {
   CH,
   createWave,
   flowAttributes,
+  headWeight,
   MARGIN,
   MAX_PACKETS,
   REGIMES,
@@ -32,6 +33,7 @@ function homeLayout(): WaveLayout {
     endX: 400,
     sections,
     text: [{ l: 120, r: 700, t: 5000, b: 5080 }],
+    heads: [],
   };
 }
 
@@ -181,6 +183,64 @@ describe("stepWave", () => {
     expect(Array.from(st.table)).toEqual(a);
     expect(Array.from(st.off)).toEqual(off);
     expect(st.packets).toHaveLength(0);
+  });
+});
+
+describe("heading bends", () => {
+  // a heading at the content's left edge, like the home sheets, in a few sections
+  const heads = [6100, 7300, 9700].map((t) => ({ l: 120, r: 520, t, b: t + 150 }));
+  const L = { ...homeLayout(), heads };
+  const plain = homeLayout();
+  const chans = (st: ReturnType<typeof createWave>, row: number) =>
+    Array.from({ length: CH }, (_, c) => table.at(st, c, row));
+
+  it("keeps every live channel's band clear of the heading's text", () => {
+    for (const hd of heads) {
+      for (const sec of [3, 20, 47, 90]) {
+        const scroll = hd.t - H / 2;
+        const st = run(L, scroll, sec);
+        for (const y of [hd.t, (hd.t + hd.b) / 2, hd.b]) {
+          for (const [x, wid, wg] of chans(st, rowOf(scroll, y))) {
+            if (wg < 0.1) continue;
+            const cx = W / 2 + x;
+            const hw = 1.3 * wid;
+            const clear = cx + hw <= hd.l - 8 || cx - hw >= hd.r + 8;
+            expect(clear, `channel at ${cx.toFixed(0)}±${hw.toFixed(0)} t=${sec}`).toBe(true);
+          }
+        }
+      }
+    }
+  });
+
+  it("curves smoothly: no jumps between rows", () => {
+    for (const hd of heads) {
+      const scroll = hd.t - H / 2;
+      const st = run(L, scroll, 30);
+      for (let c = 0; c < CH; c++)
+        for (let j = 1; j < ROWS; j++) {
+          const d = Math.abs(table.at(st, c, j)[0] - table.at(st, c, j - 1)[0]);
+          expect(d).toBeLessThan(60);
+        }
+    }
+  });
+
+  it("leaves the stream alone away from headings", () => {
+    const scroll = 4600;
+    const a = run(L, scroll, 10);
+    const b = run(plain, scroll, 10);
+    for (let j = 0; j < ROWS; j++)
+      for (let c = 0; c < CH; c++)
+        expect(table.at(a, c, j)[0]).toBeCloseTo(table.at(b, c, j)[0], 3);
+  });
+
+  it("eases in above the heading and out below it", () => {
+    const hd = { t: 1000, b: 1100, rise: 200, fall: 300 };
+    expect(headWeight(hd, 700)).toBe(0);
+    expect(headWeight(hd, 900)).toBeGreaterThan(0);
+    expect(headWeight(hd, 900)).toBeLessThan(1);
+    expect(headWeight(hd, 1050)).toBe(1);
+    expect(headWeight(hd, 1250)).toBeLessThan(1);
+    expect(headWeight(hd, 1400)).toBe(0);
   });
 });
 

@@ -62,5 +62,29 @@ export function measureLayout(vw: number, vh: number): WaveLayout | null {
     if (r.r - r.l > 0 && r.b - r.t > 0 && r.b > yStart) text.push(r);
   }
 
-  return { vw, vh, yStart, yEnd: Math.max(yEnd, yStart + 600), endX, sections, text };
+  // each section's heading block (eyebrow + title), by the extent of its text, not its box
+  const heads: Box[] = [];
+  for (const { el } of rects) {
+    const block = el.querySelector('[data-reveal="headline"]');
+    if (!block) continue;
+    let box: Box | null = null;
+    for (const child of block.children) {
+      const range = document.createRange();
+      range.selectNodeContents(child);
+      const r = range.getBoundingClientRect();
+      if (r.width <= 0 || r.height <= 0) continue;
+      const b = { l: r.left, r: r.right, t: r.top + sy, b: r.bottom + sy };
+      box = box
+        ? {
+            l: Math.min(box.l, b.l),
+            r: Math.max(box.r, b.r),
+            t: Math.min(box.t, b.t),
+            b: Math.max(box.b, b.b),
+          }
+        : b;
+    }
+    if (box && box.b > yStart) heads.push(box);
+  }
+
+  return { vw, vh, yStart, yEnd: Math.max(yEnd, yStart + 600), endX, sections, text, heads };
 }

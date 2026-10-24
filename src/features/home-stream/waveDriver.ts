@@ -128,6 +128,9 @@ export interface WaveLayout {
   sections: WaveSection[];
   /** text blocks in document px */
   text: Box[];
+  /** section heading blocks (eyebrow + title, text extent) in document px: the stream bends
+   * around each like water around a rock */
+  heads: Box[];
 }
 
 const HOME: Record<string, [Regime[], Regime]> = {
@@ -195,6 +198,7 @@ export function createWave(seed = 5150) {
     ackAcc: 0,
     rnd: mulberry32(seed),
     layout: null as WaveLayout | null,
+    heads: [] as Head[],
     asg: new Map<number, number[]>(),
     wt: new Float32Array(0),
     walk: new Float32Array(0),
@@ -228,8 +232,89 @@ export function assign(state: WaveState, e: number): number[] {
   return a;
 }
 
+/* ---------- heading obstacles ---------- */
+/** A heading the stream detours around: its box relative to the viewport centre, and the shape
+ * of its detour, seeded per heading so no two bends match. */
+interface Head {
+  l: number;
+  r: number;
+  t: number;
+  b: number;
+  /** clearance between the band's edge and the text, px */
+  gap: number;
+  /** how far above the heading the stream starts to curve out, and below it to curve back */
+  rise: number;
+  fall: number;
+  /** how strongly channels beside the heading are drawn in to hug its edge (0..1), and from how
+   * far away, px */
+  hug: number;
+  reach: number;
+  /** the side the stream passes on: 1 right, -1 left */
+  side: number;
+  /** how far the stream tucks back in under the heading once past it, px */
+  curl: number;
+}
+
+function heads(L: WaveLayout): Head[] {
+  const W = L.vw;
+  const mobile = W < 768;
+  return L.heads.map((b, i) => {
+    const u = (k: number) => 0.5 + 0.5 * hashf(i * 7 + k, 4421);
+    const gap = (mobile ? 22 : 48) + (mobile ? 14 : 32) * u(0);
+    // pass on the side with room for a typical band; when both have it, a seeded pick
+    const roomL = b.l - gap;
+    const roomR = W - b.r - gap;
+    const need = 0.12 * W;
+    const side = roomL >= need && roomR >= need ? (u(4) < 0.5 ? -1 : 1) : roomR >= roomL ? 1 : -1;
+    return {
+      l: b.l - W / 2,
+      r: b.r - W / 2,
+      t: b.t,
+      b: b.b,
+      gap,
+      rise: (mobile ? 140 : 220) + (mobile ? 80 : 140) * u(1) + 0.35 * (b.b - b.t),
+      fall: (mobile ? 160 : 240) + 180 * u(2),
+      hug: 0.55 + 0.3 * u(3),
+      reach: (0.7 + 0.4 * u(5)) * W,
+      side,
+      curl: (mobile ? 0.12 : 0.18) * W * (0.6 + 0.4 * u(6)),
+    };
+  });
+}
+
+/** How much of a heading's detour applies at document y: eases in above it, holds across it, and
+ * eases out below, so every channel takes a curved path round it. */
+export function headWeight(hd: { t: number; b: number; rise: number; fall: number }, y: number) {
+  return ss((y - hd.t + hd.rise) / hd.rise) * (1 - ss((y - hd.b) / hd.fall));
+}
+
+/** The tuck under the heading's corner once the stream is past it: 0 across the heading, a soft
+ * bump below it, gone by the end of the release. */
+export function headCurl(hd: { b: number; fall: number }, y: number) {
+  const a = (y - hd.b) / hd.fall;
+  return ss(a / 0.45) * (1 - ss((a - 0.35) / 0.65));
+}
+
+/**
+ * Lateral shift for a channel at x (relative to the viewport centre) with half-width hw, around
+ * one heading at full weight. The whole stream passes on the heading's side: channels over it, or
+ * beyond it, fold in just past its edge in their original order, and channels already beside it
+ * are drawn in to hug the edge. Monotone and continuous in x, so channels never cross or jump.
+ */
+export function headPush(hd: Head, x: number, hw: number, W: number) {
+  const reach = Math.max(80, hd.reach);
+  const fan = Math.min(40, 0.03 * W);
+  // mirror the left side onto the right, so one formula serves both
+  const edge = hd.side > 0 ? hd.r + hd.gap + hw : -(hd.l - hd.gap - hw);
+  const e = hd.side * x - edge;
+  const k = 1 - ss(e / reach);
+  const to = e < 0 ? edge + fan * Math.exp(e / fan) : hd.side * x + (fan - hd.hug * e) * k;
+  return hd.side * to - x;
+}
+
 function setLayout(st: WaveState, L: WaveLayout) {
   st.layout = L;
+  st.heads = heads(L);
   st.asg.clear();
   st.wt = new Float32Array(L.sections.length * NR);
   st.ms = new Float32Array(L.sections.length * ROWS);
@@ -310,6 +395,11 @@ export function stepWave(st: WaveState, L: WaveLayout, scroll: number, dt: numbe
   const endAt = (y: number) => 0.05 + 0.95 * (1 - ss((y - (L.yEnd - 900 * k)) / (850 * k)));
   const amp = 1 + 0.25 * st.vel;
   const text = L.text.filter((b) => b.b > st.bandTop - 40 && b.t < st.bandTop + band + 40);
+  const near = st.heads.filter(
+    (h) => h.b + h.fall > st.bandTop && h.t - h.rise < st.bandTop + band,
+  );
+  // headings squeeze the band a little as it passes; more on phones, where they fill the width
+  const squeeze = W < 768 ? 0.45 : 0.2;
   const tb = st.table;
 
   let ii = 0;
@@ -358,13 +448,24 @@ export function stepWave(st: WaveState, L: WaveLayout, scroll: number, dt: numbe
     const wn = 0.5 + 0.5 * n1(s * 0.12 + T * 0.04 + 5, 31);
     const taper = clamp((L.yEnd - y) / 1000, 0, 1);
     const base = W * (0.035 + 0.03 * wn) * nk;
+    // the heading this row passes, if any (they never overlap)
+    let hd: Head | null = null;
+    let hg = 0;
+    for (const h of near) {
+      const g = headWeight(h, y);
+      if (g > hg) {
+        hg = g;
+        hd = h;
+      }
+    }
     const wid =
-      m[RIVER] * Math.max(10, W * (0.042 + 0.03 * wn) * nk) +
-      m[BRAID] * 1.4 +
-      m[DELTA] * (7 + 0.006 * W) +
-      m[FIBRE] * 2.2 +
-      m[POOL] * W * 0.085 * nk +
-      m[FUNNEL] * (2.5 + 0.012 * W * taper);
+      (1 - squeeze * hg) *
+      (m[RIVER] * Math.max(10, W * (0.042 + 0.03 * wn) * nk) +
+        m[BRAID] * 1.4 +
+        m[DELTA] * (7 + 0.006 * W) +
+        m[FIBRE] * 2.2 +
+        m[POOL] * W * 0.085 * nk +
+        m[FUNNEL] * (2.5 + 0.012 * W * taper));
     let spd = 0;
     let al = 0;
     let sz = 0;
@@ -397,7 +498,12 @@ export function stepWave(st: WaveState, L: WaveLayout, scroll: number, dt: numbe
         off += m[DELTA] * nk * W * (DST[c] * 0.062 + 0.012 * n1(s * 0.5 - T * 0.1 + c * 7, 80 + c));
       if (m[FIBRE] > 0.002) off += m[FIBRE] * 2 * n1(s * 0.8 - T * 0.1 + c * 3, 90 + c);
       if (m[FUNNEL] > 0.002) off += m[FUNNEL] * (c - 2) * W * 0.05 * taper;
-      const ofs = clamp(sx + off, -0.6 * W, 0.6 * W);
+      let ofs = clamp(sx + off, -0.6 * W, 0.6 * W);
+      // the points spread ~1.3 widths either side of the channel's centre
+      if (hd) {
+        const curl = -hd.side * hd.curl * headCurl(hd, y);
+        ofs = clamp(ofs + hg * headPush(hd, ofs, 1.3 * wid, W) + curl, -0.6 * W, 0.6 * W);
+      }
       const wg =
         m[RIVER] +
         m[BRAID] * 0.3 +

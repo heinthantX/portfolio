@@ -8,6 +8,9 @@ import { CAMERA, type DriveFn, SignalPoints, type TextMask } from "./SignalPoint
 import { glyph, heroShapes } from "./shapes";
 import { poseAt, shapeIndex } from "./timeline";
 
+/** Idle life: a slow ~7 s scale pulse instead of a side-to-side sway. */
+const breathe = (t: number) => 1 + Math.sin(t * 0.9) * 0.012;
+
 interface Props {
   variant: "hero" | "not-found";
   progressRef?: RefObject<number>;
@@ -42,13 +45,13 @@ export default function SignalCanvas({ variant, progressRef, maskRef, count, fra
       if (hero) {
         const s = shapeIndex(progressRef?.current ?? 0);
         const pose = poseAt(s, view);
-        pose.rotY += Math.sin(elapsed * 0.4) * 0.05;
+        pose.scale *= breathe(elapsed);
         return { s, pose };
       }
       const phase = elapsed % 9;
       const s = Math.min(1, Math.max(0, (phase - 5.5) / 3));
-      const scale = Math.min(1.45, (0.9 * view.w) / 4);
-      return { s, pose: { x: 0, y: 0, rotX: 0, rotY: Math.sin(elapsed * 0.35) * 0.12, scale } };
+      const scale = Math.min(1.45, (0.9 * view.w) / 4) * breathe(elapsed);
+      return { s, pose: { x: 0, y: 0, rotX: 0, rotY: 0, scale } };
     },
     [hero, progressRef],
   );

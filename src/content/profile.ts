@@ -115,21 +115,41 @@ export const profile = profileSchema.parse({
       id: "interface",
       label: "INTERFACE",
       tech: ["React", "Next.js", "React Native", "TypeScript", "Tailwind"],
+      points: [
+        "Design-system components with keyboard and screen-reader support built in",
+        "Next.js App Router sites tuned for Core Web Vitals and SEO",
+        "React Native apps that keep working offline and sync on reconnect",
+      ],
     },
     {
       id: "api",
       label: "API",
       tech: ["NestJS", "Go", "Node.js", "REST", "GraphQL"],
+      points: [
+        "NestJS and Go services with typed contracts shared with the client",
+        "Role-based access control enforced at one boundary, not per screen",
+        "Realtime updates over WebSockets with backpressure and retries",
+      ],
     },
     {
       id: "data",
       label: "DATA",
       tech: ["Postgres", "Redis", "Drizzle", "Prisma"],
+      points: [
+        "Postgres schemas with constraints that keep bad data out",
+        "Zero-downtime migrations: expand, backfill, then contract",
+        "Redis caching and queues with explicit invalidation rules",
+      ],
     },
     {
       id: "infra",
       label: "INFRASTRUCTURE",
       tech: ["Docker", "Kubernetes", "GitHub Actions", "Terraform", "Azure", "DigitalOcean"],
+      points: [
+        "Docker images and Kubernetes deploys with health checks and rollbacks",
+        "GitHub Actions pipelines that lint, test and ship on every merge",
+        "Terraform-managed cloud on Azure and DigitalOcean, with Prometheus metrics",
+      ],
     },
     {
       id: "tools",

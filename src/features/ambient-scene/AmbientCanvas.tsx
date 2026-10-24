@@ -119,8 +119,8 @@ function Sheets({ s }: { s: Shared }) {
       const o = refs.current[i];
       if (!o) return;
       o.position.set(
-        sh.x + Math.sin(t * 0.05 + sh.ph) * 0.8,
-        sh.y,
+        sh.x,
+        sh.y + Math.sin(t * 0.05 + sh.ph) * 0.5,
         sh.z + Math.sin(t * 0.08 + sh.ph) * 0.9,
       );
       o.rotation.z = sh.rot + Math.sin(t * 0.04 + sh.ph) * 0.02;

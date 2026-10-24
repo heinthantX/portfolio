@@ -23,6 +23,8 @@ export type DriveFn = (elapsed: number, view: { w: number; h: number; mobile: bo
 
 const FOV = 38;
 const CAM_Z = 7;
+/** Seconds for the points to gather on first frame. */
+const INTRO_S = 2.8;
 
 const NOISE = /* glsl */ `
 vec3 mod289(vec3 x){return x-floor(x*(1.0/289.0))*289.0;}
@@ -70,7 +72,7 @@ float snoise(vec3 v){
 }`;
 
 const VERT = /* glsl */ `
-uniform float uT, uTime, uSize, uStrength, uRadius, uDark, uAlpha;
+uniform float uT, uTime, uSize, uStrength, uRadius, uDark, uAlpha, uIntro;
 uniform vec3 uMouse, uText, uSignal, uMuted;
 uniform vec4 uMask; // centre.xy, half-size.xy in NDC
 uniform float uMaskA;
@@ -90,6 +92,13 @@ void main(){
   vec3 q = p * 0.65 + vec3(0.0, 0.0, uTime * 0.18);
   p += vec3(snoise(q), snoise(q + 31.4), snoise(q + 57.2)) * amp;
   p += sin(uTime * 1.3 + aRand * 40.0 + vec3(0.0, 2.1, 4.2)) * 0.006;
+  // intro: points gather inward from a loose cloud, each with its own lag (a swarm, not a fade)
+  float it = clamp(uIntro * 1.4 - aRand * 0.4, 0.0, 1.0);
+  float ie = 1.0 - pow(1.0 - it, 3.0);
+  if (uIntro < 1.0) {
+    vec3 cloud = p * 1.8 + vec3(snoise(p + 11.0), snoise(p + 23.0), snoise(p + 37.0)) * 0.8;
+    p = mix(cloud, p, ie);
+  }
   // cursor pushes points outward
   vec3 d = p - uMouse; d.z *= 0.5;
   float push = smoothstep(uRadius, 0.0, length(d)) * uStrength;
@@ -107,7 +116,7 @@ void main(){
   float far = smoothstep(5.0, 9.2, depth);
   vColor = mix(mix(uText, uSignal, sig), uMuted, far * 0.5);
   float fade = mix(1.0, mix(1.0, 0.45, far), uDark);
-  vA = uAlpha * (0.55 + 0.45 * fract(aRand * 53.1)) * fade * (1.0 + sig * 0.25 * uDark) * keep;
+  vA = uAlpha * (0.55 + 0.45 * fract(aRand * 53.1)) * fade * (1.0 + sig * 0.25 * uDark) * keep * ie;
 }`;
 
 const FRAG = /* glsl */ `
@@ -138,6 +147,7 @@ export function SignalPoints({ shapes, count, drive, interactive = true, maskRef
   const dark = mood === "dark";
   const group = useRef<THREE.Group>(null);
   const seg = useRef(-1);
+  const introStart = useRef(-1);
   const pointer = useRef({ x: 0, y: 0, inside: false });
   const raycaster = useMemo(() => new THREE.Raycaster(), []);
   const plane = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 0, 1), 0), []);
@@ -170,6 +180,7 @@ export function SignalPoints({ shapes, count, drive, interactive = true, maskRef
         uRadius: { value: 0.9 },
         uDark: { value: 1 },
         uAlpha: { value: 0.8 },
+        uIntro: { value: 0 },
         uMouse: { value: v(99, 99, 0) },
         uText: { value: v(1, 1, 1) },
         uSignal: { value: v(1, 0.7, 0.2) },
@@ -244,6 +255,8 @@ export function SignalPoints({ shapes, count, drive, interactive = true, maskRef
     }
     u.uT.value = t;
     u.uTime.value = state.clock.elapsedTime;
+    if (introStart.current < 0) introStart.current = state.clock.elapsedTime;
+    u.uIntro.value = Math.min(1, (state.clock.elapsedTime - introStart.current) / INTRO_S);
 
     const g = group.current;
     if (g) {

@@ -1,7 +1,7 @@
 /** Pure functions of scroll progress (0..1) for the hero. Nothing here keeps state. */
 export const CHAPTERS = 6;
 /** Width of a morph window around each chapter boundary. */
-const W = 0.07;
+const W = 0.09;
 
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
 export const local = (p: number, a: number, b: number) => clamp01((p - a) / (b - a));
@@ -24,14 +24,18 @@ export const chapterProgress = (i: number) =>
 
 /** Text block state: opacity 0..1, `enter` 1->0 as it arrives, `leave` 0->1 as it goes. */
 export function textState(p: number, i: number) {
-  const enter = i === 0 ? 0 : 1 - local(p, boundary(i - 1) + 0.003, boundary(i - 1) + 0.04);
-  const leave = i === CHAPTERS - 1 ? 0 : local(p, boundary(i) - 0.04, boundary(i) - 0.003);
+  const enter = i === 0 ? 0 : 1 - local(p, boundary(i - 1) + 0.004, boundary(i - 1) + 0.05);
+  const leave = i === CHAPTERS - 1 ? 0 : local(p, boundary(i) - 0.05, boundary(i) - 0.004);
   return { opacity: (1 - enter) * (1 - leave), enter, leave };
 }
 
-/** Side the formation sits on per shape (1 right, -1 left). Text takes the opposite side. */
-export const FORMATION_SIDE = [0, 1, -1, 1, -1, 0] as const;
-const ROT_Y = [0, -0.4, 0.35, -0.35, 0.3, 0];
+/**
+ * Side the formation sits on per shape (1 right, -1 left, 0 centre). Text takes the opposite side.
+ * The formation holds one column through the layers so nothing ping-pongs sideways; shapes
+ * change in place and the text moves vertically.
+ */
+export const FORMATION_SIDE = [0, 1, 1, 1, 1, 0] as const;
+const ROT_Y = [0, -0.35, -0.35, -0.35, -0.35, 0];
 const ROT_X = [0, 0.05, -0.05, 0.42, 0.78, 0.22];
 const Y = [0.75, 0, 0, 0, 0, 0.45];
 const SCALE = [1.5, 1, 1, 1.05, 1, 1.7];

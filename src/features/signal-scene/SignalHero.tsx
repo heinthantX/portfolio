@@ -48,16 +48,16 @@ const RAIL_LABELS = ["Intro", "Interface", "API", "Data", "Infrastructure", "Shi
 const POSTER_ALT =
   "Particle diagram of the stack: interface, API, data and infrastructure, shipped";
 
-function LayerBody({ index }: { index: number }) {
+function LayerBody({ index, onJump }: { index: number; onJump?: (chapter: number) => void }) {
   const layer = LAYERS[index];
-  const tech = profile.stackLayers.find((l) => l.id === layer.id)?.tech ?? [];
+  const { tech = [], points = [] } = profile.stackLayers.find((l) => l.id === layer.id) ?? {};
   return (
     <>
       <Eyebrow>
         {String(index + 1).padStart(2, "0")} / {String(LAYERS.length).padStart(2, "0")}
       </Eyebrow>
       <h2 className="mt-3 text-[length:var(--text-h2)] leading-[1.05]">{layer.title}</h2>
-      <p className="mt-4 max-w-[34ch] text-muted-foreground">{layer.line}</p>
+      <p className="mt-4 max-w-[38ch] text-muted-foreground">{layer.line}</p>
       <ul className="mt-5 flex flex-wrap gap-1.5">
         {tech.map((t) => (
           <li key={t}>
@@ -65,7 +65,48 @@ function LayerBody({ index }: { index: number }) {
           </li>
         ))}
       </ul>
+      {points.length > 0 && (
+        <ul className="mt-5 space-y-2 text-sm">
+          {points.map((pt) => (
+            <li key={pt} className="flex gap-2.5">
+              <span aria-hidden="true" className="mt-[0.6em] h-px w-2.5 shrink-0 bg-signal" />
+              <span>{pt}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {onJump && <StackOutline active={index} onJump={onJump} />}
     </>
+  );
+}
+
+/** The whole stack at a glance under the active layer; each row jumps to its chapter. */
+function StackOutline({ active, onJump }: { active: number; onJump: (chapter: number) => void }) {
+  return (
+    <ol className="mt-6 hidden border-line border-t pt-3 md:block">
+      {LAYERS.map((l, j) => {
+        const tech = profile.stackLayers.find((s) => s.id === l.id)?.tech ?? [];
+        const on = j === active;
+        return (
+          <li key={l.id}>
+            <button
+              type="button"
+              onClick={() => onJump(j + 1)}
+              aria-current={on ? "step" : undefined}
+              className={`flex w-full items-baseline gap-3 py-1 text-left text-sm transition-colors duration-200 ${on ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              <span className={`font-mono text-[0.6875rem] ${on ? "text-signal" : ""}`}>
+                {String(j + 1).padStart(2, "0")}
+              </span>
+              <span className="w-28 shrink-0">{l.title}</span>
+              <span className="truncate font-mono text-[0.6875rem]">
+                {tech.slice(0, 3).join(" · ")}
+              </span>
+            </button>
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 
@@ -183,12 +224,11 @@ export function SignalHero({ children, finale, poster }: SignalHeroProps) {
         const el = blockRefs.current[i];
         if (!el) continue;
         const { opacity, enter, leave } = textState(p, i);
-        const side = -FORMATION_SIDE[i];
-        const x = side * 36 * enter - side * 36 * leave;
-        const y = i === 0 ? -24 * leave : i === CHAPTERS - 1 ? 24 * enter : 0;
+        // vertical only: rises in from below, leaves upward, following the scroll direction
+        const y = 24 * enter - 24 * leave;
         el.style.opacity = String(opacity);
-        el.style.transform = `translate3d(${x}px, ${y}px, 0)`;
-        appliedRef.current[i] = { x, y };
+        el.style.transform = `translate3d(0, ${y}px, 0)`;
+        appliedRef.current[i] = { x: 0, y };
         el.inert = opacity < 0.5;
         el.style.visibility = opacity < 0.01 ? "hidden" : "visible";
       }
@@ -274,7 +314,7 @@ export function SignalHero({ children, finale, poster }: SignalHeroProps) {
   const card = "max-md:rounded-lg max-md:bg-bg/80 max-md:p-4 max-md:backdrop-blur-md";
 
   return (
-    <section ref={sectionRef} data-stack-hero className="relative h-[650vh] w-full">
+    <section ref={sectionRef} data-stack-hero className="relative h-[400vh] w-full">
       <div
         ref={stageRef}
         data-stack-stage
@@ -317,10 +357,10 @@ export function SignalHero({ children, finale, poster }: SignalHeroProps) {
               }}
               inert
               style={{ opacity: 0 }}
-              className={`${block} w-full md:w-[min(42%,26rem)] ${card}`}
+              className={`${block} w-full md:w-[min(46%,30rem)] ${card}`}
             >
               <Scrim />
-              <LayerBody index={i} />
+              <LayerBody index={i} onJump={go} />
             </div>
           </div>
         ))}

@@ -76,8 +76,20 @@ Brainstorm, scored 1–5 on look / professional / story / text-flow / mobile+per
 | (old) Slab stack | Exploding labelled slabs | 2 | 3 | 4 | 2 | 3 | 14 |
 
 **Winner: A, "Signal".** One cloud of light (dark) or ink stipple (light) that keeps becoming the next layer of the stack. It reads as craft, not as a diagram, and it moves smoothly because it is one mesh. It also has a natural slot for the cursor (points part around it).
-- **Text flows with the formation.** Every chapter places the formation on one side and its text on the other, alternating sides. The formation glides across while the old text leaves and the new text comes in. The hero name is centred over the name glyph, and the finale is centred over the globe with the CTAs. On mobile the formation sits in the top half and the text card in the bottom half.
+- **Text flows with the formation.** *(Side-alternation superseded by D8.)* Every chapter places the formation on one side and its text on the other, alternating sides. The formation glides across while the old text leaves and the new text comes in. The hero name is centred over the name glyph, and the finale is centred over the globe with the CTAs. On mobile the formation sits in the top half and the text card in the bottom half.
 - **Chapters:** 00 name → 01 Interface (browser + phone) → 02 API (service graph) → 03 Data (stacked database discs) → 04 Infrastructure (4×3 node cluster with pods) → 05 Shipped (globe with arcs) + CTA.
 - **Moods (D4 kept):** dark = additive glowing points in amber + text colour, a light depth fade; light = ink-coloured stipple with normal blending and amber accents only, no glow.
 - A small chapter rail (01–05) on the right edge replaces the HUD box, and each tick jumps to its chapter.
 - The old stack-scene is retired. The 404 page uses the same engine: points form "404", then scatter and reform.
+
+## D8 — No sideways motion; denser, shorter hero (2026-10-24)
+
+The owner rejected motion that travels left and right, and the one-topic-per-screen pacing. Principles taken from a reference video on particle scrollytelling: points swarm with per-point lag instead of fading, scroll is one 0..1 number read in the frame loop, and the scene gathers on load.
+
+- **Formation holds one column.** `FORMATION_SIDE` is `[0, 1, 1, 1, 1, 0]`: the formation stays on the right through all four layers and the text stays on the left. Yaw (`ROT_Y`) is constant per layer. Only the intro → Interface step moves the formation once, during the shape morph.
+- **Text moves vertically only.** Cards rise in from 24px below and leave 24px upward. No `translateX` anywhere in the hero.
+- **Idle life is a scale pulse,** about 1.2% over ~7 s (`breathe()` in `SignalCanvas.tsx`), replacing the yaw sway. The 404 scene breathes too. Ambient sheets drift vertically, not sideways. Cursor-driven parallax stays.
+- **Intro swarm (2.8 s):** points gather inward from a loose cloud with a per-point lag (`uIntro`, `INTRO_S` in `SignalPoints.tsx`).
+- **Shorter, denser story:** the hero is `400vh` (3 screens of scroll, was 5.5). Each layer card shows the tech tags, 3 capability bullets (`stackLayers[].points` in `profile.ts`), and a stack outline of all four layers that jumps to each chapter (desktop only). Morph window `W` = 0.09 and the text windows widen to 0.05 to suit the shorter scroll.
+- Hover arrow nudges (`group-hover:translate-x-1` on "→" links) stay: they point in the link's direction and are user-triggered.
+

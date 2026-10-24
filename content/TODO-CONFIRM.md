@@ -5,6 +5,7 @@ Everything marked `[MOCK]` or `[CONFIRM]` in one list. Edit `src/content/profile
 ## Profile (`src/content/profile.ts`)
 
 - [ ] **Location**: currently "Bangkok time (UTC+7)". Pick the city/country to show, or keep only the time zone.
+- [ ] **Stack layer bullets** (`stackLayers[].points`): 3 capability lines per layer on the home hero, written for the MVP. Reword to match real work.
 - [ ] **Tagline**: "From the interface to the infrastructure." [MOCK]
 - [ ] **Bio**: the two paragraphs are a draft [MOCK]. Rewrite in your own voice.
 - [ ] **Availability**: "Open to full-stack and platform roles." [MOCK]. Set `open: false` to show a grey dot.

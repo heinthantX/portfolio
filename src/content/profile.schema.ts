@@ -45,6 +45,8 @@ export const profileSchema = z.object({
       id: z.enum(["interface", "api", "data", "infra", "tools"]),
       label: z.string(),
       tech: z.array(z.string()),
+      /** Concrete things delivered at this layer, shown on the home hero. */
+      points: z.array(z.string()).default([]),
     }),
   ),
   principles: z.array(

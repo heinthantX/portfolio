@@ -9,6 +9,7 @@
 - Layout constants in `main-nav.tsx`: `DIVE_X` (where the dive leaves the arrow's hook, measured from the link's right edge), `HOLE_X = 20` and `HOLE_Y = 12` (the nail hole's inset from the card's top-right corner), and `CARD_GAP = 20`.
 - `drop` is measured as nav bottom − link top + 20 + 12. The card is positioned so its hole sits under `link.right + DIVE_X`.
 - `MainNav` sets `data-pinned` on `nav` while a card is open. Clicking a link calls `close`, which drops `data-pinned`.
+- `MainNav` listens for window `blur` and clears the hover card. A window blur (another Chrome tab) closes the card.
 - `src/app/globals.css`:
   - `.nav-shot` has `isolation: isolate` and `z-index: 1`, so the head paints over the card.
   - The front masked layer and its halo carry only the cross (`.shot-cross`, animated by `@keyframes shot-cross`). The lap is the back layer only.
@@ -45,6 +46,8 @@
    - The arrow svg fades out over 0.3s after a 0.5s delay, so it goes faint only after the retreat completes.
    - The arrow returns to the rest state if the link is the current page.
 6. Clicking a nav link calls `close`. The card closes at once, and the retreat in step 5 plays with it.
+   - On desktop, a mouse click (`e.detail > 0`) also blurs the link, so it does not keep focus across client navigation.
+   - Keyboard activation keeps focus. `onFocus` still opens the card for keyboard users.
 
 ## Edge Cases
 - The dive and head are hidden unless `nav[data-pinned]` is set. A hover with no open card shows only the lap and the cross.
@@ -55,6 +58,7 @@
 - `.nav-shot` has `z-index: 1`. If it loses that, the head paints under the card and the pin point disappears.
 - Put `z-index` on the arrow svgs inside `.nav-shot`, never on the `.shot-arrow` wrapper. A wrapper `z-index` creates a stacking context and traps the front layer behind the label. See `docs/memory/conventions.md`.
 - Any `useId` value used in a CSS `url()` must have its colons stripped first.
+- A mouse-clicked link stays focused across client navigation, because the header persists. When the tab regains focus, the browser refocuses it and fires `onFocus`, which reopens the card. No `mouseleave` fires, so the card stuck open. Fix: blur on mouse click, and close the card on window `blur`. See `docs/memory/fixes.md`.
 - Tried and dropped: a yellow page-name pill and a separate outline box around the card.
 
 ## Autonomous UX Polish

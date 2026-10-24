@@ -33,6 +33,15 @@ export function MainNav() {
   const leave = () => {
     hide.current = window.setTimeout(() => setHover(null), 120);
   };
+  // switching browser tabs fires no mouseleave, so drop the card when the window loses focus
+  useEffect(() => {
+    const drop = () => {
+      window.clearTimeout(hide.current);
+      setHover(null);
+    };
+    window.addEventListener("blur", drop);
+    return () => window.removeEventListener("blur", drop);
+  }, []);
   // keep showing the last link while the card and tag fade out
   const last = useRef(hover);
   if (hover) last.current = hover;
@@ -66,7 +75,12 @@ export function MainNav() {
                 className="nav-shot hover:text-text aria-[current=page]:text-text"
                 onMouseEnter={(e) => show(item, e.currentTarget)}
                 onFocus={(e) => show(item, e.currentTarget)}
-                onClick={close}
+                onClick={(e) => {
+                  close();
+                  // a mouse click leaves the link focused, and the browser refocuses it on return to
+                  // the tab, which would reopen the card; keyboard activation (detail 0) keeps focus
+                  if (e.detail > 0) e.currentTarget.blur();
+                }}
               >
                 {item.label}
                 <ShotArrow />

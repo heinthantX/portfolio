@@ -27,4 +27,5 @@
 | R3F Clock patch | `@react-three/fiber` 9.8.x constructs a deprecated `THREE.Clock`. Keep the pnpm patch; re-check or drop it on upgrade. | docs/memory/fixes.md | 2026-10-24 |
 | Tab in Radix Dialog | Tab handlers need `stopPropagation` as well as `preventDefault`, or FocusScope wraps focus off the input. | docs/memory/fixes.md | 2026-10-24 |
 | shadcn data-* variants | `data-selected:` (and similar shadcn variants) match only `="true"`; set the attribute to "true", not "". | docs/memory/fixes.md | 2026-10-24 |
+| Nav preview card on tab return | Mouse clicks blur the nav link, and window blur closes the card. Focus returning to a clicked link otherwise reopens it with no `mouseleave`. | docs/memory/fixes.md | 2026-10-25 |
 | Hero snap on touch | `pointercancel` fires when the browser takes over a touch scroll. Treat it as pointerup, and ignore touch pointers for `pressed`. | docs/memory/fixes.md | 2026-10-24 |

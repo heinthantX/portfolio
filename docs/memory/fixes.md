@@ -43,6 +43,10 @@ Fix: above-the-fold reveals wait 450-500ms before starting. See `docs/memory/arc
 Root cause: under React StrictMode the first effect run marked elements pending. Its cleanup disconnected the IntersectionObserver, and the second run skipped those elements because they were already marked. They stayed hidden.
 Fix: the second run re-observes anything not yet in the "in" state. See `docs/specs/text-reveal.md` (Edge Cases).
 
+## Nav preview card stuck open after returning to the tab (2026-10-25)
+Root cause: a mouse-clicked nav `Link` stays focused across client navigation because the header persists. On tab return the browser refocuses it, firing `onFocus` → `show()`. No `mouseleave` fires, so the card stays.
+Fix: on a desktop mouse click (`e.detail > 0`) the link blurs; `MainNav` closes the card on window `blur`. See `docs/specs/nav-hover-preview.md`.
+
 ## R3F frameloop switch resets the clock: stale hero shape after tab return (2026-10-24)
 react-three-fiber 9.8.1 resets `clock` to 0 whenever `frameloop` changes. The home canvas pauses (`frameloop="never"`) while the tab is hidden or a modal is open, so on resume `delta`/elapsed ran backwards; `easeToward` with a negative dt drove the stream hand-off (`uFlow`) hugely negative or NaN and the shipped globe stuck over the lower sections. Fix: `SignalPoints` keeps its own monotonic clock (frame steps clamped 0..0.1s), `easeToward` ignores negative dt, the stream's dt is floored at 0. Never trust R3F's clock across frameloop changes.
 

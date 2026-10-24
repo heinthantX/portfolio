@@ -18,8 +18,8 @@ export const ARM_SCRIPT = `(function(){var d=document.documentElement;if(matchMe
 
 const HEADLINE = "[data-reveal='headline']";
 const EASE = "cubic-bezier(0.2, 0.7, 0.2, 1)";
-/** Blocks already animated in; their fill-forwards animation overrides the CSS that hides them. */
-const revealed = new WeakSet<Element>();
+/** Each block's reveal; its fill-forwards keeps it visible over the CSS that hides it. */
+const reveals = new WeakMap<Element, Animation>();
 
 function keyframes(el: HTMLElement): Keyframe[] {
   const to = { opacity: 1, translate: "0 0", filter: "blur(0px)" };
@@ -55,14 +55,17 @@ export function TextReveal() {
         for (const e of entries) {
           if (!e.isIntersecting) continue;
           const el = e.target as HTMLElement;
-          revealed.add(el);
           io.unobserve(el);
-          el.animate(keyframes(el), {
-            duration: el.matches(HEADLINE) ? 900 : 800,
-            delay: wait + Math.min(n++, 8) * STEP,
-            easing: EASE,
-            fill: "both",
-          });
+          reveals.get(el)?.cancel();
+          reveals.set(
+            el,
+            el.animate(keyframes(el), {
+              duration: el.matches(HEADLINE) ? 900 : 800,
+              delay: wait + Math.min(n++, 8) * STEP,
+              easing: EASE,
+              fill: "both",
+            }),
+          );
         }
       },
       { rootMargin: "0px 0px -6% 0px" },
@@ -70,14 +73,24 @@ export function TextReveal() {
     // No DOM writes here: these nodes may not be hydrated yet, and any attribute change is a hydration mismatch.
     const scan = () => {
       for (const el of document.querySelectorAll<HTMLElement>(BLOCKS)) {
-        if (!revealed.has(el)) io.observe(el);
+        if (!reveals.has(el)) io.observe(el);
       }
     };
-    scan();
+    // Next keeps visited pages mounted but hidden; coming back shows the same nodes, so replay
+    // the page now on screen. Next frame, once the returning page is visible again.
+    const replay = requestAnimationFrame(() => {
+      for (const el of document.querySelectorAll<HTMLElement>(BLOCKS)) {
+        if (!reveals.has(el) || !el.checkVisibility()) continue;
+        reveals.get(el)?.cancel();
+        reveals.delete(el);
+      }
+      scan();
+    });
     // blocks that mount later (work filter, suspense) still get revealed instead of staying hidden
     const mo = new MutationObserver(scan);
     mo.observe(document.body, { childList: true, subtree: true });
     return () => {
+      cancelAnimationFrame(replay);
       io.disconnect();
       mo.disconnect();
     };

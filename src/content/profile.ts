@@ -207,8 +207,8 @@ export const profile = profileSchema.parse({
       group: "AI-assisted workflow",
       items: [
         {
-          name: "Dual-model orchestration",
-          note: "Claude Code conducts and reviews, Gemini via agy implements spec’d units, every gate human-verified.",
+          name: "Multi-agent orchestration",
+          note: "A planning agent scopes and reviews, implementation agents build spec’d units, every gate human-verified.",
         },
       ],
     },

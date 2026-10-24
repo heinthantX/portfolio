@@ -19,10 +19,9 @@ export function UsesPage() {
           </h1>
           <p className="mt-4 text-base leading-relaxed text-muted-foreground">
             A living catalog of hardware, software, runtimes, and engineering workflows that support
-            day-to-day development. Delivery follows a dual-model AI-assisted workflow where
-            high-reasoning models conduct architectural planning and reviews, specialized coding
-            agents implement scoped units, and automated local gates verify every commit before
-            release.
+            day-to-day development. Delivery follows a multi-agent workflow where planning agents
+            scope and review changes, implementation agents build scoped units, and automated local
+            gates verify every commit before release.
           </p>
         </div>
 

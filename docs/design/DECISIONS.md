@@ -238,3 +238,14 @@ The owner explained what "stream flow" meant: "the flow of particle on the home 
 
 - **Reverted D21.** The site-wave canvas, its store and driver, the hoisted canvas and the stream mode in the shader are gone. The hero owns its canvas again, and `AmbientBackground` is back in the layout with all four variants (sheets, field, graph, packets). The source matches b998834. The later work stays: the page slide (D19), the command menu and Home link (D20), and the infra shape (D18). The stream code is still in git at 8d7a1dd, and its spec is in `docs/archive/site-wave.md`.
 - **Next:** the "stream" is the hero's own particle flow between formations, made more live and interactive, starting with intro → wave (D23).
+
+## D23: Live particle stream between hero chapters (2026-10-24)
+
+Owner wanted the particle flow between hero objects "more interactive live when switching from first hero of the home to its second one" (intro → wave).
+
+- **Stream, not blend.** Mid-morph, every point leaves the straight `aFrom → aTo` line and rides a curved current: simplex noise of a low-frequency mix of its start and end positions (neighbours share a current) and its own flight progress (late starters trail on the same curve). Points string out along their travel line by seed and are squeezed sideways into wandering filaments (screen space, monotonic, so they never cross). Noise time keeps it drifting while the scroll is held mid-morph. No periodic sway (memory: no ping-pong).
+- **Envelope.** All of it is multiplied by `smoothstep(0.02,0.35,st)*smoothstep(0.98,0.65,st)`, so the rest formations are unchanged.
+- **Interactive.** Scroll position scrubs it both ways. `streamEnergy` (timeline.ts) low-passes the morph speed (rises fast, settles over ~1s) into `uEnergy`: fast scroll = turbulent, spread, longer stagger (`streamLag`, `uLag`, shared with the links); slow = calm ribbons. In-flight points get a stronger cursor push plus a swirl (desktop only).
+- **Gold packets.** 3.5% of points by seed turn `uSignal`, a little larger and brighter, mid-flight.
+- **Strength per boundary.** `flowStrength`: 1 for intro → wave, 0.42 elsewhere. The 404 glyph runs at full strength (`fullFlow`) and now scatters into rising strands.
+- **Replaced:** the old mid-flight snoise wobble and uniform lift (`uDissolve` lift).

@@ -123,3 +123,31 @@ function basePose(i: number, view: { w: number; h: number; mobile: boolean }): P
 /** Frame-rate independent ease of `shown` toward `target`; dt in seconds. */
 export const easeToward = (shown: number, target: number, dt: number, rate = 5) =>
   shown + (target - shown) * (1 - Math.exp(-dt * rate));
+
+/**
+ * The stream points ride between two shapes (see SignalPoints). `flow` 0..1 is how strongly a
+ * boundary runs it: the intro -> wave fall is the showpiece, later boundaries get a calmer one.
+ * `energy` 0..1 is how fast the morph is being scrolled: fast scrolls stir the stream up and
+ * string it out, a slow or stopped scroll leaves calm ribbons.
+ */
+const BOUNDARY_FLOW = [1, 0.42, 0.42, 0.42, 0.42, 0.42];
+export const flowStrength = (boundary: number) =>
+  BOUNDARY_FLOW[Math.max(0, Math.min(BOUNDARY_FLOW.length - 1, Math.floor(boundary)))];
+
+/** Morph speed (shape-index units per second) that reads as full energy. */
+const FULL_ENERGY_SPEED = 3;
+/**
+ * Low-passed, clamped scroll energy from the change `ds` in shape index over `dt` seconds. Rises
+ * fast and falls slowly, so a burst of scroll does not pop and a stop settles over a second or so.
+ */
+export function streamEnergy(shown: number, ds: number, dt: number): number {
+  if (!(dt > 0) || !Number.isFinite(ds)) return shown;
+  const raw = Math.min(1, Math.abs(ds) / dt / FULL_ENERGY_SPEED);
+  return easeToward(shown, raw, Math.min(dt, 0.1), raw > shown ? 6 : 1.8);
+}
+
+/** Base morph stagger (share of the morph the last point waits), as before the stream. */
+export const BASE_LAG = 0.7;
+/** Stagger for a given flow and energy: fast scrolls string the points out along their paths. */
+export const streamLag = (flow: number, energy: number) =>
+  BASE_LAG + 0.5 * Math.min(1, Math.max(0, flow)) * Math.min(1, Math.max(0, energy));

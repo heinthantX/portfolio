@@ -5,7 +5,7 @@ import { type RefObject, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { useThemeColors } from "@/lib/use-theme-colors";
 import { mulberry32, neuralNet, waveNet } from "./shapes";
-import { CAM_Z, FOV, type Pose } from "./timeline";
+import { BASE_LAG, CAM_Z, FOV, type Pose, streamEnergy, streamLag } from "./timeline";
 
 export interface Drive {
   /** continuous shape index (integer = resting on that shape) */
@@ -83,9 +83,44 @@ float swell(vec3 p){
 const PULSE = /* glsl */ `
 float pulseHead(float phase){ return fract(uTime * 0.28 + phase) * 1.4 - 0.2; }`;
 
+/**
+ * The stream points ride between two shapes. Each point keeps its straight from -> to line at
+ * both ends and leaves it mid-flight along a curve drawn from low-frequency noise of where it came
+ * from and where it is going, so neighbours share a current. The noise also moves with the
+ * point's own flight progress, so points that set off later (the stagger) sit further back on
+ * the same curve and the swarm strings out; `lanes` then squeezes it sideways into wandering
+ * filaments, so it reads as a river of ribbons rather than a cloud. `uFlow` is the boundary's strength,
+ * `uEnergy` the eased scroll speed (turbulence and spread), and noise time keeps the stream
+ * drifting while a scroll is held mid-morph. Zero at both ends, so formations land exactly.
+ */
+const STREAM = /* glsl */ `
+const float CAM_Z = ${CAM_Z.toFixed(1)};
+float flight(float st){ return smoothstep(0.02, 0.35, st) * smoothstep(0.98, 0.65, st); }
+// meandering current shared by neighbours; it bends along the flight, so a stagger strings it out
+vec3 stream(vec3 from, vec3 to, float st, float env){
+  vec3 c = vec3(from.x * 0.4 + to.x * 0.15, from.y * 0.35 + to.z * 0.25, from.z * 0.2);
+  vec3 n = c + vec3(st * 1.3, -st * 0.9, uTime * 0.06 + st * 0.8);
+  vec3 cur = vec3(snoise(n), snoise(n + vec3(17.1, 3.7, 0.0)), snoise(n + vec3(41.3, 9.2, 0.0)));
+  vec3 m = c * 2.7 + vec3(0.0, 0.0, uTime * 0.22 + st * 0.6);
+  vec3 turb = vec3(snoise(m + 7.7), snoise(m + 23.9), 0.0);
+  float amp = uFlow * (1.0 + 0.5 * uEnergy);
+  return (cur * vec3(1.0, 0.7, 0.5) + turb * (0.12 + 0.45 * uEnergy)) * amp * env;
+}
+// lanes: squeeze points sideways toward wandering centre lines, so the swarm reads as filaments.
+// u -> u - k*sin(2πu)/2π is monotonic for k < 1, so points bunch without ever crossing; applied
+// twice for tighter strands. Returns the sideways shift in camera-plane units.
+float lanes(float lat, float along, float k){
+  const float F = 1.4, TAU = 6.2831853;
+  float u0 = lat * F + 0.9 * snoise(vec3(lat * 0.45, along * 0.5, uTime * 0.05));
+  float u = u0 - k * sin(TAU * u0) / TAU;
+  u -= k * sin(TAU * u) / TAU;
+  return (u - u0) / F;
+}`;
+
 const VERT = /* glsl */ `
 uniform float uT, uTime, uSize, uStrength, uRadius, uDark, uAlpha, uIntro;
 uniform float uWaveA, uWaveB, uDissolve;
+uniform float uFlow, uEnergy, uLag; // stream strength, eased scroll energy, morph stagger
 uniform mat4 uMatA, uMatB; // endpoint poses (local -> world)
 uniform vec2 uScaleAB;
 uniform vec3 uMouse, uText, uSignal, uMuted;
@@ -102,15 +137,15 @@ varying float vA;
 ${NOISE}
 ${FIELD}
 ${PULSE}
+${STREAM}
 void main(){
   // per-point stagger so morphs ripple instead of moving in lockstep
-  float st = clamp(uT * 1.7 - aRand * 0.7, 0.0, 1.0);
+  float st = clamp(uT * (1.0 + uLag) - aRand * uLag, 0.0, 1.0);
   float e = st * st * (3.0 - 2.0 * st);
   vec3 p = mix(aFrom, aTo, e);
-  // curl-ish noise: strong mid-travel, a gentle shimmer at rest
-  float amp = 0.014 + 1.0 * sin(st * 3.14159265);
+  // a gentle shimmer at rest
   vec3 q = p * 0.65 + vec3(0.0, 0.0, uTime * 0.18);
-  p += vec3(snoise(q), snoise(q + 31.4), snoise(q + 57.2)) * amp;
+  p += vec3(snoise(q), snoise(q + 31.4), snoise(q + 57.2)) * 0.014;
   p += sin(uTime * 1.3 + aRand * 40.0 + vec3(0.0, 2.1, 4.2)) * 0.006;
   // the field swells in place
   float wv = mix(uWaveA, uWaveB, e);
@@ -134,18 +169,43 @@ void main(){
   // reads as the swarm regathering, never as the whole formation sliding
   vec3 w = mix((uMatA * vec4(p, 1.0)).xyz, (uMatB * vec4(p, 1.0)).xyz, e);
   float sc = mix(uScaleAB.x, uScaleAB.y, e);
-  // leaving the field: points lift and thin mid-flight, then condense into the next shape
+  // in flight: ride the stream (world space, so currents stay coherent across the screen)
+  float env = flight(st) * step(0.0001, uFlow);
+  float pk = step(fract(aRand * 613.7), 0.035); // packets: a few points carry the signal colour
+  if (env > 0.0) {
+    vec3 a = (uMatA * vec4(aFrom, 1.0)).xyz;
+    vec3 b = (uMatB * vec4(aTo, 1.0)).xyz;
+    vec3 dir = normalize(b - a + vec3(0.0, -1e-4, 0.0));
+    w += stream(aFrom, aTo, st, env);
+    // streamwise stretch: later starters trail further back along the travel line, packets lead
+    w -= dir * (aRand - 0.5) * env * uFlow * (0.55 + 0.6 * uEnergy) * (1.0 - pk * 1.4);
+    // bunch into lanes across the travel direction as seen on screen (looser on a fast scroll).
+    // Worked on the camera plane so points at different depths line up into the same strand.
+    vec4 vw = viewMatrix * vec4(w, 1.0);
+    vec4 va = viewMatrix * vec4(a, 1.0);
+    vec4 vb = viewMatrix * vec4(b, 1.0);
+    vec2 sw = vw.xy / -vw.z * CAM_Z;
+    vec2 sd = normalize(vb.xy / -vb.z - va.xy / -va.z + vec2(0.0, -1e-4));
+    vec2 side = vec2(-sd.y, sd.x);
+    float k = 0.96 * env * mix(0.6, 1.0, uFlow) * (1.0 - 0.4 * uEnergy);
+    w.xy += side * lanes(dot(sw, side), dot(sw, sd), k) * (-vw.z / CAM_Z);
+  }
+  float glow = pk * env * uFlow;
+  // the wave's points thin mid-flight as they leave the field
   float mid = sin(st * 3.14159265) * uDissolve;
-  w.y += mid * 0.5;
-  // cursor pushes points outward
+  // cursor pushes points outward; in flight they part wider and swirl round it, leaving a wake
   vec3 d = w - uMouse; d.z *= 0.5;
-  float push = smoothstep(uRadius, 0.0, length(d)) * uStrength;
-  w += normalize(d + 1e-4) * push * 0.5 * sc;
+  float fly = env * uFlow;
+  float push = smoothstep(uRadius * (1.0 + 0.3 * fly), 0.0, length(d)) * uStrength;
+  vec3 dn = normalize(d + 1e-4);
+  w += dn * push * 0.5 * sc * (1.0 + 0.6 * fly);
+  w += vec3(-dn.y, dn.x, 0.0) * push * fly * 0.45 * sc;
   vec4 mv = viewMatrix * vec4(w, 1.0);
   gl_Position = projectionMatrix * mv;
   float depth = -mv.z;
   // the field keeps one fine dot size at any scale, so phones get the same texture
-  gl_PointSize = max(uSize * mix(sc, 0.95, wv) * (0.55 + aRand * 0.9) * (1.0 + node * 0.7 + flash * 1.4) / depth, 1.4);
+  gl_PointSize = max(uSize * mix(sc, 0.95, wv) * (0.55 + aRand * 0.9) * (1.0 + node * 0.7 + flash * 1.4)
+    * (1.0 + glow * 0.6) / depth, 1.4);
   // thin out points that sit behind the active text block (soft edge)
   vec2 nd = gl_Position.xy / gl_Position.w;
   vec2 qm = abs(nd - uMask.xy) - uMask.zw;
@@ -153,16 +213,17 @@ void main(){
   float keep = mix(1.0, mix(0.04, 1.0, away), uMaskA);
   float sig = step(fract(aRand * 91.7), 0.3);
   float far = smoothstep(5.0, 9.2, depth);
-  vColor = mix(mix(mix(uText, uSignal, sig), uMuted, far * 0.5), uSignal, lit);
+  vColor = mix(mix(mix(mix(uText, uSignal, sig), uMuted, far * 0.5), uSignal, lit), uSignal, glow);
   float fade = mix(1.0, mix(1.0, 0.45, far), uDark);
   vA = uAlpha * (0.55 + 0.45 * fract(aRand * 53.1)) * fade * (1.0 + sig * 0.25 * uDark) * keep * ie
-     * (1.0 - mid * 0.85) * mix(1.0, smoothstep(3.15, 2.8, abs(p.x)), wv) * (1.0 + lit * 1.4);
+     * (1.0 - mid * 0.85) * mix(1.0, smoothstep(3.15, 2.8, abs(p.x)), wv) * (1.0 + lit * 1.4)
+     * (1.0 + glow * 0.6);
 }`;
 
 /** A shape's network links: they ride the same shimmer, swell and pose as its points. Current
  * runs along them by depth, and a link arcs like lightning while the current crosses it. */
 const LINE_VERT = /* glsl */ `
-uniform float uT, uTime, uStrength, uRadius, uIntro, uMode, uSc, uWave;
+uniform float uT, uTime, uStrength, uRadius, uIntro, uMode, uSc, uWave, uLag;
 uniform mat4 uMatW; // the shape's pose
 uniform vec3 uMouse;
 uniform vec4 uMask;
@@ -191,7 +252,7 @@ void main(){
   w += normalize(d + 1e-4) * smoothstep(uRadius, 0.0, length(d)) * uStrength * 0.5 * uSc;
   gl_Position = projectionMatrix * viewMatrix * vec4(w, 1.0);
   // links show only once both ends have landed, and go first when the field breaks up
-  float st = clamp(uT * 1.7 - aLinkR * 0.7, 0.0, 1.0);
+  float st = clamp(uT * (1.0 + uLag) - aLinkR * uLag, 0.0, 1.0);
   float vis = uMode > 0.0 ? smoothstep(0.85, 1.0, st) : 1.0 - smoothstep(0.0, 0.1, st);
   vec2 nd = gl_Position.xy / gl_Position.w;
   vec2 qm = abs(nd - uMask.xy) - uMask.zw;
@@ -290,7 +351,11 @@ interface Props {
   maskRef?: RefObject<TextMask>;
   /** index in `shapes` of the swelling field, if any */
   waveShape?: number;
+  /** stream strength 0..1 for the morph out of shape `k` (0 = straight swarm morph) */
+  flow?: (k: number) => number;
 }
+
+const NO_FLOW = () => 0;
 
 export function SignalPoints({
   shapes,
@@ -299,12 +364,14 @@ export function SignalPoints({
   interactive = true,
   maskRef,
   waveShape = -1,
+  flow = NO_FLOW,
 }: Props) {
   const { colors, mood } = useThemeColors();
   const dark = mood === "dark";
   const seg = useRef(-1);
   const lineRefs = useRef<(THREE.LineSegments | null)[]>([]);
   const introStart = useRef(-1);
+  const energy = useRef({ shown: 0, lastS: Number.NaN });
   const pointer = useRef({ x: 0, y: 0, inside: false });
   const raycaster = useMemo(() => new THREE.Raycaster(), []);
   const plane = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 0, 1), 0), []);
@@ -356,6 +423,9 @@ export function SignalPoints({
         uWaveA: { value: 0 },
         uWaveB: { value: 0 },
         uDissolve: { value: 0 },
+        uFlow: { value: 0 },
+        uEnergy: { value: 0 },
+        uLag: { value: BASE_LAG },
         uMatA: { value: new THREE.Matrix4() },
         uMatB: { value: new THREE.Matrix4() },
         uScaleAB: { value: new THREE.Vector2(1, 1) },
@@ -391,6 +461,7 @@ export function SignalPoints({
             uStrength: u.uStrength,
             uRadius: u.uRadius,
             uIntro: u.uIntro,
+            uLag: u.uLag,
             uMouse: u.uMouse,
             uMask: u.uMask,
             uMaskA: u.uMaskA,
@@ -508,6 +579,14 @@ export function SignalPoints({
     u.uWaveA.value = sg === waveShape ? 1 : 0;
     u.uWaveB.value = sg + 1 === waveShape ? 1 : 0;
     u.uDissolve.value = sg === waveShape ? 1 : 0;
+    // the stream: per-boundary strength, stirred by how fast the morph is being scrolled
+    const en = energy.current;
+    en.shown = streamEnergy(en.shown, s - (Number.isNaN(en.lastS) ? s : en.lastS), dt);
+    en.lastS = s;
+    const fl = flow(sg);
+    u.uFlow.value = fl;
+    u.uEnergy.value = en.shown;
+    u.uLag.value = streamLag(fl, en.shown);
     // a shape's links live in its pose: arriving (it is `to`) or leaving (it is `from`)
     nets.forEach((n, k) => {
       const mode = k === sg ? -1 : k === sg + 1 ? 1 : 0;

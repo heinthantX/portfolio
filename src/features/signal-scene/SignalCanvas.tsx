@@ -6,7 +6,10 @@ import { profile } from "@/content/profile";
 import { sampleText } from "./glyph";
 import { CAMERA, type DriveFn, SignalPoints, type TextMask } from "./SignalPoints";
 import { glyph, heroShapes } from "./shapes";
-import { CHAPTERS, chapterPose, shapeIndex, WAVE_CHAPTER } from "./timeline";
+import { CHAPTERS, chapterPose, flowStrength, shapeIndex, WAVE_CHAPTER } from "./timeline";
+
+/** The 404 glyph scatters into a full-strength stream and reforms. */
+const fullFlow = () => 1;
 
 /** Idle life: a slow ~7 s scale pulse instead of a side-to-side sway. */
 const breathe = (t: number) => 1 + Math.sin(t * 0.9) * 0.012;
@@ -76,6 +79,7 @@ export default function SignalCanvas({ variant, progressRef, maskRef, count, fra
         count={count}
         drive={drive}
         waveShape={hero ? WAVE_CHAPTER : -1}
+        flow={hero ? flowStrength : fullFlow}
         interactive={
           typeof window !== "undefined" && !window.matchMedia("(pointer: coarse)").matches
         }

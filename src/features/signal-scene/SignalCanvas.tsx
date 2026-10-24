@@ -10,8 +10,8 @@ import {
   CHAPTERS,
   chapterPose,
   flowStrength,
-  routeControl,
   shapeIndex,
+  travelRoute,
   WAVE_CHAPTER,
 } from "./timeline";
 
@@ -60,13 +60,19 @@ export default function SignalCanvas({ variant, progressRef, maskRef, count, fra
         const to = chapterPose(i + 1, view);
         from.scale *= b;
         to.scale *= b;
-        return { s, from, to, ctrl: routeControl(i, from, to, view) };
+        return { s, from, to, route: travelRoute(i, from, to, view) };
       }
       const phase = elapsed % 9;
       const s = Math.min(1, Math.max(0, (phase - 5.5) / 3));
       const scale = Math.min(1.45, (0.9 * view.w) / 4) * breathe(elapsed);
       const pose = { x: 0, y: 0, rotX: 0, rotY: 0, scale };
-      return { s, from: pose, to: pose, ctrl: { x: 0, y: 0, z: 0 } };
+      const still = { x: 0, y: 0, z: 0 };
+      return {
+        s,
+        from: pose,
+        to: pose,
+        route: { c1: still, c2: still, spinX: 0, spinY: 0, grow: 0 },
+      };
     },
     [hero, progressRef],
   );

@@ -52,7 +52,7 @@ export function textState(p: number, i: number) {
  * Per-chapter formation values. x is a side (1 right, -1 left, 0 centre) times 0.235 of the view
  * width; text takes the opposite side. Each shape rests still on its pose while its text is read;
  * between chapters the whole formation travels to the next pose along a curved route (see
- * `routeControl`) and morphs on the way, so it reads as one body flowing, not a swap in place.
+ * `travelRoute`) and morphs on the way, so it reads as one body flowing, not a swap in place.
  */
 export const FORMATION_SIDE = [0, 0, 1, 1, 1, 1, 0] as const;
 /** Share of view width the formation sits right of centre; infra sits a little inboard to clear the rail labels. */
@@ -127,54 +127,146 @@ export interface Vec3 {
 }
 
 /**
- * The route the formation travels on boundary k (chapter k -> k+1): a quadratic Bezier from the
- * `from` pose's position through a control point to the `to` pose's. Per boundary:
+ * The route the formation travels on boundary k (chapter k -> k+1): a cubic Bezier from the
+ * `from` pose's position through two control points to the `to` pose's, plus a one-shot extra
+ * turn and size swell that rise and unwind along the way (zero at both ends, so poses land exactly).
+ * Scroll-driven, never timed: no sway.
+ */
+export interface Route {
+  /** control points: c1 sets the departure direction, c2 the arrival one */
+  c1: Vec3;
+  c2: Vec3;
+  /** extra rotX / rotY (radians) at mid-route, unwound by arrival */
+  spinX: number;
+  spinY: number;
+  /** extra scale at mid-route, as a share (0.1 = 10% bigger) */
+  grow: number;
+}
+
+/**
+ * A "bow": quadratic route through one control point, set by
  * - `bend`: sideways pull, as a share of the travel distance, to the left of the travel direction
  *   (negative = right),
  * - `dip`: vertical pull as a share of the view height (negative = down),
- * - `z`: depth pull toward the camera in world units (negative = away), for a sense of flight.
- * The curve passes half of each pull at mid-route. One-shot and scroll-driven: no sway over time.
+ * - `z`: depth pull toward the camera in world units (negative = away).
+ * It is drawn as the cubic that traces the same curve.
  */
-const ROUTE = [
-  { bend: 0.12, dip: -0.1, z: 0.9 }, // intro -> wave: the name sinks, swelling toward you as it spreads
-  { bend: 0.34, dip: 0, z: 0.5 }, // wave -> interface: rises first, then sweeps right into the column
-  { bend: 0, dip: -0.15, z: -0.5 }, // interface -> api: a short dip down the stack and back up
-  { bend: 0, dip: -0.15, z: -0.5 }, // api -> data
-  { bend: 0, dip: -0.13, z: -0.4 }, // data -> infra
-  { bend: -0.32, dip: 0.02, z: 0.5 }, // infra -> shipped: arcs up and over, back to centre
+interface Bow {
+  kind: "bow";
+  bend: number;
+  dip: number;
+  z: number;
+}
+/**
+ * A "flight": two control points, c1 offset from the start and c2 from the end, x as a share of
+ * the view width (positive = toward the outer edge of the formation's side), y as a share of the
+ * view height, z in world units toward the camera. Plus extra spin and grow at mid-route.
+ */
+interface Flight {
+  kind: "flight";
+  c1: [number, number, number];
+  c2: [number, number, number];
+  spinX: number;
+  spinY: number;
+  grow: number;
+}
+const ROUTE: (Bow | Flight)[] = [
+  // intro -> wave: the name sinks, swelling toward you as it spreads
+  { kind: "bow", bend: 0.12, dip: -0.1, z: 0.9 },
+  // wave -> interface: rises first, then sweeps right into the column
+  { kind: "bow", bend: 0.34, dip: 0, z: 0.5 },
+  // interface -> api: steps toward you and swings out wide, then settles back into the column
+  {
+    kind: "flight",
+    c1: [0.08, 0.1, 1],
+    c2: [0.09, -0.06, 1],
+    spinX: -0.15,
+    spinY: 0.3,
+    grow: 0.15,
+  },
+  // api -> data: sinks a level into storage, down and away, then rises into place from below
+  {
+    kind: "flight",
+    c1: [-0.02, -0.26, -1],
+    c2: [0.02, -0.42, -0.6],
+    spinX: 0.35,
+    spinY: 0,
+    grow: -0.1,
+  },
+  // data -> infra: drifts up and out to the edge, curls round below and swings into the harbour
+  {
+    kind: "flight",
+    c1: [0.16, 0.46, -0.8],
+    c2: [0.18, -0.3, 0.7],
+    spinX: 0,
+    spinY: 0.9,
+    grow: 0,
+  },
+  // infra -> shipped: arcs up and over, back to centre
+  { kind: "bow", bend: -0.32, dip: 0.02, z: 0.5 },
 ];
 /** Phones: formations are centred and travel mostly vertically, so the pulls are smaller. */
 const MOBILE_ROUTE = 0.45;
+/** Phones turn a little less too, so the narrow column never shows the body edge-on for long. */
+const MOBILE_SPIN = 0.6;
+/** Phones keep their text under the formation, so flights barely sink: depth carries the dive. */
+const MOBILE_SINK = 0.35;
 /** Fixed per-boundary variation (+-10%) so the arcs are not all one size. Seeded, not timed. */
 const routeJitter = (k: number) => {
   const x = Math.sin(k * 127.1 + 311.7) * 43758.5453;
   return 0.9 + 0.2 * (x - Math.floor(x));
 };
 
-/** Control point of boundary k's route between two resting poses, kept inside the view. */
-export function routeControl(
+/** Boundary k's route between two resting poses; every control point stays inside the view. */
+export function travelRoute(
   k: number,
   from: Pose,
   to: Pose,
   view: { w: number; h: number; mobile: boolean },
-): Vec3 {
-  const r = ROUTE[Math.max(0, Math.min(ROUTE.length - 1, Math.floor(k)))];
-  const amt = routeJitter(Math.floor(k)) * (view.mobile ? MOBILE_ROUTE : 1);
-  const dx = to.x - from.x;
-  const dy = to.y - from.y;
-  // (-dy, dx) is the travel direction turned left; its length is the travel distance
-  const x = (from.x + to.x) / 2 - dy * r.bend * amt;
-  const y = (from.y + to.y) / 2 + dx * r.bend * amt + r.dip * amt * view.h;
+): Route {
+  const kk = Math.max(0, Math.min(ROUTE.length - 1, Math.floor(k)));
+  const r = ROUTE[kk];
+  const amt = routeJitter(kk) * (view.mobile ? MOBILE_ROUTE : 1);
   const cx = 0.4 * view.w;
   const cy = 0.5 * view.h;
   // never swing across centre into the text column of a formation that lives on one side
   const side = Math.sign(from.x + to.x);
   const lo = side > 0 ? 0 : -cx;
   const hi = side < 0 ? 0 : cx;
-  return {
+  const inView = (x: number, y: number, z: number): Vec3 => ({
     x: Math.max(lo, Math.min(hi, x)),
     y: Math.max(-cy, Math.min(cy, y)),
-    z: Math.max(-1, Math.min(1, r.z * amt)),
+    z: Math.max(-1, Math.min(1, z)),
+  });
+  if (r.kind === "bow") {
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    // (-dy, dx) is the travel direction turned left; its length is the travel distance
+    const c = inView(
+      (from.x + to.x) / 2 - dy * r.bend * amt,
+      (from.y + to.y) / 2 + dx * r.bend * amt + r.dip * amt * view.h,
+      r.z * amt,
+    );
+    // the cubic that traces the quadratic through c: each control 2/3 of the way to it
+    const toward = (p: Pose): Vec3 => ({
+      x: p.x + ((c.x - p.x) * 2) / 3,
+      y: p.y + ((c.y - p.y) * 2) / 3,
+      z: (c.z * 2) / 3,
+    });
+    return { c1: toward(from), c2: toward(to), spinX: 0, spinY: 0, grow: 0 };
+  }
+  // outward is toward the edge of the formation's side (right when centred, as on phones)
+  const out = side < 0 ? -1 : 1;
+  const sink = view.mobile ? MOBILE_SINK : 1;
+  const at = (p: Pose, [x, y, z]: [number, number, number]) =>
+    inView(p.x + out * x * amt * view.w, p.y + (y < 0 ? y * sink : y) * amt * view.h, z * amt);
+  const spin = routeJitter(kk) * (view.mobile ? MOBILE_SPIN : 1);
+  return {
+    c1: at(from, r.c1),
+    c2: at(to, r.c2),
+    spinX: r.spinX * spin,
+    spinY: r.spinY * spin,
+    grow: r.grow * (view.mobile ? MOBILE_ROUTE : 1),
   };
 }
 

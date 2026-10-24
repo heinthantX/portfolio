@@ -5,7 +5,7 @@ import { type RefObject, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { useThemeColors } from "@/lib/use-theme-colors";
 import { mulberry32, neuralNet, waveNet } from "./shapes";
-import { BASE_LAG, CAM_Z, FOV, type Pose, streamEnergy, streamLag, type Vec3 } from "./timeline";
+import { BASE_LAG, CAM_Z, FOV, type Pose, type Route, streamEnergy, streamLag } from "./timeline";
 
 export interface Drive {
   /** continuous shape index (integer = resting on that shape) */
@@ -13,8 +13,8 @@ export interface Drive {
   /** resting poses of the shapes either side of `s` */
   from: Pose;
   to: Pose;
-  /** control point of the curved route the formation travels from `from` to `to` */
-  ctrl: Vec3;
+  /** the curved route the formation travels from `from` to `to` */
+  route: Route;
 }
 /** Screen rect (NDC centre + full size) of the active text block, and its strength 0..1. */
 export interface TextMask {
@@ -121,32 +121,36 @@ float lanes(float lat, float along, float k){
 
 /**
  * Travel between chapters: the formation's frame (position, rotation, scale) moves from pose A to
- * pose B along a quadratic Bezier through `uCtrl`, so the whole body flies a curve while it
- * morphs. The group's progress is the boundary's own eased progress (still at both ends); each
+ * pose B along a cubic Bezier through `uCtrl1` and `uCtrl2`, so the whole body flies a curve while
+ * it morphs. On the way it takes an extra turn and size swell (`uSpin`) that rise and unwind by
+ * arrival. The group's progress is the boundary's own eased progress (still at both ends); each
  * point rides the route at a blend of that and its own staggered morph, so later starters trail
  * behind along the same curve and the swarm stays one body. At r = 0 / 1 it is exactly pose A / B.
  */
 const ROUTE = /* glsl */ `
-uniform vec3 uPosA, uPosB, uCtrl; // route start, end and control point (world)
+uniform vec3 uPosA, uPosB, uCtrl1, uCtrl2; // route start, end and control points (world)
 uniform vec4 uRot; // rotX, rotY of pose A, then of pose B
 uniform vec2 uScaleAB;
+uniform vec3 uSpin; // extra rotX, rotY and scale share at mid-route
 const float TRAIL = 0.5; // how far each point's own stagger pulls it off the group's progress
 float routeT(){ float t = clamp(uT, 0.0, 1.0); return t * t * t * (t * (t * 6.0 - 15.0) + 10.0); }
 float routeR(float e){ return mix(routeT(), e, TRAIL); }
+// one-shot rise and fall over the route, zero at both ends
+float routeBump(float r){ return sin(clamp(r, 0.0, 1.0) * 3.14159265); }
 // size: gathers early when shrinking and spreads late when growing, so the body flies compact
 float routeScale(float r){
   float k = uScaleAB.y < uScaleAB.x ? 1.0 - (1.0 - r) * (1.0 - r) : r * r;
-  return uScaleAB.x * pow(uScaleAB.y / uScaleAB.x, k);
+  return uScaleAB.x * pow(uScaleAB.y / uScaleAB.x, k) * (1.0 + uSpin.z * routeBump(r));
 }
 // local -> world at route progress r (rotation order as three's XYZ Euler: Ry first, then Rx)
 vec3 route(vec3 p, float r){
-  vec2 rot = mix(uRot.xy, uRot.zw, r);
+  vec2 rot = mix(uRot.xy, uRot.zw, r) + uSpin.xy * routeBump(r);
   p *= routeScale(r);
   float cy = cos(rot.y), sy = sin(rot.y), cx = cos(rot.x), sx = sin(rot.x);
   p = vec3(p.x * cy + p.z * sy, p.y, -p.x * sy + p.z * cy);
   p = vec3(p.x, p.y * cx - p.z * sx, p.y * sx + p.z * cx);
   float u = 1.0 - r;
-  return u * u * uPosA + 2.0 * u * r * uCtrl + r * r * uPosB + p;
+  return u * u * u * uPosA + 3.0 * u * r * (u * uCtrl1 + r * uCtrl2) + r * r * r * uPosB + p;
 }`;
 
 const VERT = /* glsl */ `
@@ -454,7 +458,9 @@ export function SignalPoints({
         uLag: { value: BASE_LAG },
         uPosA: { value: v(0, 0, 0) },
         uPosB: { value: v(0, 0, 0) },
-        uCtrl: { value: v(0, 0, 0) },
+        uCtrl1: { value: v(0, 0, 0) },
+        uCtrl2: { value: v(0, 0, 0) },
+        uSpin: { value: v(0, 0, 0) },
         uRot: { value: new THREE.Vector4(0, 0, 0, 0) },
         uScaleAB: { value: new THREE.Vector2(1, 1) },
         uMouse: { value: v(99, 99, 0) },
@@ -492,7 +498,9 @@ export function SignalPoints({
             uLag: u.uLag,
             uPosA: u.uPosA,
             uPosB: u.uPosB,
-            uCtrl: u.uCtrl,
+            uCtrl1: u.uCtrl1,
+            uCtrl2: u.uCtrl2,
+            uSpin: u.uSpin,
             uRot: u.uRot,
             uScaleAB: u.uScaleAB,
             uMouse: u.uMouse,
@@ -572,7 +580,7 @@ export function SignalPoints({
       h: 2 * CAM_Z * Math.tan((FOV * Math.PI) / 360),
       mobile: state.size.width < 768,
     };
-    const { s, from, to, ctrl } = drive(state.clock.elapsedTime, view);
+    const { s, from, to, route } = drive(state.clock.elapsedTime, view);
     const sMax = shapes.length - 1;
     const sg = Math.min(Math.floor(s), sMax - 1);
     const t = Math.min(1, Math.max(0, s - sg));
@@ -601,7 +609,9 @@ export function SignalPoints({
     // the route the formation travels between the two poses (see ROUTE)
     u.uPosA.value.set(from.x, from.y, 0);
     u.uPosB.value.set(to.x, to.y, 0);
-    u.uCtrl.value.set(ctrl.x, ctrl.y, ctrl.z);
+    u.uCtrl1.value.set(route.c1.x, route.c1.y, route.c1.z);
+    u.uCtrl2.value.set(route.c2.x, route.c2.y, route.c2.z);
+    u.uSpin.value.set(route.spinX, route.spinY, route.grow);
     u.uRot.value.set(from.rotX, from.rotY, to.rotX, to.rotY);
     u.uScaleAB.value.set(from.scale, to.scale);
     u.uWaveA.value = sg === waveShape ? 1 : 0;

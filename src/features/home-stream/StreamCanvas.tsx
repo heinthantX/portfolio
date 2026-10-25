@@ -9,6 +9,7 @@ import {
   CAMERA,
   type Drive,
   type DriveFn,
+  LENS,
   SignalPoints,
   type SiteFrame,
   type TextMask,
@@ -195,6 +196,8 @@ function Stream({ hero, count }: { hero: HeroLink | null; count: number }) {
     [wave, spine, count],
   );
 
+  const interactive =
+    typeof window !== "undefined" && !window.matchMedia("(pointer: coarse)").matches;
   if (!shapes) return null;
   return (
     <>
@@ -206,11 +209,9 @@ function Stream({ hero, count }: { hero: HeroLink | null; count: number }) {
         waveShape={WAVE_CHAPTER}
         flow={flowStrength}
         siteAttr={siteAttr}
-        interactive={
-          typeof window !== "undefined" && !window.matchMedia("(pointer: coarse)").matches
-        }
+        interactive={interactive}
       />
-      <Packets wave={wave} />
+      <Packets wave={wave} interactive={interactive} />
     </>
   );
 }
@@ -244,9 +245,12 @@ void main(){
 }`;
 
 /** Gold packets and the end glow: a few hundred CPU-placed sprites over the stream. */
-function Packets({ wave }: { wave: WaveState }) {
+function Packets({ wave, interactive }: { wave: WaveState; interactive: boolean }) {
   const { colors, mood } = useThemeColors();
   const dark = mood === "dark";
+  const gl = useThree((s) => s.gl);
+  // the same cursor lens as the stream points: packets bend round it and brighten
+  const lens = useRef({ x: 0, y: 0, tx: 0, ty: 0, on: false, k: 0 });
   const { geometry, material } = useMemo(() => {
     const g = new THREE.BufferGeometry();
     g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(SPRITES * 3), 3));
@@ -280,8 +284,30 @@ function Packets({ wave }: { wave: WaveState }) {
     material.needsUpdate = true;
   }, [dark, material]);
 
-  useFrame((state) => {
+  useEffect(() => {
+    if (!interactive) return;
+    const move = (e: PointerEvent) => {
+      const r = gl.domElement.getBoundingClientRect();
+      const l = lens.current;
+      l.tx = e.clientX - r.left;
+      l.ty = e.clientY - r.top;
+      l.on = l.tx >= 0 && l.tx <= r.width && l.ty >= 0 && l.ty <= r.height;
+    };
+    window.addEventListener("pointermove", move, { passive: true });
+    return () => window.removeEventListener("pointermove", move);
+  }, [gl, interactive]);
+
+  useFrame((state, dt) => {
     const u = material.uniforms;
+    const l = lens.current;
+    if (l.on && l.k < 0.01) {
+      l.x = l.tx;
+      l.y = l.ty;
+    } else {
+      l.x += (l.tx - l.x) * (1 - Math.exp(-dt * 16));
+      l.y += (l.ty - l.y) * (1 - Math.exp(-dt * 16));
+    }
+    l.k += ((l.on ? 1 : 0) - l.k) * (1 - Math.exp(-dt * 6));
     u.uDpr.value = state.viewport.dpr;
     u.uDark.value = dark ? 1 : 0;
     u.uGold.value.copy(dark ? colors.accent : colors.accentStrong);
@@ -295,10 +321,24 @@ function Packets({ wave }: { wave: WaveState }) {
     const s = wave.sprites;
     for (let i = 0; i < wave.spriteCount; i++) {
       const o = i * 5;
-      pos.setXYZ(i, (s[o] / W - 0.5) * view.w, (0.5 - s[o + 1] / H) * view.h, 0);
-      size.setX(i, s[o + 2]);
+      let x = s[o];
+      let y = s[o + 1];
+      let sz = s[o + 2];
+      let a = s[o + 3];
+      if (l.k > 0.001 && s[o + 4] !== SPRITE.glow) {
+        const dx = x - l.x;
+        const dy = y - l.y;
+        const d = Math.hypot(dx, dy) + 1e-3;
+        const f = Math.max(0, 1 - d / LENS.r) * l.k;
+        x += (dx / d) * f * f * LENS.push;
+        y += (dy / d) * f * f * LENS.push;
+        a = Math.min(1, a + f * LENS.glow);
+        sz *= 1 + f * LENS.grow;
+      }
+      pos.setXYZ(i, (x / W - 0.5) * view.w, (0.5 - y / H) * view.h, 0);
+      size.setX(i, sz);
       // the light theme gets a touch more ink so gold reads on a pale page
-      alpha.setX(i, s[o + 4] === SPRITE.glow ? s[o + 3] : Math.min(1, s[o + 3] * (dark ? 1 : 1.1)));
+      alpha.setX(i, s[o + 4] === SPRITE.glow ? a : Math.min(1, a * (dark ? 1 : 1.1)));
       kind.setX(i, s[o + 4]);
     }
     for (const a of [pos, size, alpha, kind]) a.needsUpdate = true;

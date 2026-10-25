@@ -173,6 +173,9 @@ vec3 route(vec3 p, float r){
   return u * u * u * uPosA + 3.0 * u * r * (u * uCtrl1 + r * uCtrl2) + r * r * r * uPosB + p;
 }`;
 
+/** The home stream's cursor lens (px): radius, outward push at the centre, added alpha, size gain. */
+export const LENS = { r: 130, push: 46, glow: 0.85, grow: 0.7 };
+
 const VERT = /* glsl */ `
 uniform float uT, uTime, uSize, uStrength, uRadius, uDark, uAlpha, uIntro;
 uniform float uWaveA, uWaveB, uDissolve;
@@ -330,11 +333,16 @@ void main(){
     fA = (1.0 - gb.x + gb.x * fz * fz) * ch.w * (0.55 + 0.45 * r2) * th * tv * uSiteA
        * smoothstep(0.0, 0.6, uIntro);
     fSize = max(gb.y * (0.75 + 0.5 * r) * uDpr, 1.0);
-    fw = vec3((q.x / uPx.x - 0.5) * uView.x, (0.5 - q.y / uPx.y) * uView.y, 0.0);
     fColor = mix(uText, uSignal, step(fract(aRand * 91.7), 0.07));
-    // the cursor parts the stream
-    vec3 d = fw - uMouse; d.z *= 0.5;
-    fw += normalize(d + 1e-4) * smoothstep(uRadius, 0.0, length(d)) * uStrength * 0.25;
+    // the cursor lens, in screen px: points near it are pushed out into a ring and light up
+    vec2 mp = vec2((uMouse.x / uView.x + 0.5) * uPx.x, (0.5 - uMouse.y / uView.y) * uPx.y);
+    vec2 dm = q - mp;
+    float dl = length(dm) + 1e-3;
+    float lf = max(0.0, 1.0 - dl / ${LENS.r.toFixed(1)}) * uStrength;
+    q += dm / dl * lf * lf * ${LENS.push.toFixed(1)};
+    fA = min(1.0, fA + step(0.005, fA) * lf * ${LENS.glow.toFixed(2)} * uSiteA);
+    fSize *= 1.0 + lf * ${LENS.grow.toFixed(2)};
+    fw = vec3((q.x / uPx.x - 0.5) * uView.x, (0.5 - q.y / uPx.y) * uView.y, 0.0);
   }
   float f4 = fm * fm * fm * fm;
   vec3 pos = mix(w, fw, fm * mix(mix(0.15, 1.0, land), 1.0, f4));
@@ -803,7 +811,11 @@ export function SignalPoints({
         new THREE.Vector2(pointer.current.x, pointer.current.y),
         state.camera,
       );
-      if (raycaster.ray.intersectPlane(plane, tmp)) u.uMouse.value.copy(tmp);
+      if (raycaster.ray.intersectPlane(plane, tmp)) {
+        // trails the pointer a little so the lens glides; jumps there when it first appears
+        if (u.uStrength.value < 0.01) u.uMouse.value.copy(tmp);
+        else u.uMouse.value.lerp(tmp, 1 - Math.exp(-dt * 16));
+      }
     }
   });
 

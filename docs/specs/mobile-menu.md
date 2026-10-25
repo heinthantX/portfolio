@@ -3,7 +3,7 @@
 ## Architecture
 - `src/components/site/site-header.tsx` renders the header. `<MobileMenu />` sits after `ThemeToggle`, so the hamburger is the far-right control below `md`.
 - `src/components/site/main-nav.tsx` holds the nav links and exports `MobileMenu`. The desktop nav (`md` and up) is unchanged.
-- The mobile-only House icon Home link in `MainNav` is removed. Home is now a text link inside the mobile panel.
+- Off-home, the mobile-only House icon Home link in `MainNav` stays in the header, and Home is also a text link inside the mobile panel. E2E targets the icon by its aria-label, since the closed (inert) panel's Home link is still in the tree.
 - `src/app/globals.css` holds the `.mobile-menu` transition rules at the end of the file.
 - The panel is `<nav aria-label="Main" id="mobile-menu">`. The hamburger toggles it with `aria-expanded` and `aria-controls="mobile-menu"`.
 - Icons come from lucide: `Menu` when closed, `X` when open.

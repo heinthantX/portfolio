@@ -23,7 +23,7 @@
 | Chapter jumps | Chapter jumps call `goTo` from `useChapterSnap`, never `lenis.scrollTo` directly. | docs/memory/conventions.md | 2026-10-24 |
 | Skill tags | Show skill breadth in copy. Never highlight individual tags. Write MySQL, not MariaDB. | docs/memory/conventions.md | 2026-10-24 |
 | E2E on prod server | Kill the port before rebuilding while `next start` runs. Rebuild before e2e after UI changes (`reuseExistingServer`). Otherwise stale chunks or markup load. | docs/memory/conventions.md | 2026-10-25 |
-| Mobile menu | Below `md` the nav is a hamburger at far right with a top-right dropdown panel. Home is a text link off-home; the House icon is removed. Closed panel is `inert`. | docs/memory/conventions.md | 2026-10-25 |
+| Mobile menu | Below `md` the nav is a hamburger at far right with a top-right dropdown panel. Off-home: House icon in the header plus a Home text link in the panel. Closed panel is `inert`. | docs/memory/conventions.md | 2026-10-25 |
 | Nav current-page arrow | Retracts fully (head, line, tail) while another link is hovered; label colour stays. | docs/memory/conventions.md | 2026-10-25 |
 | Nav hover arrow z-index | Put `z-index` on the arrow svgs inside `.nav-shot` (isolation: isolate), never on the `.shot-arrow` wrapper. A wrapper z-index traps the front layer behind the label. | docs/memory/conventions.md | 2026-10-25 |
 | Command menu placeholder | Keep "Type a command or search..." unchanged. The e2e tests rely on it. | docs/memory/conventions.md | 2026-10-24 |

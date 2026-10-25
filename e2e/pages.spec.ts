@@ -72,9 +72,8 @@ test("header shows Home off the home page and marks the current page", async ({ 
   await page.goto("/work/this-portfolio");
   if (mobile) {
     // the Home icon sits in the header itself, outside the menu
-    await expect(
-      page.getByRole("banner").getByRole("link", { name: "Home", exact: true }),
-    ).toBeVisible();
+    // by its aria-label: the closed menu panel's Home link is inert but still in the tree
+    await expect(page.getByRole("banner").getByLabel("Home", { exact: true })).toBeVisible();
     await menu.click();
   }
   await expect(main.getByRole("link", { name: "Work" })).toHaveAttribute("aria-current", "page");

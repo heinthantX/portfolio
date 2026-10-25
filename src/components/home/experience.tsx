@@ -24,10 +24,11 @@ export function Experience({ index = "03", total = 8 }: ExperienceProps) {
               className="relative flex flex-col md:flex-row md:items-start"
               data-block="stagger"
             >
-              {/* Dot per entry on the pipeline line */}
+              {/* Dot per entry on the pipeline line. Centred with a margin, not translate: the
+                  reveal animates `translate` and would drop a -50% shift. */}
               <span
                 data-part
-                className="absolute top-2 left-[11px] size-2.5 -translate-x-1/2 rounded-full bg-signal ring-4 ring-bg md:left-[180px] lg:left-[220px]"
+                className="absolute top-2 left-[11px] -ml-[4.5px] size-2.5 rounded-full bg-signal ring-4 ring-bg md:left-[180px] lg:left-[220px]"
                 aria-hidden="true"
               />
 

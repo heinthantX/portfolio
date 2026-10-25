@@ -7,6 +7,7 @@ Opt-in, per-block reveal for prose and cards below the hero, plus word-by-word s
 - **Opt-in region:** a wrapper with `data-paras` turns the feature on for everything inside it. Home sections after the hero are wrapped in `data-paras`. Sub-routes (`work`, `notes`, `uses`, `contact`, `resume`) mark their regions the same way.
 - **Targets inside a region:** `p`, `li`, `h2`-`h4`, `blockquote`, `pre`, `figure`, `table`, `img`, `hr`, any `[data-block]` (a whole row or card), and `[data-reveal="headline"]` (SectionHeading).
 - **Mechanism:** `src/components/site/text-reveal.tsx` observes targets with an `IntersectionObserver` and plays each reveal with the Web Animations API (`el.animate`, fill both). No CSS `animation-timeline`/`view()` and no CSS keyframes drive reveals.
+- **Home replay:** on `/` the main observer does not unobserve after a reveal, and it skips targets already in `reveals`. A second observer `below` (no root margin) watches the same targets. When a target drops fully below the viewport (`boundingClientRect.top >= innerHeight`), `below` cancels its reveal and deletes it from `reveals`, so it plays again the next time you scroll down to it. Targets that leave upward stay shown. Sub-routes do not use `below`; they reveal once and unobserve.
 - **Block variants:**
   - Default `data-block`: the whole block fades and rises once on entry.
   - `data-block="stagger"`: the container stays still. Each `[data-part]` descendant is its own observed target and rises (fade, 22px, blur 6px) when it enters the viewport; parts entering together cascade by the 80ms batch step. Used by the home rows What I do, Experience, Featured work, How I work, Stack and Latest notes. Contact CTA is unchanged.
@@ -22,7 +23,7 @@ Opt-in, per-block reveal for prose and cards below the hero, plus word-by-word s
 ## Core Flows
 
 1. **Cold load on a sub-route:** the head script arms the page. Above-the-fold blocks wait 450ms so the view-transition snapshot (about 0.7s) is not already covering them. They then reveal in batches with an 80ms stagger.
-2. **Scrolling down a home section:** each target is observed. When it enters the viewport its reveal plays once and it is unobserved. Stagger parts are observed individually, so the lower half of a tall card animates when you reach it, not when the card's top enters. A section title plays its `mode="in"` word flip on entry.
+2. **Scrolling down a home section:** each target is observed. When it enters the viewport its reveal plays. On home it stays observed, and once it has scrolled fully past the bottom edge (`below` observer) its reveal is cancelled and reset, so scrolling back down replays it. Stagger parts are observed individually, so the lower half of a tall card animates when you reach it, not when the card's top enters. A section title plays its `mode="in"` word flip on entry and replays the same way.
 3. **Route change:** the page-switch view transition runs. Blocks on the new route follow the cold-load flow.
 4. **Filter or Suspense content:** the MutationObserver registers new targets. They reveal as they enter the viewport. Nothing waits for a route change.
 5. **Page titles on sub-routes:** `ScrollWords mode="load"` reveals word by word after a 0.5s delay.
@@ -30,6 +31,8 @@ Opt-in, per-block reveal for prose and cards below the hero, plus word-by-word s
 
 ## Edge Cases
 
+- **Replay is home only:** sub-routes reveal once. Targets above the viewport are never reset, so scrolling back up does not re-hide content you have already passed.
+- **Replay and StrictMode:** a reset target is removed from `reveals`, so the next entry is a fresh reveal, not a no-op.
 - **React StrictMode double effect:** the first run marks targets pending, the cleanup disconnects the observer, and the second run must re-observe anything not yet "in". Skipping it leaves content hidden forever.
 - **Reduced motion:** `ARM_SCRIPT` does not add `paras-armed`, so nothing is hidden and nothing animates.
 - **No JS:** the class is never added, so all content is visible.
@@ -39,6 +42,7 @@ Opt-in, per-block reveal for prose and cards below the hero, plus word-by-word s
 
 ## Autonomous UX Polish
 
+- Home replay: sections reveal again when scrolled back to, so the page keeps its motion on a second pass.
 - Reduced-motion bypass: no hidden state and no animation when the user prefers reduced motion.
 - No-JS fallback: content is visible without JavaScript and before hydration.
 - Print stylesheet forces revealed blocks visible, so the resume prints in full.

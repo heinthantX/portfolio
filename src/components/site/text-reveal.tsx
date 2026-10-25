@@ -79,13 +79,15 @@ function cancel(el: Element) {
 export function TextReveal() {
   const pathname = usePathname();
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: re-scan the new page on every route change
   useEffect(() => {
     const root = document.documentElement;
     if (!root.classList.contains("paras-armed")) return;
     (window as { __paras?: boolean }).__paras = true;
 
     const start = performance.now();
+    // Home replays: a block that drops fully below the viewport (scrolled back up past it) hides
+    // again, so it reveals each time you scroll down to it. Blocks above stay shown.
+    const replays = pathname === "/";
     const io = new IntersectionObserver(
       (entries) => {
         const wait = Math.max(0, AFTER_PAGE_SWITCH - (performance.now() - start));
@@ -93,17 +95,28 @@ export function TextReveal() {
         for (const e of entries) {
           if (!e.isIntersecting) continue;
           const el = e.target as HTMLElement;
-          io.unobserve(el);
+          if (replays) {
+            if (reveals.has(el)) continue;
+          } else io.unobserve(el);
           cancel(el);
           reveals.set(el, reveal(el, wait + Math.min(n++, 8) * STEP));
         }
       },
       { rootMargin: "0px 0px -6% 0px" },
     );
+    const below = new IntersectionObserver((entries) => {
+      for (const e of entries) {
+        if (e.isIntersecting || e.boundingClientRect.top < window.innerHeight) continue;
+        cancel(e.target);
+        reveals.delete(e.target);
+      }
+    });
     // No DOM writes here: these nodes may not be hydrated yet, and any attribute change is a hydration mismatch.
     const scan = () => {
       for (const el of document.querySelectorAll<HTMLElement>(BLOCKS)) {
-        if (!reveals.has(el)) io.observe(el);
+        if (reveals.has(el)) continue;
+        io.observe(el);
+        if (replays) below.observe(el);
       }
     };
     // Next keeps visited pages mounted but hidden; coming back shows the same nodes, so replay
@@ -122,6 +135,7 @@ export function TextReveal() {
     return () => {
       cancelAnimationFrame(replay);
       io.disconnect();
+      below.disconnect();
       mo.disconnect();
     };
   }, [pathname]);

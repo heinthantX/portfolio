@@ -12,5 +12,8 @@ Chose a 450ms delay before load-time reveals, with an 80ms stagger per batch. Re
 ## Stagger replaces the left slide for home rows
 Chose `data-block="stagger"` over the left-entry `data-block="slide"` for home rows. The container stays still and each `[data-part]` child is observed and revealed on its own entry. Reason: rows used to reveal as one block triggered by their top edge, so on narrow screens (stacked Featured work cards) the lower text finished animating off-screen and "only animated sometimes". The slide was also the only sideways reveal. Spec: `docs/specs/text-reveal.md`.
 
+## Home reveals replay on scroll back
+Chose to reset home reveals once a target has scrolled fully past the bottom edge (a second observer, `below`, cancels the reveal and removes it from `reveals`), over reveal-once. Reason: the home page is one long scroll, and once-only reveals left the second pass static. Sub-routes keep reveal-once with unobserve. Targets that leave upward stay shown. Spec: `docs/specs/text-reveal.md`.
+
 ## Per-route Lenis feel
 Chose separate Lenis tuning per route through `RouteFeel`: home keeps `lerp` 0.09 and `wheelMultiplier` 0.9, other routes use `lerp` 0.18 and `wheelMultiplier` 1. Reason: trackpad scrolling felt heavy on sub-routes, while home's cinematic hero needs the slower feel.

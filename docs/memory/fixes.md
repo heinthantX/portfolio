@@ -50,6 +50,14 @@ Fix: on a desktop mouse click (`e.detail > 0`) the link blurs; `MainNav` closes 
 ## R3F frameloop switch resets the clock: stale hero shape after tab return (2026-10-24)
 react-three-fiber 9.8.1 resets `clock` to 0 whenever `frameloop` changes. The home canvas pauses (`frameloop="never"`) while the tab is hidden or a modal is open, so on resume `delta`/elapsed ran backwards; `easeToward` with a negative dt drove the stream hand-off (`uFlow`) hugely negative or NaN and the shipped globe stuck over the lower sections. Fix: `SignalPoints` keeps its own monotonic clock (frame steps clamped 0..0.1s), `easeToward` ignores negative dt, the stream's dt is floored at 0. Never trust R3F's clock across frameloop changes.
 
+## Experience timeline dots sat 5px off the line (2026-10-25)
+Root cause: Tailwind v4 `-translate-x-1/2` writes the CSS `translate` property. The WAAPI RISE reveal animates `translate` with fill both, so the animation's fill overwrote the utility and the dots sat 5px right of the line.
+Fix: `-ml-[4.5px]` (a margin) instead of the translate utility. Rule in `docs/memory/conventions.md`: reveal targets never position themselves with `translate-*`. See `docs/specs/text-reveal.md`.
+
+## Nav preview card stuck open with no arrow (2026-10-25)
+Root cause: the card followed React hover state, but the arrow followed CSS `:hover`. A missed `mouseleave` left the two out of sync: the card stayed open while the arrow had retracted.
+Fix: one source of truth. The link gets `data-hover` from React state and every arrow selector reads it. A window `pointermove` closes the card once the pointer is outside the nav, unless a link has `:focus-visible`. See `docs/specs/nav-hover-preview.md`.
+
 - **Hydration mismatch from reveal markers (2026-10-24):** text-reveal.tsx set `data-para` on nodes the MutationObserver saw before React hydrated them, so React reported an attribute mismatch (Eyebrow on /contact). Fix: no DOM writes; reveal with `el.animate()` and track state in a WeakSet.
 
 - **Reveals did not replay on back/forth navigation (2026-10-24):** Next keeps visited routes mounted but hidden (2 `[data-paras]` regions in the DOM), so returning showed already-revealed nodes. Fix: on each pathname change, next frame, cancel and re-observe reveals of blocks that are `checkVisibility()`.

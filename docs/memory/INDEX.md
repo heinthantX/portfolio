@@ -4,6 +4,12 @@
 |---|---|---|---|
 | Motion: no sideways travel | No ping-pong or sway left/right. Hero text blocks may slide in from the side (D12). Page switches slide vertically (D19). Cursor parallax and hover nudges are allowed. | docs/memory/conventions.md | 2026-10-24 |
 | Text reveal mechanism | Reveals are opt-in via `data-paras`, driven by JS IntersectionObserver and WAAPI, not CSS `view()` timelines. Arm in head before paint. Above-the-fold waits 450ms. | docs/memory/architecture.md | 2026-10-25 |
+| Home reveals replay | On home, a reveal resets once the target scrolls fully past the bottom edge, so it replays on the next scroll down. Sub-routes reveal once. | docs/memory/architecture.md | 2026-10-25 |
+| Reveal targets: no translate | Reveal targets never use `translate-*` utilities; WAAPI's fill overrides them. Use margins instead. | docs/memory/conventions.md | 2026-10-25 |
+| Nav arrow state | The nav arrow and preview card share one `data-hover` state. Never style the arrow from CSS `:hover`/`:focus-visible`. | docs/memory/conventions.md | 2026-10-25 |
+| Edit globals.css in place | `sed -i ''` replaces the inode and the Next dev watcher serves stale CSS. Edit in place. | docs/memory/conventions.md | 2026-10-25 |
+| Experience dots offset | `translate-x-1/2` lost to WAAPI's translate fill, so dots sat 5px off the line. Fixed with `-ml-[4.5px]`. | docs/memory/fixes.md | 2026-10-25 |
+| Nav card stuck with no arrow | Card followed React state, arrow followed CSS `:hover`; a missed mouseleave desynced them. Fixed with `data-hover` and a pointer-away close. | docs/memory/fixes.md | 2026-10-25 |
 | Home row stagger | `data-block="stagger"`: the container stays still and each `[data-part]` reveals on its own viewport entry (tall rows animated off-screen otherwise). Replaces the left slide, which is removed. | docs/memory/architecture.md | 2026-10-25 |
 | Per-route Lenis feel | Home uses lerp 0.09 and wheelMultiplier 0.9. Other routes use lerp 0.18 and wheelMultiplier 1. | docs/memory/architecture.md | 2026-10-24 |
 | Text reveal: head arm | Add `html.paras-armed` in the head script before first paint. Arming after hydration hides painted text. | docs/memory/fixes.md | 2026-10-24 |
@@ -18,6 +24,7 @@
 | Skill tags | Show skill breadth in copy. Never highlight individual tags. Write MySQL, not MariaDB. | docs/memory/conventions.md | 2026-10-24 |
 | E2E on prod server | Kill the port before rebuilding while `next start` runs. Rebuild before e2e after UI changes (`reuseExistingServer`). Otherwise stale chunks or markup load. | docs/memory/conventions.md | 2026-10-25 |
 | Mobile menu | Below `md` the nav is a hamburger at far right with a top-right dropdown panel. Home is a text link off-home; the House icon is removed. Closed panel is `inert`. | docs/memory/conventions.md | 2026-10-25 |
+| Nav current-page arrow | Retracts fully (head, line, tail) while another link is hovered; label colour stays. | docs/memory/conventions.md | 2026-10-25 |
 | Nav hover arrow z-index | Put `z-index` on the arrow svgs inside `.nav-shot` (isolation: isolate), never on the `.shot-arrow` wrapper. A wrapper z-index traps the front layer behind the label. | docs/memory/conventions.md | 2026-10-25 |
 | Command menu placeholder | Keep "Type a command or search..." unchanged. The e2e tests rely on it. | docs/memory/conventions.md | 2026-10-24 |
 | Wheel interception | Lenis `virtualScroll` returning false skips Lenis but not native scroll. The interceptor must call `event.preventDefault()`. | docs/memory/fixes.md | 2026-10-24 |

@@ -549,6 +549,12 @@ html.has-cursor :is(input, textarea, select, [contenteditable]) {
   position: relative;
   isolation: isolate;
 }
+/* the hover area is the box the arrow traces (PAD_X, PAD_Y in main-nav.tsx), not just the glyphs */
+.nav-shot::before {
+  content: "";
+  position: absolute;
+  inset: -5px -9px;
+}
 .shot-arrow {
   position: absolute;
   inset: 0;
@@ -601,11 +607,11 @@ html.has-cursor :is(input, textarea, select, [contenteditable]) {
     opacity 0.12s ease-in,
     scale 0.12s ease-in;
 }
-nav[data-pinned] .nav-shot:is(:hover, :focus-visible) .shot-dive {
+nav[data-pinned] .nav-shot[data-hover] .shot-dive {
   stroke-dashoffset: 0;
   transition: stroke-dashoffset 0.3s cubic-bezier(0.5, 0, 0.75, 0) 0.65s;
 }
-nav[data-pinned] .nav-shot:is(:hover, :focus-visible) .shot-head {
+nav[data-pinned] .nav-shot[data-hover] .shot-head {
   opacity: 1;
   scale: 1;
   transition:
@@ -617,7 +623,7 @@ nav[data-pinned] .nav-shot:is(:hover, :focus-visible) .shot-head {
   stroke-dasharray: 0.4 2;
   opacity: 0;
 }
-.nav-shot:is(:hover, :focus-visible) .shot-cross {
+.nav-shot[data-hover] .shot-cross {
   animation: shot-cross 0.4s cubic-bezier(0.4, 0, 0.6, 1) 0.4s both;
 }
 @keyframes shot-cross {
@@ -640,18 +646,18 @@ nav[data-pinned] .nav-shot:is(:hover, :focus-visible) .shot-head {
   opacity: 0;
 }
 /* comes back once the dive has retreated, as the arrow goes faint */
-.nav-shot[aria-current="page"]:not(:hover, :focus-visible) .shot-rest-head {
+.nav-shot[aria-current="page"]:not([data-hover]) .shot-rest-head {
   opacity: 1;
   transition: opacity 0.2s ease 0.45s;
 }
-.nav-shot:is(:hover, :focus-visible) .shot-arrow svg {
+.nav-shot[data-hover] .shot-arrow svg {
   opacity: 1;
   transition: none;
 }
-.nav-shot:is(:hover, :focus-visible) .shot-line {
+.nav-shot[data-hover] .shot-line {
   animation: shot-draw 0.45s cubic-bezier(0.55, 0, 0.25, 1) both;
 }
-.nav-shot:is(:hover, :focus-visible) .shot-tail {
+.nav-shot[data-hover] .shot-tail {
   animation: shot-fade 0.3s var(--ease-enter) both;
 }
 @keyframes shot-draw {
@@ -663,6 +669,27 @@ nav[data-pinned] .nav-shot:is(:hover, :focus-visible) .shot-head {
   from {
     opacity: 0;
   }
+}
+/* While another link's arrow is out, the current page's faint arrow retracts: the head pops off,
+   the line pulls back into the tail and the tail goes, so only one arrow shows. It draws back in
+   the same order reversed when the hover ends. The label keeps its colour. */
+.nav-shot[aria-current="page"] .shot-line {
+  transition: stroke-dashoffset 0.4s cubic-bezier(0.55, 0, 0.25, 1) 0.15s;
+}
+.nav-shot[aria-current="page"] .shot-tail {
+  transition: opacity 0.2s ease 0.05s;
+}
+nav[data-pinned] .nav-shot[aria-current="page"]:not([data-hover]) .shot-rest-head {
+  opacity: 0;
+  transition: opacity 0.1s ease-in;
+}
+nav[data-pinned] .nav-shot[aria-current="page"]:not([data-hover]) .shot-line {
+  stroke-dashoffset: 1;
+  transition: stroke-dashoffset 0.3s cubic-bezier(0.4, 0, 1, 1) 0.08s;
+}
+nav[data-pinned] .nav-shot[aria-current="page"]:not([data-hover]) .shot-tail {
+  opacity: 0;
+  transition: opacity 0.15s ease 0.33s;
 }
 
 /* The card's nail hole: the hovered link's arrow dives into it, and the card hangs and swings from

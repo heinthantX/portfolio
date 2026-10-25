@@ -19,11 +19,18 @@ export function MainNav() {
   // the hovered link and how far the point its arrow dives into sits from the nav's right edge
   // (the card grows leftwards from there, its nail hole under that point)
   const [hover, setHover] = useState<{ href: string; label: string; x: number } | null>(null);
-  const show = (item: { href: string; label: string }, el: HTMLElement) => {
+  // a pointer passing over the nav shouldn't fire the arrow and card, so a mouse hover waits
+  // SHOW_DELAY first; once the card is open, moving to another link switches at once, and
+  // keyboard focus shows it straight away
+  const show = (item: { href: string; label: string }, el: HTMLElement, wait = 0) => {
     window.clearTimeout(hide.current);
-    const nav = navRef.current?.getBoundingClientRect();
-    const r = el.getBoundingClientRect();
-    if (nav) setHover({ ...item, x: nav.right - (r.right + DIVE_X) });
+    const open = () => {
+      const nav = navRef.current?.getBoundingClientRect();
+      const r = el.getBoundingClientRect();
+      if (nav) setHover({ ...item, x: nav.right - (r.right + DIVE_X) });
+    };
+    if (hover || !wait) open();
+    else hide.current = window.setTimeout(open, wait);
   };
   // a click navigates away, so the card goes at once; it comes back on the next hover
   const close = () => {
@@ -31,6 +38,7 @@ export function MainNav() {
     setHover(null);
   };
   const leave = () => {
+    window.clearTimeout(hide.current);
     hide.current = window.setTimeout(() => setHover(null), 120);
   };
   // switching browser tabs fires no mouseleave, so drop the card when the window loses focus
@@ -42,6 +50,20 @@ export function MainNav() {
     window.addEventListener("blur", drop);
     return () => window.removeEventListener("blur", drop);
   }, []);
+  // a missed mouseleave (fast flick off the window, the header re-rendering under the pointer)
+  // would leave the card stuck open; any pointer move away from the nav closes it, unless the
+  // link holds keyboard focus
+  useEffect(() => {
+    if (!hover) return;
+    const away = (e: PointerEvent) => {
+      if (navRef.current?.contains(e.target as Node)) return;
+      if (navRef.current?.querySelector(":focus-visible")) return;
+      window.clearTimeout(hide.current);
+      setHover(null);
+    };
+    window.addEventListener("pointermove", away, { passive: true });
+    return () => window.removeEventListener("pointermove", away);
+  }, [hover]);
   // keep showing the last link while the card and tag fade out
   const last = useRef(hover);
   if (hover) last.current = hover;
@@ -72,8 +94,10 @@ export function MainNav() {
               <Link
                 href={item.href}
                 aria-current={item.href !== "/" && active(path, item.href) ? "page" : undefined}
-                className="nav-shot hover:text-text aria-[current=page]:text-text"
-                onMouseEnter={(e) => show(item, e.currentTarget)}
+                // the arrow follows the same state as the card, so the two never disagree
+                data-hover={hover?.href === item.href ? "" : undefined}
+                className="nav-shot hover:text-text data-hover:text-text aria-[current=page]:text-text"
+                onMouseEnter={(e) => show(item, e.currentTarget, SHOW_DELAY)}
                 onFocus={(e) => show(item, e.currentTarget)}
                 onClick={(e) => {
                   close();
@@ -214,6 +238,8 @@ const DIVE_X = PAD_X + 6;
 const HOLE_X = 20;
 const HOLE_Y = 12;
 const CARD_GAP = 20;
+/** ms a mouse hover waits before the arrow draws and the card opens. */
+const SHOW_DELAY = 180;
 const TAIL = "M-12 -4 L-8 0 L-12 4 M-8 -4 L-4 0 L-8 4 M-4 -4 L0 0 L-4 4";
 const HEAD = "M-4 -4.5 L5 0 L-4 4.5 L-1.5 0 Z";
 

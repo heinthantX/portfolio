@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { nav } from "./nav";
 import { blurbs, previews } from "./nav-preview";
+import { type Box, PAD_X, PAD_Y, R, StringDriver, type Want } from "./nav-string";
 
 const active = (path: string, href: string) => path === href || path.startsWith(`${href}/`);
 
@@ -14,6 +15,13 @@ export function MainNav() {
   const path = usePathname();
   const home = path !== "/";
   const links = home ? [{ href: "/", label: "Home" }, ...nav] : nav;
+  const current = links.find((l) => l.href !== "/" && active(path, l.href))?.href ?? null;
+  // a clicked link is the rest target at once, so the string slides to its underline instead of
+  // waiting on the route (and, for Home, to nothing); the route catching up clears it
+  const [clicked, setClicked] = useState<string>();
+  // biome-ignore lint/correctness/useExhaustiveDependencies: clear the pending click whenever the route changes
+  useEffect(() => setClicked(undefined), [path]);
+  const rest = clicked === undefined ? current : clicked === "/" ? null : clicked;
   const navRef = useRef<HTMLElement>(null);
   const hide = useRef<number>(undefined);
   // the hovered link and how far the point its arrow dives into sits from the nav's right edge
@@ -77,10 +85,12 @@ export function MainNav() {
         data-no-ring
         data-pinned={hover ? "" : undefined}
         aria-label="Main"
-        className="relative hidden md:block"
+        className="main-nav relative hidden md:block"
+        // .main-nav carries the --string-ms / --string-ease tokens (globals.css)
         onMouseLeave={leave}
         onBlur={leave}
       >
+        <NavString hrefs={links.map((l) => l.href)} want={{ hover: hover?.href ?? null, rest }} />
         <ul className="flex items-center gap-6 font-mono text-[0.8125rem] text-muted-foreground">
           {links.map((item) => (
             <li
@@ -101,6 +111,10 @@ export function MainNav() {
                 onFocus={(e) => show(item, e.currentTarget)}
                 onClick={(e) => {
                   close();
+                  // a plain click navigates here; a new-tab click leaves this page where it is
+                  if (!(e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button)) {
+                    setClicked(item.href);
+                  }
                   // a mouse click leaves the link focused, and the browser refocuses it on return to
                   // the tab, which would reopen the card; keyboard activation (detail 0) keeps focus
                   if (e.detail > 0) e.currentTarget.blur();
@@ -119,7 +133,9 @@ export function MainNav() {
           className="nav-preview pointer-events-none absolute top-full right-0 mt-5 w-64 origin-top-right rounded-lg border border-line bg-surface/90 p-3 shadow-2xl backdrop-blur-md"
         >
           {/* the nail hole the hovered link's arrow dives into: that arrow is what pins the card */}
-          <span className="pv-hole" style={{ right: HOLE_X - 3, top: HOLE_Y - 3 }} />
+          {/* offsets run from the padding box, so the card's 1px border comes off: the hole's centre
+              sits exactly HOLE_X from the right and HOLE_Y from the top edge, where the dive aims */}
+          <span className="pv-hole" style={{ right: HOLE_X - 3 - 1, top: HOLE_Y - 3 - 1 }} />
           {/* keyed so the sketch replays for each link */}
           <div key={`s${shown?.href}`} className="h-32">
             {Preview && <Preview />}
@@ -150,6 +166,107 @@ export function MainNav() {
           <House className="size-4" aria-hidden="true" />
         </Link>
       )}
+    </>
+  );
+}
+
+/**
+ * The one line that follows the pointer along the nav: a single svg path of which only a window
+ * shows. At rest it is the current page's underline, on a hover that link's rounded box, and between
+ * the two it flies a smooth route curve (arc, wave or loop; see flightPath). It re-measures when the links
+ * resize, fonts land or the link set changes; the StringDriver does the tweening.
+ */
+function NavString({ hrefs, want }: { hrefs: string[]; want: Want }) {
+  const svg = useRef<SVGSVGElement>(null);
+  const front = useRef<SVGSVGElement>(null);
+  const lines = useRef<(SVGPathElement | null)[]>([]);
+  const mask = useRef<SVGMaskElement>(null);
+  const maskId = `str${useId().replace(/:/g, "")}`;
+  const head = useRef<SVGGElement>(null);
+  const tail = useRef<SVGGElement>(null);
+  const driver = useRef<StringDriver>(null);
+  const latest = useRef(want);
+  latest.current = want;
+  const key = hrefs.join("|");
+
+  useLayoutEffect(() => {
+    const paths = lines.current.filter((l): l is SVGPathElement => !!l);
+    if (!svg.current || !front.current || !mask.current || !head.current || !tail.current) return;
+    if (paths.length !== 3) return;
+    const d = new StringDriver({
+      svg: svg.current,
+      front: front.current,
+      lines: paths,
+      mask: mask.current,
+      head: head.current,
+      tail: tail.current,
+    });
+    driver.current = d;
+    return () => {
+      d.destroy();
+      driver.current = null;
+    };
+  }, []);
+
+  useLayoutEffect(() => {
+    const nav = svg.current?.parentElement;
+    const d = driver.current;
+    if (!nav || !d) return;
+    const links = [...nav.querySelectorAll<HTMLElement>(".nav-shot")];
+    const rebuild = () => {
+      const n = nav.getBoundingClientRect();
+      if (!n.width) return;
+      const boxes: Box[] = links.map((el) => {
+        const r = el.getBoundingClientRect();
+        return {
+          x0: r.left - n.left - PAD_X,
+          x1: r.right - n.left + PAD_X,
+          y0: r.top - n.top - PAD_Y,
+          y1: r.bottom - n.top + PAD_Y,
+        };
+      });
+      d.rebuild(key.split("|"), boxes, { w: n.width, h: n.height }, latest.current);
+    };
+    rebuild();
+    const ro = new ResizeObserver(rebuild);
+    ro.observe(nav);
+    for (const el of links) ro.observe(el);
+    let live = true;
+    document.fonts.ready.then(() => live && rebuild());
+    // the Home link slides in with a transform, so measure again once that ends
+    nav.addEventListener("animationend", rebuild);
+    return () => {
+      live = false;
+      ro.disconnect();
+      nav.removeEventListener("animationend", rebuild);
+    };
+  }, [key]);
+
+  const { hover, rest } = want;
+  useEffect(() => driver.current?.aim({ hover, rest }), [hover, rest]);
+
+  const put = (i: number) => (el: SVGPathElement | null) => {
+    lines.current[i] = el;
+  };
+  return (
+    <>
+      <svg ref={svg} aria-hidden="true" className="nav-string-svg">
+        <path ref={put(0)} className="nav-string" />
+      </svg>
+      {/* over the labels: the thread shows in front of the right half of each word it crosses */}
+      <svg ref={front} aria-hidden="true" className="nav-string-svg nav-string-front">
+        <mask ref={mask} id={maskId} maskUnits="userSpaceOnUse" />
+        <g mask={`url(#${maskId})`}>
+          <path ref={put(1)} className="nav-string nav-string-halo" />
+          <path ref={put(2)} className="nav-string" />
+        </g>
+        <g ref={tail} className="nav-string-tail">
+          <path d={TAIL} />
+        </g>
+        <g ref={head} className="nav-string-head">
+          <path d={HEAD} />
+        </g>
+      </svg>
     </>
   );
 }
@@ -227,9 +344,6 @@ export function MobileMenu() {
 }
 
 /** Padding of the traced box around the label, the corner radius, and the svg overflow around it. */
-const PAD_X = 9;
-const PAD_Y = 5;
-const R = 6;
 const OUT_X = 22;
 const OUT_Y = 18;
 /** The arrow dives this far right of the link into the card's nail hole, which sits HOLE_X in from
@@ -240,49 +354,41 @@ const HOLE_Y = 12;
 const CARD_GAP = 20;
 /** ms a mouse hover waits before the arrow draws and the card opens. */
 const SHOW_DELAY = 180;
-const TAIL = "M-12 -4 L-8 0 L-12 4 M-8 -4 L-4 0 L-8 4 M-4 -4 L0 0 L-4 4";
 const HEAD = "M-4 -4.5 L5 0 L-4 4.5 L-1.5 0 Z";
+const TAIL = "M-12 -4 L-8 0 L-12 4 M-8 -4 L-4 0 L-8 4 M-4 -4 L0 0 L-4 4";
 
 /**
- * Arrow path: in from the lower left, once round the label's box, then up through the label on the
- * diagonal, over the top-right corner and down into the card's nail hole `drop` px below the link.
- * The dive is its own path so it only shows while the card is open.
+ * Per-link arrow parts, in the link's svg: the shot up through the label on the diagonal from the
+ * box's bottom-left corner (where the nav string's box closes), over the top-right corner, and the
+ * dive down into the card's nail hole `drop` px below the link. The cross is drawn as a moving dash,
+ * so nothing stays across the text. The dive is its own path so it only shows while the card is open.
  */
 function shotPath(w: number, h: number, drop: number) {
   const x0 = OUT_X - PAD_X;
   const y0 = OUT_Y - PAD_Y;
   const x1 = OUT_X + w + PAD_X;
   const y1 = OUT_Y + h + PAD_Y;
-  const lap = `H${x1 - R} A${R} ${R} 0 0 0 ${x1} ${y1 - R} V${y0 + R} A${R} ${R} 0 0 0 ${x1 - R} ${y0} H${x0 + R} A${R} ${R} 0 0 0 ${x0} ${y0 + R} V${y1 - R} A${R} ${R} 0 0 0 ${x0 + R} ${y1}`;
-  const d = [`M${x0 - 18} ${y1 + 6}`, `Q${x0 - 4} ${y1} ${x0 + R} ${y1}`, lap].join(" ");
-  // the shot through the label: drawn as a moving dash, so nothing is left over the text at rest
   const cross = `M${x0 + R} ${y1} L${x1 - 2} ${y0 - 4}`;
-  const rad = Math.atan2(y0 - 4 - y1, x1 - 2 - x0 - R);
   const xd = OUT_X + w + DIVE_X;
   const hole = OUT_Y + drop;
-  // head tip lands on the hole; the stroke stops a gap short of the head
+  // the stroke stops a gap short of the head, whose tip (5px ahead of its origin) lands on the
+  // hole's centre, pointing straight down
   const dive = `M${x1 - 2} ${y0 - 4} C${x1 + 3} ${y0 - 7} ${xd} ${y0 - 7} ${xd} ${y0 + 2} V${hole - 9}`;
   return {
-    d,
     cross,
     dive,
-    // at rest (current page) the head points out of the top-right corner, along the shot's line
-    rest: {
-      at: [x1 - 2 + Math.cos(rad), y0 - 4 + Math.sin(rad)],
-      angle: (rad * 180) / Math.PI,
-    },
-    head: [xd, hole - 2],
-    tail: [x0 - 18, y1 + 6],
+    head: [xd, hole - 5],
     // the diagonal goes behind the first half of the label and comes out in front of the second
     front: OUT_X + w / 2,
   };
 }
 
 /**
- * The hover arrow: one rounded stroke that comes in from the lower left, traces a box round the
- * label (behind it), pierces the label on the diagonal, then hooks over and dives into the preview
- * card's nail hole, so the arrow is what pins the card. At rest it is the label's outline. Two stacked copies of the stroke draw in sync: one behind the text, one in
- * front masked to the label's right half, which makes the diagonal thread through the word.
+ * The per-link part of the hover arrow. The nav string has already traced the box round the label;
+ * from where it closes this pierces the label on the diagonal, hooks over and dives into the preview
+ * card's nail hole, so the arrow is what pins the card. Two stacked copies of the shot draw in sync:
+ * one behind the text, one in front masked to the label's right half, which makes the diagonal thread
+ * through the word.
  */
 function ShotArrow() {
   const ref = useRef<HTMLSpanElement>(null);
@@ -295,8 +401,9 @@ function ShotArrow() {
     if (!link || !nav) return;
     const measure = () =>
       setSize({
-        w: link.offsetWidth,
-        h: link.offsetHeight,
+        // fractional, like the card's own x (nav.right - link.right), so the two line up exactly
+        w: link.getBoundingClientRect().width,
+        h: link.getBoundingClientRect().height,
         drop:
           nav.getBoundingClientRect().bottom - link.getBoundingClientRect().top + CARD_GAP + HOLE_Y,
       });
@@ -320,17 +427,8 @@ function ShotArrow() {
       <svg {...box}>
         {shot && (
           <>
-            <path className="shot-line" pathLength={1} d={shot.d} />
             <path className="shot-cross" pathLength={1} d={shot.cross} />
-            <g transform={`translate(${shot.tail[0]} ${shot.tail[1]}) rotate(-18)`}>
-              <path className="shot-tail" d={TAIL} />
-            </g>
             <path className="shot-dive" pathLength={1} d={shot.dive} />
-            <g
-              transform={`translate(${shot.rest.at[0]} ${shot.rest.at[1]}) rotate(${shot.rest.angle})`}
-            >
-              <path className="shot-rest-head" d={HEAD} />
-            </g>
             <g transform={`translate(${shot.head[0]} ${shot.head[1]}) rotate(90)`}>
               <path className="shot-head" d={HEAD} />
             </g>
@@ -339,7 +437,7 @@ function ShotArrow() {
       </svg>
       {/* biome-ignore lint/a11y/noSvgWithoutTitle: decorative, the wrapper is aria-hidden */}
       <svg {...box} className="shot-front">
-        {shot && size && (
+        {shot && (
           <>
             <mask
               id={mask}

@@ -18,7 +18,7 @@ Opt-in, per-block reveal for prose and cards below the hero, plus word-by-word s
   - `mode="in"`: words flip in with the same keyframes as `word-in`, via WAAPI, 700ms each. The first word starts 150ms after the block. Step is `min(45ms, 1s / word count)`. The enclosing reveal target (e.g. `[data-reveal="headline"]`) plays it when it enters view. `text-reveal.tsx` drives it; there is no CSS animation.
 - **Arming before paint:** an inline `ARM_SCRIPT` in the `<head>` of `src/app/layout.tsx` adds `html.paras-armed` before first paint. `globals.css` hides targets only under that class, so no-JS and pre-hydration HTML show everything.
 - **Late mounts:** a `MutationObserver` picks up blocks rendered later (work filter results, Suspense boundaries).
-- **Smooth scroll per route:** `RouteFeel` in `src/components/site/smooth-scroll.tsx` sets Lenis. Home uses `lerp` 0.09 and `wheelMultiplier` 0.9. Other routes use `lerp` 0.18 and `wheelMultiplier` 1.
+- **Smooth scroll:** `src/components/site/smooth-scroll.tsx` sets one Lenis feel on every route: `lerp` 0.2, `wheelMultiplier` 1 (src: smooth-scroll.tsx, 2026-11-07). No `RouteFeel`.
 
 ## Core Flows
 
@@ -46,5 +46,5 @@ Opt-in, per-block reveal for prose and cards below the hero, plus word-by-word s
 - Reduced-motion bypass: no hidden state and no animation when the user prefers reduced motion.
 - No-JS fallback: content is visible without JavaScript and before hydration.
 - Print stylesheet forces revealed blocks visible, so the resume prints in full.
-- Per-route scroll feel: home stays heavier for the cinematic hero. Sub-routes are lighter because trackpad scrolling felt heavy there.
+- One scroll feel on every route (`lerp` 0.2, `wheelMultiplier` 1), so no page is slowed (src: smooth-scroll.tsx, 2026-11-07).
 - Vertical-only motion: every reveal rises or fades in place, so nothing moves sideways (see the no-sideways-motion convention).

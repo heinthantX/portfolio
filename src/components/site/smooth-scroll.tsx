@@ -3,9 +3,8 @@
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { type LenisRef, ReactLenis, useLenis } from "lenis/react";
-import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
-import { capWheelDelta } from "./wheel";
+import { routeWheel } from "./wheel";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -30,15 +29,14 @@ export function SmoothScroll({ children }: { children: React.ReactNode }) {
       ref={lenisRef}
       options={{
         autoRaf: false,
-        lerp: 0.09,
-        wheelMultiplier: 0.9,
+        lerp: 0.2,
+        wheelMultiplier: 1,
         smoothWheel: !reducedMotion(),
         anchors: true,
-        virtualScroll: capWheelDelta,
+        virtualScroll: routeWheel,
       }}
     >
       <ScrollTriggerSync />
-      <RouteFeel />
       {children}
     </ReactLenis>
   );
@@ -46,17 +44,5 @@ export function SmoothScroll({ children }: { children: React.ReactNode }) {
 
 function ScrollTriggerSync() {
   useLenis(ScrollTrigger.update);
-  return null;
-}
-
-/** The home hero is tuned for a heavy glide; reading pages follow the trackpad closely. */
-function RouteFeel() {
-  const lenis = useLenis();
-  const home = usePathname() === "/";
-  useEffect(() => {
-    if (!lenis) return;
-    lenis.options.lerp = home ? 0.09 : 0.18;
-    lenis.options.wheelMultiplier = home ? 0.9 : 1;
-  }, [lenis, home]);
   return null;
 }

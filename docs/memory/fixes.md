@@ -2,15 +2,11 @@
 
 ## Lenis virtualScroll returning false does not stop native scroll
 Root cause: returning `false` from Lenis's `virtualScroll` callback skips Lenis's own handling, but it does not call `preventDefault` on the native wheel event. The browser still scrolls the page natively, so the wheel interceptor appeared to do nothing.
-Fix: the interceptor calls `event.preventDefault()` itself, then returns `false` to swallow the event. In this repo that happens in `src/components/site/wheel.ts` (`interceptWheel` and `capWheelDelta`). See `docs/specs/signal-hero.md`.
+Fix: the interceptor calls `event.preventDefault()` itself, then returns `false` to swallow the event. In this repo that happens in `src/components/site/wheel.ts` (`interceptWheel` and `routeWheel`). See `docs/specs/signal-hero-pace.md`.
 
 ## Lenis drops scrollTo onComplete when interrupted
 Root cause: Lenis does not call a `scrollTo` `onComplete` when the scroll is interrupted by touch or by a new `scrollTo`. Chapter snapping that waited on `onComplete` stalled and never released its lock.
-Fix: `useChapterSnap` (`src/features/signal-scene/useChapterSnap.ts`) tracks a `busyUntil` timestamp instead of relying on `onComplete`. See `docs/specs/signal-hero.md`.
-
-## Lenis scrollTo handback drops the swallowed delta
-Root cause: during a duration `scrollTo`, Lenis keeps `targetScroll` near the animated position. Handing the wheel back to Lenis mid-step therefore lost all the delta the step had swallowed. A fling moved about 30px.
-Fix: on going free, credit the delta the gesture already sent (from + held) to Lenis explicitly. See `docs/specs/signal-hero.md` (Core Flows 10) and `docs/design/DECISIONS.md` D11.
+Fix: `useChapterSnap` (`src/features/signal-scene/useChapterSnap.ts`) tracks a `busyUntil` timestamp instead of relying on `onComplete`. See `docs/specs/signal-hero-pace.md`.
 
 ## Snap easeInOut reads as lag on a swipe
 Root cause: an easeInOut step barely moves in its first 200ms, so a swipe's page reaction looked delayed.
@@ -18,7 +14,7 @@ Fix: snaps use ease-out curves. Swipes use `easeSwipe` = 1-(1-t)^2, which moves 
 
 ## Trackpad push misread from the previous delta
 Root cause: comparing each delta with the previous one reads a swipe's own ramp-up as a new push.
-Fix: track the trough reached after the peak. A new push is a delta of 20 or more and more than 3x that trough. The trough resets on ramp-up. See `docs/specs/signal-hero.md` (Core Flows 10).
+Fix: track the trough reached after the peak. A new push is a delta of 20 or more and more than 3x that trough. The trough resets on ramp-up. See `docs/specs/signal-hero-pace.md` (Core Flows 1).
 
 ## R3F 9.8.x constructs a deprecated THREE.Clock
 Root cause: `@react-three/fiber` 9.8.1 and 9.8.2 construct `THREE.Clock`, which three r186 deprecates and warns about.
@@ -64,4 +60,8 @@ Fix: one source of truth. The link gets `data-hover` from React state and every 
 
 ## Hero chapters never snapped on phones (pointercancel) (2026-10-24)
 Root cause: when the browser takes over a touch scroll it fires `pointercancel` instead of `pointerup`. `useChapterSnap` kept its `pressed` flag true, so `settle()` deferred forever. The first 7 home chapters never snapped on phones, leaving text half-revealed and blurred between stops.
-Fix: `pressed` ignores touch pointers (touchstart/touchend `touching` covers touch), and `pointercancel` is treated as `pointerup`. Source: `src/features/signal-scene/useChapterSnap.ts`. See `docs/specs/signal-hero.md`.
+Fix: `pressed` ignores touch pointers (touchstart/touchend `touching` covers touch), and `pointercancel` is treated as `pointerup`. Source: `src/features/signal-scene/useChapterSnap.ts`. See `docs/specs/signal-hero-pace.md`.
+
+## getComputedStyle returns 450ms as .45s (2026-11-07)
+Root cause: `getComputedStyle` can return a custom property `450ms` as `.45s`. Reading only the number misreads the duration.
+Fix: `timing()` in `src/components/site/nav-string.ts` parses the unit before using the value. See `docs/memory/conventions.md` (Nav string timing shares CSS custom properties).

@@ -1,23 +1,22 @@
 "use client";
 
 import type Lenis from "lenis";
-import { type RefObject, useCallback, useEffect, useRef } from "react";
+import { type RefObject, useCallback, useEffect, useMemo, useRef } from "react";
 import { interceptWheel } from "@/components/site/wheel";
-import { CHAPTERS, chapterProgress } from "./timeline";
+import { CHAPTERS, chapterProgress, PEEK_P } from "./timeline";
 
-/** Raw wheel speed (px/s over the last WINDOW_MS) that reads as a swipe: play the next chapter. */
-const STEP_V = 1800;
 const WINDOW_MS = 100;
-/** A hard fling: this much raw wheel travel within a gesture's first FLING_MS scrolls freely. */
-const FLING_PX = 2500;
-const FLING_MS = 250;
-/** This many swipes within BURST_MS also means the user is travelling (mouse wheels can't fling). */
-const BURST_N = 3;
-const BURST_MS = 900;
 /** A swipe still going at full speed this long after it counted counts again. */
 const SUSTAIN_MS = 400;
 /** Quiet time that ends a wheel gesture; trackpad inertia keeps events far closer than this. */
 const GAP_MS = 160;
+/**
+ * A slow scroll that stops holds its place this long, so resting fingers pause the morph mid-way.
+ * Browsers can't see fingers on a trackpad, so a still hold and a still release look the same.
+ */
+const HOLD_MS = 1200;
+/** This many shrinking deltas in a row is trackpad inertia: the fingers let go, finish at once. */
+const RELEASE_RUN = 8;
 /** Quiet time after any other scroll (touch, keys, scrollbar, a fling) before settling. */
 const SETTLE_MS = 140;
 /** A positive number of seconds from an env var, else `fallback`. */
@@ -26,17 +25,21 @@ const seconds = (raw: string | undefined, fallback: number) => {
   return raw && Number.isFinite(n) && n > 0 ? n : fallback;
 };
 /**
- * One full chapter plays in STEP_S; shorter remainders keep the same pace, never under MIN_S.
+ * One full chapter plays in STEP_S, which is also the scroll speed cap: a faster wheel still plays
+ * only the next chapter at this pace. Shorter remainders keep the same pace, never under MIN_S.
  * Tunable via NEXT_PUBLIC_CHAPTER_STEP_S / NEXT_PUBLIC_CHAPTER_MIN_S (inlined at build time).
  */
-const STEP_S = seconds(process.env.NEXT_PUBLIC_CHAPTER_STEP_S, 2);
-const MIN_S = Math.min(seconds(process.env.NEXT_PUBLIC_CHAPTER_MIN_S, 1), STEP_S);
-/** Inside the hero the scroll tracks the wheel tighter and a little further, so it never feels laggy. */
-const HERO_LERP = 0.16;
+const STEP_S = seconds(process.env.NEXT_PUBLIC_CHAPTER_STEP_S, 1);
+const MIN_S = Math.min(seconds(process.env.NEXT_PUBLIC_CHAPTER_MIN_S, 0.4), STEP_S);
+/** Inside the hero a slow wheel scrubs a little further than it moves, and one event moves at most a notch. */
 const HERO_GAIN = 1.15;
+const MAX_EVENT_DELTA = 120;
+/** The hero guide's peek: out to PEEK_P, then back to the first stop. */
+const PEEK_OUT_S = 0.6;
+const PEEK_BACK_S = 0.8;
 const EPS = 2;
 
-export type WheelMode = "follow" | "step" | "free";
+export type WheelMode = "follow" | "step";
 
 /** Moves from the first frame, so a swipe answers at once, then eases into the chapter. */
 const easeSwipe = (t: number) => 1 - (1 - t) ** 2;
@@ -49,26 +52,19 @@ export function nextStop(stops: number[], from: number, dir: number): number | u
 }
 
 /**
- * How a wheel gesture should drive the hero. A hard fling or a burst of swipes travels freely;
- * a swipe plays the next chapter at a fixed pace; anything slower follows the wheel.
+ * How a wheel gesture should drive the hero. Slower than one chapter per STEP_S (counting
+ * HERO_GAIN) it scrubs; faster, it plays the next chapter at that pace instead.
  */
 export function wheelMode({
   speed,
-  travelled,
-  elapsed,
-  swipes,
+  chapterPx,
 }: {
   /** raw px/s over the last WINDOW_MS */
   speed: number;
-  /** raw px since the gesture started */
-  travelled: number;
-  /** ms since the gesture started */
-  elapsed: number;
-  /** swipes within the last BURST_MS, this one included if it is one */
-  swipes: number;
+  /** average px between two stops */
+  chapterPx: number;
 }): WheelMode {
-  if ((elapsed <= FLING_MS && travelled >= FLING_PX) || swipes >= BURST_N) return "free";
-  return speed >= STEP_V ? "step" : "follow";
+  return speed * HERO_GAIN * STEP_S > chapterPx ? "step" : "follow";
 }
 
 /** Seconds to cover `distance` at one chapter per STEP_S. */
@@ -79,24 +75,23 @@ export function playSeconds(distance: number, chapter: number) {
 /**
  * Where a scroll that stopped at `y` should come to rest. Outside the hero (or already resting):
  * nowhere. A move past `nudge` from the chapter it started on finishes the chapter in the
- * direction it was going; a smaller one springs back. A fling (the user meant to travel) carries
- * on to the next chapter in its direction, never back.
+ * direction it was going; a smaller one springs back.
  */
 export function settleStop(
   stops: number[],
   y: number,
   anchor: number,
-  { nudge, fling }: { nudge: number; fling: boolean },
+  { nudge }: { nudge: number },
 ): number | undefined {
   if (y < stops[0] - EPS || y > stops[stops.length - 1] + EPS) return undefined;
   if (stops.some((s) => Math.abs(s - y) <= EPS)) return undefined;
   const nearest = stops.reduce((b, s) => (Math.abs(s - y) < Math.abs(b - y) ? s : b), stops[0]);
   const moved = y - anchor;
-  if (!fling && Math.abs(moved) <= nudge) return nearest;
+  if (Math.abs(moved) <= nudge) return nearest;
   return nextStop(stops, y, moved) ?? nearest;
 }
 
-/** Wheel delta in px, before the per-event cap, so speed reads true. */
+/** Wheel delta in px, before the per-event clamp, so speed reads true. */
 const rawDelta = (e: Event) => {
   const w = e as WheelEvent;
   return Math.abs(w.deltaY) * (w.deltaMode === 1 ? 16 : w.deltaMode === 2 ? window.innerHeight : 1);
@@ -104,10 +99,11 @@ const rawDelta = (e: Event) => {
 
 /**
  * Page-at-a-time scrolling through the hero's chapters, so each morph plays out in full.
- * A slow wheel follows the user and finishes the chapter when they stop; a swipe plays the next
- * chapter at a fixed pace (another swipe meanwhile queues one more); only a hard fling or a burst
- * of swipes scrolls freely. Touch, keys and the scrollbar settle the same way once they stop.
- * Returns `goTo(chapter)` for the rail and jump links.
+ * A slow wheel scrubs and finishes the chapter when the user stops; a faster one plays only the
+ * next chapter at a fixed pace (more pushing meanwhile queues one more). Touch, keys and the
+ * scrollbar settle the same way once they stop.
+ * Returns `goTo(chapter)` for the rail and jump links, and `peek()`, which nudges the first morph
+ * open and back to show the hero scrolls (false if it didn't start).
  */
 export function useChapterSnap(
   sectionRef: RefObject<HTMLElement | null>,
@@ -115,6 +111,7 @@ export function useChapterSnap(
   enabled: boolean,
 ) {
   const snapRef = useRef<(y: number) => void>(null);
+  const peekRef = useRef<() => boolean>(null);
 
   const stops = useCallback(() => {
     const s = sectionRef.current;
@@ -123,10 +120,15 @@ export function useChapterSnap(
     const range = s.offsetHeight - window.innerHeight;
     return Array.from({ length: CHAPTERS }, (_, i) => Math.round(top + range * chapterProgress(i)));
   }, [sectionRef]);
+  const peekY = useCallback(() => {
+    const s = sectionRef.current;
+    if (!s) return undefined;
+    const top = s.getBoundingClientRect().top + window.scrollY;
+    return Math.round(top + (s.offsetHeight - window.innerHeight) * PEEK_P);
+  }, [sectionRef]);
 
   useEffect(() => {
     if (!enabled || !lenis) return;
-    const baseLerp = lenis.options.lerp;
     let target = window.scrollY;
     let anchor = window.scrollY;
     // what is animating and until when (Lenis drops onComplete when interrupted)
@@ -134,18 +136,14 @@ export function useChapterSnap(
     let busyUntil = 0;
     let pending = 0; // one queued chapter: +1 / -1
     let mode: WheelMode | "pass" = "pass";
-    let fling = false;
     let dir = 0;
     let lastT = 0;
     let peak = 0;
     let trough = 0;
-    let startT = 0;
+    let prevAbs = 0;
+    let fading = 0; // shrinking deltas in a row
     let pushT = 0; // when this gesture last counted as a swipe
-    let from = 0; // where the gesture began
-    let held = 0; // wheel delta swallowed by this gesture, owed to Lenis if it turns into a fling
-    let travelled = 0;
     let samples: [number, number][] = [];
-    let swipes: number[] = [];
     let touching = false;
     let pressed = false;
     let settleTimer = 0;
@@ -154,7 +152,13 @@ export function useChapterSnap(
     const busy = () => performance.now() < busyUntil;
     const chapter = (s: number[]) => (s[s.length - 1] - s[0]) / Math.max(s.length - 1, 1);
 
-    const play = (y: number, kind: "step" | "finish", seconds: number, moving: boolean) => {
+    const play = (
+      y: number,
+      kind: "step" | "finish",
+      seconds: number,
+      moving: boolean,
+      then?: () => void,
+    ) => {
       target = y;
       anchor = y;
       playing = kind;
@@ -165,6 +169,7 @@ export function useChapterSnap(
         onComplete: () => {
           playing = null;
           busyUntil = 0;
+          if (then) return then();
           const d = pending;
           pending = 0;
           const s = stops();
@@ -179,13 +184,31 @@ export function useChapterSnap(
     };
     snapRef.current = snap;
 
-    // a slow gesture ended: finish the chapter it was heading into
+    // a wheel mid-glide stops it and drops the return leg (Lenis drops onComplete when interrupted)
+    const peek = () => {
+      const s = stops();
+      const y = peekY();
+      if (y === undefined || !s.length || busy() || touching || pressed) return false;
+      if (Math.abs(window.scrollY - s[0]) > EPS || y <= s[0] + EPS) return false;
+      play(y, "finish", PEEK_OUT_S, true, () => play(s[0], "finish", PEEK_BACK_S, false));
+      return true;
+    };
+    peekRef.current = peek;
+
+    // a slow gesture ended: after a hold (or at once on release), finish the chapter it was heading into
     const endGesture = () => {
+      if (mode === "follow" && fading < RELEASE_RUN) {
+        const wait = HOLD_MS - (performance.now() - lastT);
+        if (wait > 0) {
+          endTimer = window.setTimeout(endGesture, wait);
+          return;
+        }
+      }
       const was = mode;
       mode = "pass";
       if (was !== "follow" || touching || pressed) return;
       const y = lenis.targetScroll;
-      const to = settleStop(stops(), y, anchor, { nudge: window.innerHeight * 0.04, fling: false });
+      const to = settleStop(stops(), y, anchor, { nudge: window.innerHeight * 0.04 });
       if (to === undefined) anchor = y;
       else play(to, "finish", playSeconds(to - lenis.animatedScroll, chapter(stops())), true);
     };
@@ -197,7 +220,6 @@ export function useChapterSnap(
       const s = stops();
       const at = busy() ? target : lenis.targetScroll;
       const inside = s.length > 0 && at >= s[0] - EPS && at <= s[s.length - 1] + EPS;
-      lenis.options.lerp = inside ? HERO_LERP : baseLerp;
       const d = Math.sign(deltaY);
       const abs = Math.abs(deltaY);
       const raw = rawDelta(event);
@@ -209,21 +231,17 @@ export function useChapterSnap(
       // the trough only counts after the peak, so a swipe's own ramp-up is not a new push
       if (fresh || abs > peak) peak = trough = abs;
       else trough = Math.min(trough, abs);
+      fading = !fresh && abs < prevAbs ? fading + 1 : 0;
+      prevAbs = abs;
       samples = samples.filter(([t]) => now - t < WINDOW_MS);
       samples.push([now, raw]);
-      swipes = swipes.filter((t) => now - t < BURST_MS);
       clearTimeout(endTimer);
       endTimer = window.setTimeout(endGesture, GAP_MS);
 
       if (fresh) {
-        startT = now;
-        travelled = 0;
-        held = 0;
-        from = lenis.animatedScroll;
         if (!inside) mode = "pass";
         else if (busy() && playing === "step") {
           // a chapter is playing: queue one more the same way, or turn straight back
-          swipes.push(now);
           pushT = now;
           mode = "step";
           if (d === Math.sign(target - lenis.animatedScroll)) pending = d;
@@ -243,54 +261,28 @@ export function useChapterSnap(
           mode = "follow";
         }
       }
-      travelled += raw;
-      if (mode === "pass" || mode === "free") return true;
+      if (mode === "pass") return true;
 
       const speed = (samples.reduce((sum, [, v]) => sum + v, 0) * 1000) / WINDOW_MS;
-      if (mode === "step" && speed >= STEP_V && now - pushT >= SUSTAIN_MS) {
-        // still pushing hard (a spinning mouse wheel): each stretch counts as another swipe
-        swipes.push(now);
+      const want = wheelMode({ speed, chapterPx: chapter(s) });
+      // from where the page is drawn, so a chapter already under way is finished, not skipped
+      const next = nextStop(s, lenis.animatedScroll, d);
+      if (mode === "step" && next === undefined && !busy()) mode = "follow"; // end of the hero: scroll on
+      if (mode === "step" && want === "step" && now - pushT >= SUSTAIN_MS && abs >= peak * 0.7) {
+        // still pushing hard (a spinning mouse wheel): each stretch counts as another swipe.
+        // A decaying trackpad inertia tail is one flick, so it never queues a second chapter.
         pushT = now;
         if (playing === "step" && d === Math.sign(target - lenis.animatedScroll)) pending = d;
       }
-      const want = wheelMode({
-        speed,
-        travelled,
-        elapsed: now - startT,
-        swipes: swipes.length + (mode === "follow" && speed >= STEP_V ? 1 : 0),
-      });
-      if (want === "free") {
-        // the user means to travel: hand the wheel back to Lenis, with what this gesture already sent
-        const owed = from + held;
-        lenis.scrollTo(
-          d > 0 ? Math.max(owed, lenis.animatedScroll) : Math.min(owed, lenis.animatedScroll),
-          {
-            programmatic: false,
-            lerp: baseLerp,
-          },
-        );
-        mode = "free";
-        fling = true;
-        busyUntil = 0;
-        playing = null;
-        pending = 0;
-        lenis.options.lerp = baseLerp;
-        return true;
-      }
-      if (mode === "follow" && want === "step") {
-        swipes.push(now);
+      if (mode === "follow" && want === "step" && next !== undefined) {
         pushT = now;
         mode = "step";
-        // from where the page is drawn, so a chapter already under way is finished, not skipped
-        const next = nextStop(s, lenis.animatedScroll, d);
-        if (next !== undefined) {
-          pending = 0;
-          const moving = Math.abs(lenis.velocity) > 1;
-          play(next, "step", playSeconds(next - lenis.animatedScroll, chapter(s)), moving);
-        }
+        pending = 0;
+        const moving = Math.abs(lenis.velocity) > 1;
+        play(next, "step", playSeconds(next - lenis.animatedScroll, chapter(s)), moving);
       }
-      if (mode === "follow") data.deltaY = deltaY * HERO_GAIN;
-      else held += deltaY;
+      if (mode === "follow")
+        data.deltaY = Math.max(-MAX_EVENT_DELTA, Math.min(MAX_EVENT_DELTA, deltaY)) * HERO_GAIN;
       return mode !== "step";
     });
 
@@ -307,8 +299,7 @@ export function useChapterSnap(
         return;
       }
       const y = window.scrollY;
-      const to = settleStop(stops(), y, anchor, { nudge: window.innerHeight * 0.04, fling });
-      fling = false;
+      const to = settleStop(stops(), y, anchor, { nudge: window.innerHeight * 0.04 });
       if (to === undefined) anchor = y;
       else play(to, "finish", playSeconds(to - y, chapter(stops())), false);
     };
@@ -346,8 +337,8 @@ export function useChapterSnap(
     window.addEventListener("pointercancel", onUp, opts);
     return () => {
       release();
-      lenis.options.lerp = baseLerp;
       snapRef.current = null;
+      peekRef.current = null;
       clearTimeout(settleTimer);
       clearTimeout(endTimer);
       window.removeEventListener("scroll", onScroll);
@@ -358,9 +349,9 @@ export function useChapterSnap(
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onUp);
     };
-  }, [enabled, lenis, stops]);
+  }, [enabled, lenis, stops, peekY]);
 
-  return useCallback(
+  const goTo = useCallback(
     (chapter: number) => {
       const y = stops()[chapter];
       if (y === undefined) return;
@@ -369,4 +360,6 @@ export function useChapterSnap(
     },
     [stops],
   );
+  const peek = useCallback(() => peekRef.current?.() ?? false, []);
+  return useMemo(() => ({ goTo, peek }), [goTo, peek]);
 }

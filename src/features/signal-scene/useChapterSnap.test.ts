@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { nextStop, playSeconds, settleStop, wheelMode } from "./useChapterSnap";
 
 const stops = [0, 600, 1000, 1400, 1800];
-const opts = { nudge: 36, fling: false };
+const opts = { nudge: 36 };
 
 describe("nextStop", () => {
   it("steps one chapter in the scroll direction", () => {
@@ -32,39 +32,32 @@ describe("settleStop", () => {
     expect(settleStop(stops, 1050, 0, opts)).toBe(1400);
     expect(settleStop(stops, 1350, 1800, opts)).toBe(1000);
   });
-  it("a fling carries on to the next chapter in its direction, never back", () => {
-    expect(settleStop(stops, 1350, 0, { ...opts, fling: true })).toBe(1400);
-    expect(settleStop(stops, 1420, 0, { ...opts, fling: true })).toBe(1800);
-    expect(settleStop(stops, 1100, 1800, { ...opts, fling: true })).toBe(1000);
-  });
 });
 
 describe("wheelMode", () => {
-  const g = { speed: 0, travelled: 0, elapsed: 0, swipes: 0 };
-  it("follows a slow wheel or a single notch", () => {
-    expect(wheelMode({ ...g, speed: 400, travelled: 40, elapsed: 100 })).toBe("follow");
-    expect(wheelMode({ ...g, speed: 1000, travelled: 100 })).toBe("follow");
+  // threshold = chapterPx / (HERO_GAIN * STEP_S) = 485 / 1.15 ~ 422 px/s at the default 1s
+  const chapterPx = 485;
+  it("scrubs a wheel slower than one chapter per STEP_S", () => {
+    expect(wheelMode({ speed: 0, chapterPx })).toBe("follow");
+    expect(wheelMode({ speed: 410, chapterPx })).toBe("follow");
   });
-  it("plays one chapter for a normal swipe, however hard", () => {
-    expect(wheelMode({ ...g, speed: 2400, travelled: 300, elapsed: 60, swipes: 1 })).toBe("step");
-    expect(wheelMode({ ...g, speed: 6000, travelled: 1500, elapsed: 250, swipes: 1 })).toBe("step");
+  it("plays the next chapter for anything faster, however hard", () => {
+    expect(wheelMode({ speed: 430, chapterPx })).toBe("step");
+    expect(wheelMode({ speed: 12000, chapterPx })).toBe("step");
   });
-  it("scrolls freely only for a hard fling or a burst of swipes", () => {
-    expect(wheelMode({ ...g, speed: 12000, travelled: 2600, elapsed: 220, swipes: 1 })).toBe(
-      "free",
-    );
-    expect(wheelMode({ ...g, speed: 2400, travelled: 300, elapsed: 60, swipes: 3 })).toBe("free");
-    // the same distance spread over a long gesture is not a fling
-    expect(wheelMode({ ...g, speed: 2400, travelled: 2600, elapsed: 900, swipes: 1 })).toBe("step");
+  it("scales the threshold with the chapter height", () => {
+    expect(wheelMode({ speed: 600, chapterPx: 485 })).toBe("step");
+    expect(wheelMode({ speed: 600, chapterPx: 900 })).toBe("follow");
+    expect(wheelMode({ speed: 600, chapterPx: 250 })).toBe("step");
   });
 });
 
 describe("playSeconds", () => {
   it("plays a full chapter at one pace and remainders at the same pace", () => {
-    expect(playSeconds(400, 400)).toBeCloseTo(2);
-    expect(playSeconds(-300, 400)).toBeCloseTo(1.5);
-    expect(playSeconds(1200, 400)).toBeCloseTo(2);
-    expect(playSeconds(10, 400)).toBeCloseTo(1);
+    expect(playSeconds(400, 400)).toBeCloseTo(1);
+    expect(playSeconds(-300, 400)).toBeCloseTo(0.75);
+    expect(playSeconds(1200, 400)).toBeCloseTo(1);
+    expect(playSeconds(10, 400)).toBeCloseTo(0.4);
   });
 
   describe("pace from env", () => {
@@ -83,10 +76,10 @@ describe("playSeconds", () => {
       expect(play(400, 400)).toBeCloseTo(3);
       expect(play(10, 400)).toBeCloseTo(1.5);
     });
-    it("falls back to 2s / 1s on bad values and never lets the minimum pass the step", async () => {
-      expect((await load("abc", "-1"))(400, 400)).toBeCloseTo(2);
-      expect((await load("abc", "-1"))(10, 400)).toBeCloseTo(1);
-      expect((await load("1", "5"))(10, 400)).toBeCloseTo(1);
+    it("falls back to 1s / 0.4s on bad values and never lets the minimum pass the step", async () => {
+      expect((await load("abc", "-1"))(400, 400)).toBeCloseTo(1);
+      expect((await load("abc", "-1"))(10, 400)).toBeCloseTo(0.4);
+      expect((await load("2", "5"))(10, 400)).toBeCloseTo(2);
     });
   });
 });

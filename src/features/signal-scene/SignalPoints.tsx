@@ -179,6 +179,7 @@ export const LENS = { r: 130, push: 46, glow: 0.85, grow: 0.7 };
 const VERT = /* glsl */ `
 uniform float uT, uTime, uSize, uStrength, uRadius, uDark, uAlpha, uIntro;
 uniform float uWaveA, uWaveB, uDissolve;
+uniform float uDrip; // hero guide: 0 off, 0..1 a few name points leak down, 1..1.5 they grow back
 uniform float uFlow, uEnergy, uLag; // stream strength, eased scroll energy, morph stagger
 uniform vec3 uMouse, uText, uSignal, uMuted;
 uniform vec4 uMask; // centre.xy, half-size.xy in NDC
@@ -259,6 +260,16 @@ void main(){
   float r = routeR(e);
   w = route(p, r);
   float sc = routeScale(r);
+  // hero guide: a few points of the name leak straight down, turn signal and fade, then grow back.
+  // Only while resting on shape 0 (1 - e); vertical only.
+  float dripK = uDrip * (1.0 - e) * (1.0 - fm);
+  float dripA = 1.0, dripC = 0.0;
+  if (dripK > 0.0 && fract(aRand * 317.3) < 0.04) {
+    float dg = clamp(min(uDrip, 1.0) * 1.6 - fract(aRand * 71.3) * 0.6, 0.0, 1.0) * (1.0 - e);
+    w.y -= dg * dg * 1.4;
+    dripC = dg;
+    dripA = uDrip > 1.0 ? smoothstep(1.0, 1.5, uDrip - fract(aRand * 71.3) * 0.2) : 1.0 - dg;
+  }
   // in flight: ride the stream (world space, so currents stay coherent across the screen)
   float env = flight(st) * step(0.0001, uFlow);
   float pk = step(fract(aRand * 613.7), 0.035); // packets: a few points carry the signal colour
@@ -297,10 +308,11 @@ void main(){
   float sig = step(fract(aRand * 91.7), 0.3);
   float far = smoothstep(5.0, 9.2, depth);
   hColor = mix(mix(mix(mix(uText, uSignal, sig), uMuted, far * 0.5), uSignal, lit), uSignal, glow);
+  hColor = mix(hColor, uSignal, dripC);
   float fade = mix(1.0, mix(1.0, 0.45, far), uDark);
   hA = uAlpha * (0.55 + 0.45 * fract(aRand * 53.1)) * fade * (1.0 + sig * 0.25 * uDark) * ie
      * (1.0 - mid * 0.5) * mix(1.0, smoothstep(3.15, 2.8, abs(p.x)), wv) * (1.0 + lit * 1.4)
-     * (1.0 + glow * 0.6);
+     * (1.0 + glow * 0.6) * dripA;
   }
   // the home stream: the point streams down its channel; x comes from the spine table
   vec3 fw = vec3(0.0);
@@ -490,6 +502,8 @@ interface Props {
   /** pointer repulsion enabled (off on touch) */
   interactive?: boolean;
   maskRef?: RefObject<TextMask>;
+  /** hero guide drip progress (0 off); read every frame */
+  dripRef?: RefObject<number>;
   /** index in `shapes` of the swelling field, if any */
   waveShape?: number;
   /** stream strength 0..1 for the morph out of shape `k` (0 = straight swarm morph) */
@@ -506,6 +520,7 @@ export function SignalPoints({
   drive,
   interactive = true,
   maskRef,
+  dripRef,
   waveShape = -1,
   flow = NO_FLOW,
   siteAttr,
@@ -559,6 +574,7 @@ export function SignalPoints({
         uDark: { value: 1 },
         uAlpha: { value: 0.8 },
         uIntro: { value: 0 },
+        uDrip: { value: 0 },
         uWaveA: { value: 0 },
         uWaveB: { value: 0 },
         uDissolve: { value: 0 },
@@ -797,6 +813,7 @@ export function SignalPoints({
     u.uSize.value =
       (worldSize * state.size.height * state.viewport.dpr) / (2 * Math.tan((FOV * Math.PI) / 360));
 
+    u.uDrip.value = dripRef?.current ?? 0;
     const mk = maskRef?.current;
     if (mk) {
       u.uMask.value.set(mk.x, mk.y, mk.w, mk.h);

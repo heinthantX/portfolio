@@ -18,6 +18,7 @@ import {
   WAVE_CHAPTER,
 } from "./timeline";
 import { useChapterSnap } from "./useChapterSnap";
+import { useHeroGuide } from "./useHeroGuide";
 import { useSignalGate } from "./useSignalGate";
 
 gsap.registerPlugin(ScrollTrigger);
@@ -229,6 +230,8 @@ export function SignalHero({ children, finale, poster }: SignalHeroProps) {
   const stageRef = useRef<HTMLDivElement>(null);
   const progressRef = useRef(0); // displayed (eased) progress, read by the scene
   const maskRef = useRef({ x: 0, y: 0, w: 0, h: 0, a: 0 }); // active text rect in NDC
+  const dripRef = useRef(0); // hero guide: the name's drip progress, read by the scene
+  const packetRef = useRef<HTMLSpanElement>(null); // hero guide courier
   const targetRef = useRef(0); // raw ScrollTrigger progress
   const blockRefs = useRef<(HTMLDivElement | null)[]>([]);
   const railRefs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -242,7 +245,7 @@ export function SignalHero({ children, finale, poster }: SignalHeroProps) {
   // The home stream canvas (fixed, behind the page) draws the scene; it reads these refs every frame.
   useEffect(() => {
     if (!gate.ready) return;
-    return registerHero({ progressRef, maskRef, stageRef, count: gate.count });
+    return registerHero({ progressRef, maskRef, dripRef, stageRef, count: gate.count });
   }, [gate.ready, gate.count]);
 
   // Progress comes from ScrollTrigger; everything below is a pure function of it.
@@ -302,7 +305,8 @@ export function SignalHero({ children, finale, poster }: SignalHeroProps) {
     const tick = (now: number) => {
       const dt = Math.min(0.1, (now - last) / 1000);
       last = now;
-      progressRef.current = easeToward(progressRef.current, targetRef.current, dt);
+      // tight: the snap already eases the scroll, so a loose follow here only delays the morph
+      progressRef.current = easeToward(progressRef.current, targetRef.current, dt, 16);
       const p = progressRef.current;
       const slide = Math.min(96, window.innerWidth * 0.07);
       for (let i = 0; i < CHAPTERS; i++) {
@@ -366,7 +370,17 @@ export function SignalHero({ children, finale, poster }: SignalHeroProps) {
     return () => cancelAnimationFrame(raf);
   }, [gate.fallback, gate.active]);
 
-  const go = useChapterSnap(sectionRef, lenis, !gate.fallback);
+  const { goTo: go, peek } = useChapterSnap(sectionRef, lenis, !gate.fallback);
+  useHeroGuide({
+    ready: gate.ready,
+    fallback: gate.fallback,
+    dripRef,
+    stageRef,
+    railRefs,
+    blockRefs,
+    packetRef,
+    peek,
+  });
 
   if (gate.fallback) {
     return (
@@ -472,6 +486,13 @@ export function SignalHero({ children, finale, poster }: SignalHeroProps) {
           </div>
         </div>
 
+        {/* hero guide courier: flown by useHeroGuide, hidden until then */}
+        <span
+          ref={packetRef}
+          aria-hidden="true"
+          className="pointer-events-none absolute top-0 left-0 z-10 size-1.5 rounded-full bg-signal opacity-0 shadow-[0_0_10px_2px_var(--color-signal)]"
+        />
+
         <nav
           aria-label="Hero chapters"
           className="group/rail absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 gap-1 md:top-1/2 md:right-4 md:bottom-auto md:left-auto md:translate-x-0 md:-translate-y-1/2 md:flex-col md:items-end"
@@ -492,14 +513,14 @@ export function SignalHero({ children, finale, poster }: SignalHeroProps) {
               {/* chapter tab: the current one is always named; hovering the rail names them all */}
               <span
                 aria-hidden="true"
-                className="hidden rounded-sm px-1.5 py-0.5 font-mono text-[0.6875rem] tracking-[0.12em] text-muted-foreground uppercase opacity-0 transition-[opacity,color,background-color] duration-300 group-hover:text-text group-focus-visible:opacity-100 group-hover/rail:bg-bg/70 group-hover/rail:opacity-100 group-data-[active=true]:text-signal group-data-[active=true]:opacity-100 md:inline"
+                className="hidden rounded-sm px-1.5 py-0.5 font-mono text-[0.6875rem] tracking-[0.12em] text-muted-foreground uppercase opacity-0 transition-[opacity,color,background-color] duration-300 group-hover:text-text group-focus-visible:opacity-100 group-hover/rail:opacity-100 group-hover/rail:bg-bg/70 group-data-[active=true]:bg-bg/70 group-data-[active=true]:text-signal group-data-[active=true]:opacity-100 group-data-[hint=true]:bg-bg/70 group-data-[hint=true]:text-signal group-data-[hint=true]:opacity-100 md:inline"
               >
                 <span className="mr-1.5 tabular-nums opacity-60">
                   {String(i + 1).padStart(2, "0")}
                 </span>
                 {label}
               </span>
-              <span className="block h-px w-3 shrink-0 bg-line-strong transition-all group-data-[active=true]:w-6 group-data-[active=true]:bg-signal md:group-hover:w-5" />
+              <span className="block h-px w-3 shrink-0 bg-line-strong transition-all group-data-[active=true]:w-6 group-data-[active=true]:bg-signal group-data-[hint=true]:w-6 group-data-[hint=true]:bg-signal md:group-hover:w-5" />
             </button>
           ))}
         </nav>

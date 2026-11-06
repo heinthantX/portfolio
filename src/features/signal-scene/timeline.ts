@@ -33,6 +33,9 @@ export const activeChapter = (p: number) => Math.min(CHAPTERS - 1, Math.round(sh
 export const chapterProgress = (i: number) =>
   i === 0 ? 0 : i === CHAPTERS - 1 ? 0.925 : (i + 0.5) / CHAPTERS;
 
+/** Progress where the first morph (intro -> wave) is 30% done: how far the hero guide peeks. */
+export const PEEK_P = boundary(0) - 0.2 * W;
+
 /** Hand-off after "shipped": over the last stretch of progress the globe becomes the home stream. */
 export const FLOW_FROM = 0.945;
 export const flowMix = (p: number) => {

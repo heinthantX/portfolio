@@ -133,6 +133,7 @@ function Stream({ hero, count }: { hero: HeroLink | null; count: number }) {
   }, [hero, size.width, size.height, invalidate]);
 
   const mask = useRef<TextMask>({ x: 0, y: 0, w: 0, h: 0, a: 0 });
+  const drip = useRef(0); // hero guide drip progress, copied from the hero each frame
   const live = useRef({ site: 0, last: -1, held: null as (Drive & { site?: SiteFrame }) | null });
   const drive: DriveFn = useCallback(
     (elapsed, view) => {
@@ -156,6 +157,7 @@ function Stream({ hero, count }: { hero: HeroLink | null; count: number }) {
       to.scale *= b;
       // the mask is in stage NDC; the canvas is as tall as the large viewport and stays put
       // while the stage scrolls away, so shift and scale it into canvas NDC
+      drip.current = h?.dripRef.current ?? 0;
       const m = h?.maskRef.current;
       const H = sizeRef.current.height || 1;
       const ratio = stage ? stage.height / H : 1;
@@ -203,6 +205,7 @@ function Stream({ hero, count }: { hero: HeroLink | null; count: number }) {
     <>
       <SignalPoints
         maskRef={mask}
+        dripRef={drip}
         shapes={shapes}
         count={count}
         drive={drive}

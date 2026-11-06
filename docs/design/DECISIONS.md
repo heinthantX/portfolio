@@ -161,6 +161,7 @@ Owner feedback after trying 3s: "make min 1 second and step 2".
 
 - **`STEP_S` 3s → 2s, `MIN_S` 1.5s → 1s** in `useChapterSnap.ts`. A full chapter plays in 2s (a swipe reaches it in about 1.7s); a slow-wheel finish of a part chapter scales with distance, never under 1s. Lost: the 3s pace from D14.
 - **Pace is an env var.** Owner: "make it as env variable". `NEXT_PUBLIC_CHAPTER_STEP_S` and `NEXT_PUBLIC_CHAPTER_MIN_S` (documented in `.env.example`) override the 2s / 1s defaults. They are `NEXT_PUBLIC_`, so Next inlines them into the client bundle at build time: changing one needs a rebuild or a dev-server restart. Non-numeric or non-positive values fall back to the defaults, and `MIN_S` is capped at `STEP_S`. Verified: a build with `NEXT_PUBLIC_CHAPTER_STEP_S=2.75` put `"2.75"` into 2 client chunks; a build without it put it in none.
+- **Superseded 2026-11-07:** pace is `STEP_S` 1 s and `MIN_S` 0.4 s, plus a 1.2 s hold on slow gestures. See `docs/specs/signal-hero-pace.md`.
 
 ## D16 — Data chapter becomes the Schema Crystal (2026-10-24)
 

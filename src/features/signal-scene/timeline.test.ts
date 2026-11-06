@@ -11,8 +11,10 @@ import {
   FOV,
   flowMix,
   flowStrength,
+  PEEK_P,
   type Pose,
   type Route,
+  shapeIndex,
   streamEnergy,
   streamLag,
   travelRoute,
@@ -230,5 +232,13 @@ describe("easeToward", () => {
       expect(Number.isFinite(v)).toBe(true);
       expect(v).toBe(settled);
     }
+  });
+});
+
+describe("PEEK_P", () => {
+  it("is where the first morph is 30% done, short of the next resting stop", () => {
+    expect(shapeIndex(PEEK_P)).toBeCloseTo(0.3, 6);
+    expect(PEEK_P).toBeGreaterThan(chapterProgress(0));
+    expect(PEEK_P).toBeLessThan(chapterProgress(1));
   });
 });

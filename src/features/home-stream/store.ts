@@ -7,6 +7,8 @@ import type { TextMask } from "@/features/signal-scene/SignalPoints";
 export interface HeroLink {
   progressRef: RefObject<number>;
   maskRef: RefObject<TextMask>;
+  /** hero guide drip progress for the name's points; 0 when off */
+  dripRef: RefObject<number>;
   stageRef: RefObject<HTMLElement | null>;
   /** point count the hero's gate picked for this device */
   count: number;

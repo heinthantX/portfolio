@@ -24,7 +24,7 @@ Split text with `ScrollWords` (`src/components/site/scroll-words.tsx`), not per-
 See `docs/specs/scroll-words.md`.
 
 ## Chapter jumps go through goTo
-Every chapter jump (rail, stack outline, layer grid, wheel) calls `goTo` from `useChapterSnap` (`src/features/signal-scene/useChapterSnap.ts`). Never call `lenis.scrollTo` directly for a chapter: a direct call fights the snap and skips the chapter pace (`STEP_S` 2s, `MIN_S` 1s since D15; set them with `NEXT_PUBLIC_CHAPTER_STEP_S` / `NEXT_PUBLIC_CHAPTER_MIN_S`, never by hardcoding). See `docs/specs/signal-hero.md` and `docs/design/DECISIONS.md` D10 and D15.
+Every chapter jump (rail, stack outline, layer grid, wheel) calls `goTo` from `useChapterSnap` (`src/features/signal-scene/useChapterSnap.ts`). Never call `lenis.scrollTo` directly for a chapter: a direct call fights the snap and skips the chapter pace (`STEP_S` 1 s, `MIN_S` 0.4 s, src: useChapterSnap.ts, 2026-11-07; set them with `NEXT_PUBLIC_CHAPTER_STEP_S` / `NEXT_PUBLIC_CHAPTER_MIN_S`, never by hardcoding). See `docs/specs/signal-hero-pace.md` and `docs/design/DECISIONS.md` D10 (D15 pace superseded).
 
 ## Show skill breadth in copy, not in highlights
 Do not highlight individual skill tags (no signal-coloured tag for MongoDB or NoSQL). The owner rejected that. Show breadth in the copy instead, e.g. "SQL and NoSQL: Postgres and MySQL for relational data, MongoDB for documents". Write MySQL, not MariaDB (MariaDB is a fork). See `docs/design/DECISIONS.md` D10.
@@ -36,10 +36,19 @@ Do not highlight individual skill tags (no signal-coloured tag for MongoDB or No
 Below `md` the nav lives behind a hamburger at the far right of the header, in a panel that drops from the top-right. Chosen over a full-screen overlay to keep the page visible behind it. Off-home, a House icon Home link sits in the header beside the hamburger, and Home is also a text link in the panel. The closed panel is `inert`. See `docs/specs/mobile-menu.md`.
 
 ## Nav arrow: z-index goes on the svgs, not the wrapper
-The desktop nav hover arrow has a lap (back layer only) and a cross through the label. The cross is a moving dash on the front masked layer and its halo, and it leaves no cross at rest, so the text stays readable. The current-page rest arrow (0.35 opacity) keeps its head at rest; the head sits off the label's top-right corner. It retracts while another link is hovered (see "Nav current-page arrow retracts on hover" below). Put the `z-index` on the svgs inside `.nav-shot` (`isolation: isolate`, `z-index: 1` so the head paints over the preview card). A `z-index` on the `.shot-arrow` wrapper creates a stacking context and traps the front layer behind the label. Any `useId` value used in a `url()` must have its colons stripped. The arrow dives into the card's nail hole (`.pv-hole`), so the card is pinned by the arrow itself. Reduced motion disables the card swing and the hole pop. See `docs/specs/nav-hover-preview.md`.
+The desktop nav hover arrow has a lap (back layer only) and a cross through the label. The cross is a moving dash on the front masked layer and its halo, and it leaves no cross at rest, so the text stays readable. The current page has no rest arrow; its rest mark is the nav string underline (see "Nav current page rests as an underline" below). Put the `z-index` on the svgs inside `.nav-shot` (`isolation: isolate`, `z-index: 1` so the head paints over the preview card). A `z-index` on the `.shot-arrow` wrapper creates a stacking context and traps the front layer behind the label. Any `useId` value used in a `url()` must have its colons stripped. The arrow dives into the card's nail hole (`.pv-hole`), so the card is pinned by the arrow itself. Reduced motion disables the card swing and the hole pop. See `docs/specs/nav-hover-preview.md`.
 
-## Nav current-page arrow retracts on hover
-While another nav link is hovered, the current page's faint arrow retracts fully: the rest head pops off (0.1s), the line undraws back toward the tail (`stroke-dashoffset` to 1, 0.3s, 0.08s delay), then the tail fades (0.33s delay). On hover end it redraws (line 0.4s after 0.15s, tail 0.2s, rest head at 0.45s). The current page's label colour stays highlighted. The trigger is `nav[data-pinned]` with a 120ms debounce, not `:has(:hover)`, because `:has(:hover)` flickers when the pointer moves between links. The retract block lives in `src/app/globals.css` after `@keyframes shot-fade`. See `docs/specs/nav-hover-preview.md`.
+## Nav current page rests as an underline
+The current page rests as an underline window of the single nav string (`StringDriver.target` in `src/components/site/nav-string.ts`), not an arrow. Rest window: 37.2px, the Uses link width 31.2px + 18 - 12 (Chrome sampler on /uses, 2026-11-07). The string follows hover between links. See `docs/specs/nav-hover-preview.md`.
+
+## Nav hover outlines come from the nav string
+Hover outlines come only from the single nav string, never from per-link boxes. Per-link laps stack 3-4 boxes on a swipe (measured 2026-11-07, max 4 svgs visible in a Chrome 50ms opacity sampler on /uses).
+
+## Nav string timing shares CSS custom properties
+The nav string tween and the card `translate` share `--string-ms` and `--string-ease` on `.main-nav` in `src/app/globals.css`. `src/components/site/nav-string.ts` reads them at runtime. Never hard-code a second copy of either value.
+
+## String retreat delay (RETREAT_MS)
+The string retreat waits `RETREAT_MS` = 400ms: a 0.1s dive delay, then a 0.3s pull-back. The line never leaves a box the dive is still in. See `src/components/site/nav-string.ts`.
 
 ## Reveal targets never use translate-* utilities
 Anything the text reveal animates (`data-part`, `data-block`, text targets) must not position itself with `translate-*` utilities. The WAAPI reveal animates the CSS `translate` property with fill both, so it overrides the utility. Use margins (`-ml-[…]`) or a non-animated wrapper. See `docs/memory/fixes.md` (timeline dots).

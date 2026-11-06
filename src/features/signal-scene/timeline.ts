@@ -33,11 +33,15 @@ export const activeChapter = (p: number) => Math.min(CHAPTERS - 1, Math.round(sh
 export const chapterProgress = (i: number) =>
   i === 0 ? 0 : i === CHAPTERS - 1 ? 0.925 : (i + 0.5) / CHAPTERS;
 
-/** Progress where the first morph (intro -> wave) is 30% done: how far the hero guide peeks. */
-export const PEEK_P = boundary(0) - 0.2 * W;
-
 /** Hand-off after "shipped": over the last stretch of progress the globe becomes the home stream. */
 export const FLOW_FROM = 0.945;
+
+/**
+ * How far the hero guide peeks from chapter i: where the morph into the next chapter is 30% done,
+ * or, on the last chapter, 30% of the way into the hand-off to the home stream.
+ */
+export const peekProgress = (i: number) =>
+  i < CHAPTERS - 1 ? boundary(i) - 0.2 * W : FLOW_FROM + 0.3 * (1 - FLOW_FROM);
 export const flowMix = (p: number) => {
   const t = local(p, FLOW_FROM, 1);
   return t * t * (3 - 2 * t);
@@ -128,6 +132,21 @@ function basePose(i: number, view: { w: number; h: number; mobile: boolean }): P
     rotY: ROT_Y[c],
     scale: Math.min(SCALE[c], (FIT[c] * view.w) / 4.4),
   };
+}
+
+/**
+ * Where chapter i's formation sits on the stage when at rest, as fractions of its width and
+ * height from the top left. Derived from the pose the scene uses, for a stage of this aspect.
+ */
+export function formationCentre(
+  i: number,
+  aspect: number,
+  mobile: boolean,
+): { x: number; y: number } {
+  const h = 2 * CAM_Z * Math.tan((FOV * Math.PI) / 360);
+  const w = h * aspect;
+  const pose = chapterPose(i, { w, h, mobile });
+  return { x: 0.5 + pose.x / w, y: 0.5 - pose.y / h };
 }
 
 export interface Vec3 {

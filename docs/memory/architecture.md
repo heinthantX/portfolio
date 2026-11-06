@@ -30,7 +30,7 @@ _Decision_
 
 Chose a 1.2 s hold after a slow gesture stops over finishing at once, so resting fingers pause the morph mid-way. Browsers cannot see trackpad fingers, so a still hold and a still release look alike. Eight shrinking deltas in a row count as inertia (release) and finish after GAP_MS 160. Source: `src/features/signal-scene/useChapterSnap.ts` (`endGesture`), 2026-11-07. Spec: `docs/specs/signal-hero-pace.md`.
 
-## Hero guide replays every 15s while idle
+## Hero guide quiet clock
 _Decision_
 
-Chose sessionStorage with a 15 s spacing over the 60 s localStorage rule. Owner: the session's first play comes after 4.5 s idle; later plays every 15 s. `sinceLast` = now − max(last start, page load), Infinity with no stored start. Rule: scrollY < 4, 4500 ms idle since last input, sinceLast ≥ 15000, visible tab, no reduced motion, no WebGL fallback. Last start is `sessionStorage` `hero-guide-at`, per tab. A 1 s interval rechecks; input aborts only the current run. Source: `src/features/signal-scene/useHeroGuide.ts`, 2026-11-07. Spec: `docs/specs/hero-guide.md`.
+Chose a quiet clock over fixed spacing. Owner: time it from settle on the page, 4.5 s quiet before the session's first play, 15 s after. Quiet marks: last input, settle, last start, page ready. Chose sessionStorage per tab over localStorage's 60 s rule. Runs on every chapter 0–6, not chapter 0 only. Source: `src/features/signal-scene/useHeroGuide.ts`, 2026-11-07. Spec: `docs/specs/hero-guide.md`.

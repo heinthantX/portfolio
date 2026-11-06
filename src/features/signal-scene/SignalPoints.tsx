@@ -261,11 +261,12 @@ void main(){
   w = route(p, r);
   float sc = routeScale(r);
   // hero guide: a few points of the name leak straight down, turn signal and fade, then grow back.
-  // Only while resting on shape 0 (1 - e); vertical only.
-  float dripK = uDrip * (1.0 - e) * (1.0 - fm);
+  // Only while resting on a shape (same weight as the neuron glow: 1 at either rest, 0 mid-morph); vertical only.
+  float dripRest = smoothstep(0.6, 1.0, abs(2.0 * e - 1.0));
+  float dripK = uDrip * dripRest * (1.0 - fm);
   float dripA = 1.0, dripC = 0.0;
   if (dripK > 0.0 && fract(aRand * 317.3) < 0.04) {
-    float dg = clamp(min(uDrip, 1.0) * 1.6 - fract(aRand * 71.3) * 0.6, 0.0, 1.0) * (1.0 - e);
+    float dg = clamp(min(uDrip, 1.0) * 1.6 - fract(aRand * 71.3) * 0.6, 0.0, 1.0) * dripRest;
     w.y -= dg * dg * 1.4;
     dripC = dg;
     dripA = uDrip > 1.0 ? smoothstep(1.0, 1.5, uDrip - fract(aRand * 71.3) * 0.2) : 1.0 - dg;

@@ -12,16 +12,17 @@ Wheel behaviour inside the hero, and the one Lenis feel used on every route. Sce
 - Still hold and still release look alike → morph waits 1.2 s after a real stop → Chrome: slow swipe, then rest → finish at 1.2 s → unverified.
 - Inertia shorter than 8 shrinking deltas → 1.2 s hold instead of 160 ms → Chrome: trackpad fling → finish after the tail → unverified.
 - Mouse notch sends no shrinking run → holds 1.2 s → Chrome: mouse notch, then stop → finish at 1.2 s → unverified.
+- Hero guide starts during its own peek → `resting()` returns −1 while busy → vitest 159/159 full suite (src: vitest, 2026-11-07); per-case unverified.
 
 ## Architecture
-- `useChapterSnap.ts` (tests `useChapterSnap.test.ts`): `useChapterSnap(sectionRef, lenis, enabled)` returns `{ goTo, peek }`. Pure helpers `nextStop` and `settleStop` are tested.
+- `useChapterSnap.ts` (tests `useChapterSnap.test.ts`): `useChapterSnap(sectionRef, lenis, enabled)` returns `{ goTo, peek, resting }`. Pure helpers `nextStop` and `settleStop` are tested.
 - Pace defaults: `STEP_S` 1 s, `MIN_S` 0.4 s (src: useChapterSnap.ts, 2026-11-07).
 - `.env.example` documents the same defaults, 1 s and 0.4 s (src: .env.example, 2026-11-07).
 - Hold: `endGesture` reschedules until `HOLD_MS` 1.2 s after the last wheel event, unless `fading` reaches `RELEASE_RUN` 8 (src: useChapterSnap.ts, 2026-11-07).
 - `fading` counts consecutive shrinking non-fresh deltas (src: useChapterSnap.ts, 2026-11-07). Browsers cannot see trackpad fingers, so 1.2 s is the compromise.
 - Build-time overrides `NEXT_PUBLIC_CHAPTER_STEP_S` and `NEXT_PUBLIC_CHAPTER_MIN_S` (src: .env.example, 2026-11-07). Bad values fall back to defaults; minimum is capped at step (unverified).
 - `wheelMode({speed, chapterPx})` picks step or follow. `HERO_GAIN` 1.15 (src: useChapterSnap.ts, 2026-11-07). The `HERO_LERP` swap is removed (src: useChapterSnap.ts, 2026-11-07).
-- `PEEK_P` is shapeIndex ≈0.3 in `timeline.ts` (src: timeline.ts, 2026-11-07).
+- `PEEK_P` removed. `peekProgress(i)` = boundary(i) − 0.2W, shapeIndex ≈ i + 0.3; last chapter 0.9615 (src: handoff, 2026-11-07).
 - `src/components/site/wheel.ts`: `interceptWheel(fn)` registers the hook. `routeWheel` (renamed from `capWheelDelta`) calls it, then `preventDefault` and returns false. Global 120 px cap removed (src: wheel.ts, 2026-11-07).
 - `src/components/site/smooth-scroll.tsx`: Lenis `lerp` 0.2 and `wheelMultiplier` 1 on every route. `RouteFeel` removed (src: smooth-scroll.tsx, 2026-11-07).
 - Hero displayed progress: `easeToward` rate 16, was 5 (src: SignalHero.tsx, 2026-11-07).
@@ -39,7 +40,7 @@ Wheel behaviour inside the hero, and the one Lenis feel used on every route. Sce
    - **Wheel during a glide:** stops the glide in place (`scrollTo` at `animatedScroll`, immediate), then follows (unverified).
    - **Removed:** free, fling and burst modes (src: useChapterSnap.ts, 2026-11-07).
 2. **Settle (touch, keys, scrollbar):** `settleStop` runs once scrolling is quiet. Past the nudge, it finishes in the direction of travel (unverified). Touch pointers never set `pressed`; `pointercancel` counts as `pointerup` (unverified).
-3. **Peek (hero guide):** `peek()` glides to `PEEK_P` in 0.6 s and back in 0.8 s through the finish/busy path (src: useChapterSnap.ts, 2026-11-07). A wheel during a peek stops it and follows (unverified).
+3. **Peek (hero guide):** `peek(i)` glides to `peekProgress(i)` in 0.6 s and back to `stops()[i]` in 0.8 s, through the finish/busy path (src: handoff, 2026-11-07). A wheel during a peek stops it and follows (unverified).
 4. **Chapter jumps:** the rail, stack outline and layer grid call `goTo` and use the same pace (`signal-hero-chapters.md`).
 5. **Busy tracking:** the snap tracks a `busyUntil` timestamp, not `onComplete`, because Lenis drops `onComplete` on interrupt (`docs/memory/fixes.md`).
 

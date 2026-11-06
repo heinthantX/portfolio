@@ -14,7 +14,7 @@
 | One Lenis feel | Every route uses lerp 0.2 and wheelMultiplier 1. No per-route tuning. | architecture.md#one-lenis-feel-on-every-route |
 | Hero wheel pace | Hero wheel: fast gestures step one chapter, slow ones scrub; no free-scroll mode. | architecture.md#hero-wheel-speed-threshold-instead-of-free-mode |
 | Wheel hold | Slow wheel gesture holds 1.2s after it stops; 8 shrinking deltas (inertia) finish at once. | architecture.md#slow-wheel-holds-before-finishing |
-| Hero guide replays | Hero guide: first play after 4.5s idle, then every 15s; input aborts. | architecture.md#hero-guide-replays-every-15s-while-idle |
+| Hero guide quiet clock | Hero guide: 4.5s quiet before first play, then 15s quiet; any chapter; input aborts. | architecture.md#hero-guide-quiet-clock |
 | Text reveal: head arm | Add `html.paras-armed` in the head script before first paint. Arming after hydration hides painted text. | fixes.md#text-reveal-armed-after-hydration-made-painted-text-vanish-2026-10-24 |
 | Text reveal: view transition | Load-time reveals played behind the ~0.7s view-transition snapshot. Delay them 450-500ms. | fixes.md#load-time-reveals-played-behind-the-view-transition-snapshot-2026-10-24 |
 | Text reveal: StrictMode | Re-observe anything not yet "in" on the second effect run. Otherwise it stays hidden. | fixes.md#strictmode-double-effect-left-reveals-hidden-forever-2026-10-24 |

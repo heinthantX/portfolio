@@ -11,8 +11,9 @@ import {
   FOV,
   flowMix,
   flowStrength,
-  PEEK_P,
+  formationCentre,
   type Pose,
+  peekProgress,
   type Route,
   shapeIndex,
   streamEnergy,
@@ -235,10 +236,40 @@ describe("easeToward", () => {
   });
 });
 
-describe("PEEK_P", () => {
-  it("is where the first morph is 30% done, short of the next resting stop", () => {
-    expect(shapeIndex(PEEK_P)).toBeCloseTo(0.3, 6);
-    expect(PEEK_P).toBeGreaterThan(chapterProgress(0));
-    expect(PEEK_P).toBeLessThan(chapterProgress(1));
+describe("peekProgress", () => {
+  it("is where the next morph is 30% done, short of the next resting stop", () => {
+    for (let i = 0; i < CHAPTERS - 1; i++) {
+      expect(shapeIndex(peekProgress(i))).toBeCloseTo(i + 0.3, 6);
+      expect(peekProgress(i)).toBeGreaterThan(chapterProgress(i));
+      expect(peekProgress(i)).toBeLessThan(chapterProgress(i + 1));
+    }
+  });
+  it("on the last chapter leans 30% into the hand-off", () => {
+    const p = peekProgress(CHAPTERS - 1);
+    expect(p).toBeGreaterThan(chapterProgress(CHAPTERS - 1));
+    expect(p).toBeLessThan(1);
+    expect(flowMix(p)).toBeGreaterThan(0);
+    expect(flowMix(p)).toBeLessThan(0.5);
+  });
+});
+
+describe("formationCentre", () => {
+  it("is the stage centre line for a centred chapter and right of it for a side one", () => {
+    expect(formationCentre(0, 16 / 9, false).x).toBeCloseTo(0.5, 6);
+    expect(formationCentre(2, 16 / 9, false).x).toBeCloseTo(0.5 + 0.235, 6);
+    expect(formationCentre(2, 9 / 16, true).x).toBeCloseTo(0.5, 6);
+  });
+  it("stays on the stage for every chapter, wide or narrow", () => {
+    for (const [aspect, mobile] of [
+      [16 / 9, false],
+      [9 / 19, true],
+    ] as const)
+      for (let i = 0; i < CHAPTERS; i++) {
+        const c = formationCentre(i, aspect, mobile);
+        expect(c.x).toBeGreaterThan(0);
+        expect(c.x).toBeLessThan(1);
+        expect(c.y).toBeGreaterThan(0);
+        expect(c.y).toBeLessThan(1);
+      }
   });
 });

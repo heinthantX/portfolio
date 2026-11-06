@@ -3,7 +3,7 @@
 import type Lenis from "lenis";
 import { type RefObject, useCallback, useEffect, useMemo, useRef } from "react";
 import { interceptWheel } from "@/components/site/wheel";
-import { CHAPTERS, chapterProgress, PEEK_P } from "./timeline";
+import { CHAPTERS, chapterProgress, peekProgress } from "./timeline";
 
 const WINDOW_MS = 100;
 /** A swipe still going at full speed this long after it counted counts again. */
@@ -34,10 +34,12 @@ const MIN_S = Math.min(seconds(process.env.NEXT_PUBLIC_CHAPTER_MIN_S, 0.4), STEP
 /** Inside the hero a slow wheel scrubs a little further than it moves, and one event moves at most a notch. */
 const HERO_GAIN = 1.15;
 const MAX_EVENT_DELTA = 120;
-/** The hero guide's peek: out to PEEK_P, then back to the first stop. */
+/** The hero guide's peek: out to peekProgress(i), then back to chapter i's stop. */
 const PEEK_OUT_S = 0.6;
 const PEEK_BACK_S = 0.8;
 const EPS = 2;
+/** How close to a stop's scroll position counts as resting on it. */
+const REST_PX = 4;
 
 export type WheelMode = "follow" | "step";
 
@@ -102,8 +104,9 @@ const rawDelta = (e: Event) => {
  * A slow wheel scrubs and finishes the chapter when the user stops; a faster one plays only the
  * next chapter at a fixed pace (more pushing meanwhile queues one more). Touch, keys and the
  * scrollbar settle the same way once they stop.
- * Returns `goTo(chapter)` for the rail and jump links, and `peek()`, which nudges the first morph
- * open and back to show the hero scrolls (false if it didn't start).
+ * Returns `goTo(chapter)` for the rail and jump links, `resting()` (the chapter the reader is
+ * resting on, or -1), and `peek(i)`, which nudges chapter i's next morph open and back to show
+ * the hero scrolls (false if it didn't start).
  */
 export function useChapterSnap(
   sectionRef: RefObject<HTMLElement | null>,
@@ -111,7 +114,8 @@ export function useChapterSnap(
   enabled: boolean,
 ) {
   const snapRef = useRef<(y: number) => void>(null);
-  const peekRef = useRef<() => boolean>(null);
+  const peekRef = useRef<(i: number) => boolean>(null);
+  const restingRef = useRef<() => number>(null);
 
   const stops = useCallback(() => {
     const s = sectionRef.current;
@@ -120,12 +124,15 @@ export function useChapterSnap(
     const range = s.offsetHeight - window.innerHeight;
     return Array.from({ length: CHAPTERS }, (_, i) => Math.round(top + range * chapterProgress(i)));
   }, [sectionRef]);
-  const peekY = useCallback(() => {
-    const s = sectionRef.current;
-    if (!s) return undefined;
-    const top = s.getBoundingClientRect().top + window.scrollY;
-    return Math.round(top + (s.offsetHeight - window.innerHeight) * PEEK_P);
-  }, [sectionRef]);
+  const peekY = useCallback(
+    (i: number) => {
+      const s = sectionRef.current;
+      if (!s) return undefined;
+      const top = s.getBoundingClientRect().top + window.scrollY;
+      return Math.round(top + (s.offsetHeight - window.innerHeight) * peekProgress(i));
+    },
+    [sectionRef],
+  );
 
   useEffect(() => {
     if (!enabled || !lenis) return;
@@ -184,13 +191,18 @@ export function useChapterSnap(
     };
     snapRef.current = snap;
 
+    // the chapter the page rests on: idle (no glide, touch, press or wheel gesture) and within REST_PX of its stop
+    const resting = () => {
+      if (busy() || touching || pressed || mode !== "pass") return -1;
+      return stops().findIndex((y) => Math.abs(window.scrollY - y) <= REST_PX);
+    };
+    restingRef.current = resting;
     // a wheel mid-glide stops it and drops the return leg (Lenis drops onComplete when interrupted)
-    const peek = () => {
+    const peek = (i: number) => {
       const s = stops();
-      const y = peekY();
-      if (y === undefined || !s.length || busy() || touching || pressed) return false;
-      if (Math.abs(window.scrollY - s[0]) > EPS || y <= s[0] + EPS) return false;
-      play(y, "finish", PEEK_OUT_S, true, () => play(s[0], "finish", PEEK_BACK_S, false));
+      const y = peekY(i);
+      if (y === undefined || resting() !== i || y <= s[i] + EPS) return false;
+      play(y, "finish", PEEK_OUT_S, true, () => play(s[i], "finish", PEEK_BACK_S, false));
       return true;
     };
     peekRef.current = peek;
@@ -339,6 +351,7 @@ export function useChapterSnap(
       release();
       snapRef.current = null;
       peekRef.current = null;
+      restingRef.current = null;
       clearTimeout(settleTimer);
       clearTimeout(endTimer);
       window.removeEventListener("scroll", onScroll);
@@ -360,6 +373,7 @@ export function useChapterSnap(
     },
     [stops],
   );
-  const peek = useCallback(() => peekRef.current?.() ?? false, []);
-  return useMemo(() => ({ goTo, peek }), [goTo, peek]);
+  const peek = useCallback((i: number) => peekRef.current?.(i) ?? false, []);
+  const resting = useCallback(() => restingRef.current?.() ?? -1, []);
+  return useMemo(() => ({ goTo, peek, resting }), [goTo, peek, resting]);
 }

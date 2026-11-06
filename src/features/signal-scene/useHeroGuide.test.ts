@@ -1,27 +1,43 @@
 import { describe, expect, it } from "vitest";
-import { courierPoints, type GuideState, shouldStartGuide, sinceLast } from "./useHeroGuide";
+import {
+  courierPoints,
+  GUIDE_DELAY_MS,
+  GUIDE_EVERY_MS,
+  type GuideState,
+  guideWait,
+  quietMs,
+  shouldStartGuide,
+} from "./useHeroGuide";
 
 const ok: GuideState = {
-  atTop: true,
-  idleMs: 4500,
+  atStop: true,
+  quietMs: 4500,
+  played: false,
   reducedMotion: false,
-  sinceLastMs: Number.POSITIVE_INFINITY,
   visible: true,
   fallback: false,
 };
 
-describe("shouldStartGuide", () => {
-  it("starts on a fresh visit at the first stop", () => {
-    expect(shouldStartGuide(ok)).toBe(true);
+describe("guideWait", () => {
+  it("is 4.5s for the first play of the session and 15s after", () => {
+    expect(guideWait(false)).toBe(GUIDE_DELAY_MS);
+    expect(guideWait(true)).toBe(GUIDE_EVERY_MS);
   });
-  it("plays again 15s after the last start", () => {
-    expect(shouldStartGuide({ ...ok, sinceLastMs: 15_000 })).toBe(true);
+});
+
+describe("shouldStartGuide", () => {
+  it("first play comes at 4500ms quiet, not before", () => {
+    expect(shouldStartGuide(ok)).toBe(true);
+    expect(shouldStartGuide({ ...ok, quietMs: 4499 })).toBe(false);
+  });
+  it("a later play comes at 15000ms quiet, not before", () => {
+    expect(shouldStartGuide({ ...ok, played: true, quietMs: 15_000 })).toBe(true);
+    expect(shouldStartGuide({ ...ok, played: true, quietMs: 14_999 })).toBe(false);
+    expect(shouldStartGuide({ ...ok, played: true, quietMs: 4500 })).toBe(false);
   });
   it.each([
-    ["scrolled away", { atTop: false }],
-    ["used the page under 4.5s ago", { idleMs: 4499 }],
+    ["not resting on a chapter", { atStop: false }],
     ["reduced motion", { reducedMotion: true }],
-    ["played under 15s ago", { sinceLastMs: 14_999 }],
     ["hidden tab", { visible: false }],
     ["no WebGL", { fallback: true }],
   ])("stays off when %s", (_name, patch) => {
@@ -29,15 +45,16 @@ describe("shouldStartGuide", () => {
   });
 });
 
-describe("sinceLast", () => {
-  it("is open before the first play of the session", () => {
-    expect(sinceLast(0, 1000, 2000)).toBe(Number.POSITIVE_INFINITY);
+describe("quietMs", () => {
+  it("counts from the latest mark: an input, a settle, a start or the canvas being ready", () => {
+    expect(quietMs(20_000, [1000, 2000, 3000, 500])).toBe(17_000);
   });
-  it("counts from the last start", () => {
-    expect(sinceLast(5000, 1000, 20_000)).toBe(15_000);
-  });
-  it("after a reload counts from the load, so only the session's first play comes at 4.5s", () => {
-    expect(sinceLast(1000, 50_000, 54_500)).toBe(4500);
+  it("restarts when the page settles on a chapter or the reader gives input", () => {
+    const marks = { input: 1000, settledAt: 2000, last: 0, ready: 500 };
+    const at = (now: number, m: typeof marks) => quietMs(now, Object.values(m));
+    expect(at(6500, marks)).toBe(4500);
+    expect(at(6500, { ...marks, settledAt: 5000 })).toBe(1500);
+    expect(at(6500, { ...marks, input: 6000 })).toBe(500);
   });
 });
 

@@ -370,7 +370,7 @@ export function SignalHero({ children, finale, poster }: SignalHeroProps) {
     return () => cancelAnimationFrame(raf);
   }, [gate.fallback, gate.active]);
 
-  const { goTo: go, peek } = useChapterSnap(sectionRef, lenis, !gate.fallback);
+  const { goTo: go, peek, resting } = useChapterSnap(sectionRef, lenis, !gate.fallback);
   useHeroGuide({
     ready: gate.ready,
     fallback: gate.fallback,
@@ -379,6 +379,7 @@ export function SignalHero({ children, finale, poster }: SignalHeroProps) {
     railRefs,
     blockRefs,
     packetRef,
+    resting,
     peek,
   });
 
